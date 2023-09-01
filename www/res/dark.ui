@@ -69,6 +69,15 @@ Object Win
 		Rounding 4
 		BorderWidth 1
 	}
+	Clone Button
+	{
+		Name YButton
+		RectWH 50 50 120 30
+		Color4 RGB(250,215,100) RGB(250,215,100) RGB(225,160,0) RGB(225,160,0)
+		ColorHover4 RGB(255,235,150) RGB(255,235,150) RGB(225,160,50) RGB(225,160,50)
+		ColorDown4 RGB(250,215,100) RGB(250,215,100) RGB(225,160,0) RGB(225,160,0)
+		DrawBorder false
+	}	
 	
 	Object Edit
 	{

@@ -1,16 +1,61 @@
-# zlui-viewer README
+# zlui-ts README
 
 ### Brief Description
 
 zlUI is a simple scripted ui system that with a single zlUI.ts file.
 
+<img src="https://zhobo63.github.io/zlui/ezgif-5-ed5913f05c.gif">
+
 ### Requirements
 
 zlUI system rendering base on @zhobo63\imgui-ts
 
-### ui file format
+```ts
+import {ImGui, ImGui_Impl} from '@zhobo63/imgui-ts';
+import { zlUIMgr } from './zlUI';
 
-```cpp
+let ui:zlUIMgr;
+
+function _loop(time:number):void {
+    ImGui_Impl.NewFrame(time);
+    ImGui.NewFrame();
+
+    //Rendering
+    let io=ImGui.GetIO();
+    ui.any_pointer_down=(!ImGui.GetHoveredWindow())?ImGui_Impl.any_pointerdown():false;
+    ui.mouse_pos=io.MousePos;
+    ui.mouse_wheel=io.MouseWheel;
+    ui.Refresh(io.DeltaTime);
+    ui.Paint(ImGui.GetBackgroundDrawList());        
+
+    ImGui.EndFrame();
+    ImGui.Render();
+
+    ImGui_Impl.ClearBuffer(backgroundColor);
+    ImGui_Impl.RenderDrawData(ImGui.GetDrawData());
+    window.requestAnimationFrame(_loop);
+}
+
+window.addEventListener('DOMContentLoaded', async () =>{
+    await ImGui.default();
+    ImGui.CHECKVERSION();
+    ImGui.CreateContext();
+
+    const canvas:HTMLCanvasElement=document.getElementById('canvas') as HTMLCanvasElement;
+    ImGui_Impl.Init(canvas);
+
+    //initialize & load resources
+    ui=new zlUIMgr;
+    await this.ui.Load("main.ui", "res/");
+
+    window.requestAnimationFrame(_loop);
+});
+
+```
+
+### zlui-ts ui file format
+
+```ts
 ////////////////////////////////
 // global function
 ////////////////////////////////
@@ -224,9 +269,11 @@ Object Win
     direction: horizon, vertical
     mode: item, content
     item mode:
+        Arrange vertical item 5 (100,50)
     content mode: 
+        Arrange horizontal content
     */
-    Arrange direction mode
+    Arrange direction mode [itemPerRow] [itemSize.x, itemSize.y]
 
     //TODO
     Hint

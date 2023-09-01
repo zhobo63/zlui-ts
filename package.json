@@ -1,8 +1,8 @@
 {
   "name": "@zhobo63/zlui-ts",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "zlUI is a simple scripted ui system that with a single zlUI.ts file.",
-  "main": "index.js",
+  "main": "./src/index",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "webpack": "webpack --mode=production --node-env=production",

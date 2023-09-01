@@ -10,7 +10,6 @@ TODO
 use ImTransform, features: rotate scale 
 origin:Vec2
 
-Color[4]
 zlUIImageText
 TrackGroup
 Arrange: Item mode
@@ -947,6 +946,18 @@ export class zlUIWin
             switch(this.arrange.mode) {
             case EArrange.Item:
                 this.arrange.item_per_row=Number.parseInt(toks[3]);
+                if(toks[4].match(/\(\d+,\d+\)/)) {
+                    let t=toks[4].split(/\(|\)|\,/g).filter(e=>e);
+                    this.arrange.item_size={
+                        x:Number.parseInt(t[0]),
+                        y:Number.parseInt(t[1]),
+                    }
+                }else {
+                    this.arrange.item_size={
+                        x:Number.parseFloat(toks[4]),
+                        y:Number.parseFloat(toks[5]),
+                    }
+                }
                 break;
             }
             break;
@@ -1364,8 +1375,37 @@ export class zlUIWin
             let h=this.h-this.padding;
             let next=0;
             switch(this.arrange.mode) {
-            case EArrange.Item:
-                break;
+            case EArrange.Item: {
+                w=(this.w-this.padding-this.padding)/this.arrange.item_per_row;
+                h=(this.h-this.padding-this.padding)/this.arrange.item_per_row;
+                for(let i=0;i<this.pChild.length;i++)   {
+                    let ch=this.pChild[i];
+                    if(!ch.isVisible)
+                        continue;
+                    ch.x=x;
+                    ch.y=y;
+                    next++;
+    
+                    switch(this.arrange.direction) {
+                    case EDirection.Vertical:
+                        x+=w;
+                        if(next>=this.arrange.item_per_row) {
+                            next=0;
+                            x=this.padding;
+                            y+=this.arrange.item_size.y;
+                        }
+                        break;
+                    case EDirection.Horizontal:
+                        y+=h;
+                        if(next>=this.arrange.item_per_row) {
+                            next=0;
+                            y=this.padding;
+                            x+=this.arrange.item_size.x;
+                        }
+                        break;
+                    }
+                }
+                break; }
             case EArrange.Content:
                 for(let i=0;i<this.pChild.length;i++)   {
                     let ch=this.pChild[i];

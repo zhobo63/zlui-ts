@@ -2,9 +2,73 @@ ifnot DarkTheme include dark.ui
 
 Clone Panel
 {
-    Name pnl_main
-    RectWH 200 100 400 300
-    //Color4 RGB(255,0,0) RGB(0,255,255) RGB(255,255,) RGB(255,0,255)
+    Name pnl_padding
+    RectWH 100 100 500 300
+    Padding 20
+    Rounding 10
+    Color4 RGBA(35,39,49,255) RGBA(35,39,49,155) RGBA(27,21,30,255) RGBA(27,21,30,155)
+    Visible false
+ 
+    Clone Button
+    {
+        Name btn_ok
+        RectWH 0 0 120 30
+        Anchor xy 1 1
+        Offset -140 0
+        Text OK
+    }
+    Clone Button
+    {
+        Name btn_cancel
+        RectWH 0 0 120 30
+        Anchor xy 1 1
+        Text Cancel
+    }
+}
+
+
+Clone Panel
+{    
+    Name pnl_arrange
+    RectWH 100 100 500 320
+    Dock left|right 0.2 0 0.8 1
+    Padding 10
+    Rounding 10
+    #RoundingCorner top
+    #Clip true
+    Arrange vertical content
+    #Arrange vertical item 5 (100,100)
+    #Visible false
+    
+    Clone[5] Button
+    {
+        Name btn_content
+        RectWH 0 0 100 30
+        Margin 10 10
+        Text Button
+    }
+    Clone Panel
+    {
+        Name pnl1
+        RectWH 0 0 100 80
+        Rounding 5
+        Margin 10 10
+        Text A\sPanel
+    }
+    Clone Panel
+    {
+        Name pnl2
+        RectWH 0 0 100 80
+        Margin 10 10
+        Text B\sPanel
+    }
+
+    Clone[5] YButton
+    {
+        Name btn_content
+        RectWH 0 0 50 50
+        Margin 20 20
+    }
     
 }
 
