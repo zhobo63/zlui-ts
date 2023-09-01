@@ -1,0 +1,114 @@
+ifnot DarkTheme include dark.ui
+Font 1 Arial 26 bold
+
+Clone Frame
+{
+    Name sidebar
+    RectWH 0 0 200 400
+    Dock down 0 0 1 1
+    Padding 10 10
+
+    Clone Button
+    {
+        Name btn_menumode
+        RectWH 10 10 30 30
+        DrawBorder false
+        Text \uf0c9
+    }
+    Clone Text
+    {
+        Name txt_title
+        RectWH 40 10 140 30
+        TextColor RGB(255,100,255)
+        Font 1
+        Text zlUI
+    }
+
+    Clone[6] Button
+    {
+        Name btn_mainmenu
+        RectWH 10 80 180 30
+        DrawBorder false
+        +Y 40
+
+        Text Search
+
+        Clone Text
+        {
+            Name txt_menuicon
+            RectWH 0 0 30 30
+            TextColor RGB(250,0,250)
+            Text \uf530
+        }
+    }
+
+    Param btn_mainmenu[1]
+    {
+        Text Home
+        Param txt_menuicon
+        {
+            Text \uf015
+        }
+    }
+
+    Param btn_mainmenu[2]
+    {
+        Text Introduce
+        Param txt_menuicon
+        {
+            Text \uf304
+        }
+    }
+    Param btn_mainmenu[3]
+    {
+        Text Work
+        Param txt_menuicon
+        {
+            Text \uf0b1
+        }
+    }
+    Param btn_mainmenu[4]
+    {
+        Text Likes
+        Param txt_menuicon
+        {
+            Text \uf004
+        }
+    }
+    Param btn_mainmenu[5]
+    {
+        Text Wallets
+        Param txt_menuicon
+        {
+            Text \uf555
+        }
+    }
+
+    Clone Panel
+    {
+        RectWH 10 340 180 2
+        DrawBorder false
+        Color RGB(57,61,70)
+    }
+    Clone btn_mainmenu[1]
+    {
+        Name btn_logout
+        Top 350
+        Text Logout
+        Param txt_menuicon
+        {
+            Text \uf08b
+        }
+    }
+    Clone btn_mainmenu[1]
+    {
+        Name btn_setting
+        Top 390
+        Text Setting
+        Param txt_menuicon
+        {
+            Text \uf013
+        }
+    }
+
+}

@@ -1,0 +1,11 @@
+ifnot DarkTheme include dark.ui
+
+Clone Panel
+{
+    Name pnl_main
+    RectWH 200 100 400 300
+    //Color4 RGB(255,0,0) RGB(0,255,255) RGB(255,255,) RGB(255,0,255)
+    
+}
+
+#include sidebar.ui

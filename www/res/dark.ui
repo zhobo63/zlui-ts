@@ -1,0 +1,231 @@
+// Dark theme
+CreateFont Fontawesome fa-solid-900.woff2
+Font 0 Arial 16 bold
+Font 1 Verdana 26 bold
+MergeFont 0 \uf000 \uffff Fontawesome 16 normal
+
+/*
+
+*/
+
+Object Win
+{
+	Name DarkTheme
+	Visible false
+	
+	Object Panel
+	{
+		Name Space
+		RectWH 0 0 20 20
+		DrawBorder false
+		DrawClient false
+	}
+
+	Object Panel
+	{
+		Name Panel
+		
+		Color RGBA(35,39,49,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(255,255,255,255)
+		DrawBorder true
+		BorderWidth 1
+	}
+
+	Object Panel
+	{
+		Name Frame
+		
+		Color RGBA(35,39,49,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(255,255,255,255)
+		Rounding 5
+		Padding 10
+		BorderWidth 1
+		DrawBorder true
+	}
+
+	Object Panel
+	{
+		Name Text
+		DrawBorder false
+		DrawClient false
+		TextAlignW Center
+		TextColor RGBA(200,200,200,255)
+		Notify false
+	}
+
+	Object Button
+	{
+		Name Button
+		
+		Color RGBA(35,39,49,255)
+		ColorHover RGBA(57,61,70,255)
+		ColorDown RGBA(77,81,90,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(200,200,200,255)
+		TextColorHover RGBA(255,255,255,255)
+		DrawBorder true
+		Rounding 4
+		BorderWidth 1
+	}
+	
+	Object Edit
+	{
+		Name Edit
+		
+		Color RGBA(23,26,29,255)
+#		ColorHover RGBA(57,61,70,255)
+#		ColorDown RGBA(77,81,90,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(255,255,255,255)
+		DrawBorder true
+		BorderWidth 1
+	}
+	
+	Object Slider
+	{
+		Name Slider
+		Color RGBA(35,39,49,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(255,255,255,255)
+		DrawBorder true
+		BorderWidth 1
+		MouseWheelSpeed 50
+	}
+	
+	Object Slider
+	{
+		Name Popup
+		RectWH 0 0 200 60
+		Color RGBA(35,39,49,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(255,255,255,255)
+		DrawBorder true
+		BorderWidth 1
+		Rounding 4
+	}
+	Object Button
+	{
+		Name PopupItem
+		RectWH 0 0 200 30
+		Color RGBA(35,39,49,0)
+		ColorHover RGBA(57,61,70,255)
+		ColorDown RGBA(77,81,90,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(255,255,255,255)
+		Dock left|right 0 0 1 1
+	}
+	
+	Object Check
+	{	
+		Name TabButton
+		RectWH 0 0 150 30		
+		Color RGBA(35,39,49,255)
+		ColorHover RGBA(57,61,70,255)
+		ColorDown RGBA(77,81,90,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGB(200,200,200)
+		TextColorHover RGB(255,255,255)
+		Padding 10
+		TextAlignW left
+		Rounding 8
+		RoundingCorner top
+		DrawBorder false
+		BorderWidth 1
+		DrawCheck false
+		DrawButton true
+		
+		Clone Button
+		{
+			Name TabButtonClose
+			RectWH 0 0 25 25
+			Anchor X 1
+			Text X
+			DrawBorder false
+			DrawClient false
+			TextColor RGB(120,120,120)
+			TextColorHover RGB(255,255,255)
+		}
+	}
+
+	Object Check
+	{
+		Name Check
+		RectWH 0 0 150 30		
+		Color RGBA(35,39,49,255)
+		ColorHover RGBA(57,61,70,255)
+		ColorDown RGBA(77,81,90,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(200,200,200,255)
+		TextColorHover RGBA(255,255,255,255)
+		TextColorDown RGB(100,200,250)
+		
+		Padding 25
+		Rounding 4
+		BorderWidth 1
+		DrawBorder true
+		DrawClient false
+		TextAnchor xy 0 0.5
+		Text checkbox
+	}
+	Object Combo
+	{
+		Name Combo
+		Color RGBA(35,39,49,0)
+		ColorHover RGBA(57,61,70,255)
+		ColorDown RGBA(77,81,90,255)
+		BorderColor RGBA(57,61,70,255)
+		TextColor RGBA(200,200,200,255)
+		TextColorHover RGBA(255,255,255,255)
+		Rounding 4
+	}
+	
+	Clone Panel
+	{
+		Name LabelPanel
+		RectWH 0 0 300 30
+		DrawBorder false
+		DrawClient false
+		Notify false
+		Dock left|right 0 0 1 1
+		
+		Clone Text
+		{
+			Name label_name
+			Notify false
+			Dock all 0 0 0.5 1
+			TextAnchor xy 1 0.5 
+			Text label			
+		}
+	}
+	Clone LabelPanel
+	{
+		Name LabelEdit
+		Clone Edit
+		{
+			Name label_value
+			Dock all 0.5 0 1 1
+			TextAnchor xy 0 0.5
+			TextOffset 5 0
+			Text value
+		}
+	}
+	Clone LabelPanel
+	{
+		Name LabelCheck
+		Clone Check
+		{
+			Name label_value
+			Dock all 0.5 0 1 1
+			TextAnchor xy 0 0.5
+			TextOffset 5 0
+			DrawBorder false
+			Text
+		}
+	}
+}
+
+DefaultComboMenu Popup
+DefaultComboItem PopupItem
+
