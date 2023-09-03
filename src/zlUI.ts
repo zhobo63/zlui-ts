@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.0.1";
+export const Version="0.1.2";
 
 /*
 TODO
@@ -711,6 +711,7 @@ export class Bezier
     controlPoints:Vec2[];
 }
 
+export {zlUIWin as UIWin}
 
 export class zlUIWin
 {
@@ -1601,6 +1602,8 @@ export class zlUIWin
     user_data:any;
 }
 
+export {zlUIImage as UIImage}
+
 export class zlUIImage extends zlUIWin
 {
     constructor(own:zlUIMgr)
@@ -1686,6 +1689,8 @@ export class zlUIImage extends zlUIWin
     rounding:number=0;
     roundingCorner:ImGui.ImDrawCornerFlags=ImGui.ImDrawCornerFlags.All;
 }
+
+export {zlUIPanel as UIPanel}
 
 export class zlUIPanel extends zlUIImage
 {
@@ -2120,6 +2125,8 @@ export class zlUIPanel extends zlUIImage
     _textSize:ImGui.Vec2;
 }
 
+export {zlUIEdit as UIEdit}
+
 export class zlUIEdit extends zlUIPanel
 {
     on_edit: ((this: zlUIWin, obj: zlUIEdit) => any) | null; 
@@ -2230,6 +2237,8 @@ export class zlUIEdit extends zlUIPanel
     isEnable:boolean=true;
     max_text_length:number;
 }
+
+export {zlUIButton as UIButton}
 
 export class zlUIButton extends zlUIPanel
 {
@@ -2453,6 +2462,8 @@ export class zlUIButton extends zlUIPanel
     colorUp4:number[];
 }
 
+export {zlUICheck as UICheck}
+
 export class zlUICheck extends zlUIButton
 {
     on_check: ((this: zlUIWin, check: boolean) => any) | null; 
@@ -2567,6 +2578,8 @@ export class zlUICheck extends zlUIButton
     checkmark_max:ImVec2=new ImVec2;
     check_text:string[];
 }
+
+export {zlUICombo as UICombo}
 
 export class zlUICombo extends zlUIButton
 {
@@ -2689,6 +2702,8 @@ interface ScrollType
     isScrollW:boolean;
     isScrollH:boolean;    
 }
+
+export {zlUISlider as UISlider}
 
 export class zlUISlider extends zlUIPanel
 {
@@ -2954,6 +2969,8 @@ interface ImageFont
     texure:TexturePack;   
 }
 
+export {zlUIImageText as UIImageText}
+
 export class zlUIImageText extends zlUIWin
 {
     constructor(own:zlUIMgr)
@@ -3177,6 +3194,8 @@ interface ITrackCmd
 }
 
 const TimeUint=1/30;
+
+export {zlTrack as Track}
 
 export class zlTrack
 {
@@ -3773,6 +3792,8 @@ export class zlTrack
     object:zlUIWin;
 }
 
+export {zlTrackGroup as TrackGroup}
+
 export class zlTrackGroup
 {
     on_play_over:((this:zlTrackGroup)=>any)|null;
@@ -3859,6 +3880,8 @@ export class zlTrackGroup
     run_track:zlTrack[]=[];
 }
 
+export {zlTrackMgr as TrackMgr}
+
 export class zlTrackMgr
 {
     constructor(mgr:zlUIMgr)
@@ -3911,6 +3934,8 @@ export class zlTrackMgr
     run_track:zlTrackGroup[]=[];
     is_play:boolean=false;
 }
+
+export {zlUIMgr as UIMgr}
 
 export class zlUIMgr extends zlUIWin
 {

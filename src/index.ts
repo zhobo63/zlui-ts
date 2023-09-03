@@ -1,6 +1,12 @@
 import {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText} from './zlUI';
 export {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText}
 
+
+import * as zlUI from "./zlUI"
+export {zlUI}
+
+
+
 /*
 import {ImGui, ImGui_Impl} from '@zhobo63/imgui-ts';
 import { ImVec4 } from '@zhobo63/imgui-ts/src/imgui';
