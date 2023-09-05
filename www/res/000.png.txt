@@ -1,0 +1,11 @@
+Image 000.png
+SubImage win6.png 26 39 51 77
+SubImage win7.png 26 78 51 116
+SubImage win8.png 52 39 77 77
+SubImage win9.png 52 78 77 116
+SubImage win0.png 0 0 25 38
+SubImage win1.png 0 39 25 77
+SubImage win2.png 0 78 25 116
+SubImage win3.png 26 0 51 38
+SubImage win4.png 52 0 77 38
+SubImage win5.png 78 0 103 38

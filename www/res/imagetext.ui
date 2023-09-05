@@ -1,0 +1,37 @@
+LoadPackImage 000.png.txt
+
+ifnot DarkTheme include dark.ui
+
+Clone Panel 
+{
+    Name pnl_imagetext
+    RectWH 450 50 120 60
+
+    Object ImageText
+    {
+        Name Text_Number
+        RectWH 0 0 120 60
+        ImageList win0.png 25 38 0 0
+        ImageList win1.png 25 38 0 0
+        ImageList win2.png 25 38 0 0
+        ImageList win3.png 25 38 0 0
+        ImageList win4.png 25 38 0 0
+        ImageList win5.png 25 38 0 0
+        ImageList win6.png 25 38 0 0
+        ImageList win7.png 25 38 0 0
+        ImageList win8.png 25 38 0 0
+        ImageList win9.png 25 38 0 0				
+        Ascii 0 0
+        Ascii 1 1
+        Ascii 2 2
+        Ascii 3 3
+        Ascii 4 4
+        Ascii 5 5
+        Ascii 6 6	
+        Ascii 7 7
+        Ascii 8 8
+        Ascii 9 9
+        Text 568				
+    }
+
+}

@@ -1,8 +1,8 @@
 {
   "name": "@zhobo63/zlui-ts",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "zlUI is a simple scripted ui system that with a single zlUI.ts file.",
-  "main": "./src/index",
+  "main": "./src/zlUI",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "webpack": "webpack --mode=production --node-env=production",
@@ -27,7 +27,7 @@
   "homepage": "https://github.com/zhobo63/zlui-ts#readme",
   "devDependencies": {
     "@webpack-cli/generators": "^3.0.7",
-    "@zhobo63/imgui-ts": "^0.1.33",
+    "@zhobo63/imgui-ts": "^0.1.36",
     "ts-loader": "^9.4.4",
     "typescript": "^5.2.2",
     "webpack": "^5.88.2",

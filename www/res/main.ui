@@ -1,4 +1,5 @@
 ifnot DarkTheme include dark.ui
+include imagetext.ui
 
 Clone Panel
 {
@@ -6,8 +7,9 @@ Clone Panel
     RectWH 100 100 500 300
     Padding 20
     Rounding 10
+    Clip true
     Color4 RGBA(35,39,49,255) RGBA(35,39,49,155) RGBA(27,21,30,255) RGBA(27,21,30,155)
-    Visible false
+    #Visible false
  
     Clone Button
     {
@@ -30,7 +32,7 @@ Clone Panel
 Clone Panel
 {    
     Name pnl_arrange
-    RectWH 100 100 500 320
+    RectWH 100 100 500 360
     Dock left|right 0.2 0 0.8 1
     Padding 10
     Rounding 10
@@ -69,7 +71,69 @@ Clone Panel
         RectWH 0 0 50 50
         Margin 20 20
     }
-    
+    Clone[2] Check
+    {
+        Name chk_content
+        RectWH 0 0 120 30
+        Margin 10 10
+    }
+    Clone Combo
+    {
+        Name cmb_content
+        RectWH 0 0 120 30
+        Margin 10 10
+        ComboItems AAA BBB CCC
+        ComboValue 0
+    }
+    Clone pnl_imagetext
+    {
+        Name pnl_imagetext1
+        Margin 10 10
+        W 200
+        Param Text_Number
+        {
+            Name imagetext_num1
+            W 200
+            Text 63212
+        }
+    }
 }
 
-#include sidebar.ui
+TrackGroup rot
+{
+    Track pnl_arrange
+    {
+        Rotate 0 1200 360
+        SetRotate 1201 0
+        Scale 0 100 1.2
+        Scale 100 200 0.5
+        Scale 200 1200 1
+    }
+}
+TrackGroup rot_pnl1
+{    
+    Track pnl1
+    {
+        SetRotate 0 0
+        Rotate 0 120 360
+        Rotate 120 240 0
+    }
+}
+TrackGroup img_text
+{
+    Track imagetext_num1
+    {
+        Text 0 6
+        Text 10 63
+        Text 20 632
+        Text 30 6321
+        Text 40 63212
+        Text 50 63212
+    }
+}
+
+PlayTrack rot -1
+PlayTrack rot_pnl1 -1
+PlayTrack img_text -1
+
+include sidebar.ui

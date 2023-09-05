@@ -53,6 +53,14 @@ window.addEventListener('DOMContentLoaded', async () =>{
 
 ```
 
+### Known Issues
+
+ImTransform when rotate or scale
+
+- Edit Box
+- Clip Rect 
+
+
 ### zlui-ts ui file format
 
 ```ts
@@ -452,14 +460,29 @@ Object Slider
 //ImageText extend Win
 Object ImageText
 {
-    //TODO
-    ImageList
-    ImageW
-    ImageH
-    Text
-    Ascii
-    TextAlignW
-    TextAlignH
+    //name: SubImage name, see #Pack Image
+    ImageList name width height offsetx offsety
+
+    //horizontal split image by count, each size is (width, height)
+    ImageW name width height count
+
+    //vertical split image by count, each size is (width, height)
+    ImageH name width height count
+
+    Text string
+
+    //imageIndex is the index of the ImageList
+    Ascii char imageIndex
+
+    //mode: left, center, right
+    TextAlignW mode
+
+    //mode: top, center, down
+    TextAlignH mode
+
+    //x:0~1, y:0~1
+    TextAnchor x y
+
     FontSpace number
 }
 
