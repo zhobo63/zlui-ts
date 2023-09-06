@@ -1,0 +1,186 @@
+DefaultBorderWidth 0
+DefaultScreenSize 1920 1080
+LoadPackImage atlas.ui000.png.txt
+ScaleMode stretch
+
+Object Image
+{
+	Name ui_login
+	RectWH 0 0 1920 1080
+	Image bg_front_end_login.png
+//	Align Client 
+	Object Panel
+	{
+		Name version
+		RectWH 1700 1050 220 30
+		TextColor RGBA(222,147,20,255)
+		DrawClient false
+		Font 2
+		Text version_100
+	}
+	Object Image
+	{
+		RectWH 0 140 387 250
+		Image logo_big.png
+		Align CenterW
+	}
+	Object Image
+	{
+		RectWH 0 400 700 450
+		Image bg_front_end_login.png
+		Align CenterW
+	
+		Object Panel 
+		{
+			Name title
+			RectWH 100 10 500 80
+			DrawClient false
+			//Align CenterW
+			TextColor RGBA(255,255,255,255)
+			Font 1
+			Text 點餐系統
+		}
+		Object Panel
+		{
+			Name user
+			RectWH 100 100 500 80
+			DrawClient false
+//			Align CenterW
+			Color RGBA(255,255,255,255)
+			Board menu_item_bg_normal_1.png 20 20 186 61
+			Object Image
+			{
+				RectWH 15 15 44 50
+				Image icon_login_front_end_code_normal.png
+			}
+			Object Panel
+			{
+				RectWH 70 5 100 70
+				TextColor RGBA(0,0,0,255)
+				DrawClient false					
+				Text 代號:
+			}
+			Object Edit
+			{
+				Name user_txt
+				RectWH 180 5 300 70
+				DrawClient false
+				TextColor RGBA(0,0,0,255)
+				Text user_txt
+			}
+		}
+		Object Panel
+		{
+			Name pw
+			RectWH 100 200 500 80
+			Color RGBA(255,255,255,255)
+			DrawClient false
+//			Align CenterW
+			Board menu_item_bg_normal_1.png 20 20 186 61
+			Object Image
+			{
+				RectWH 15 15 44 50
+				Image icon_login_front_end_password_normal.png
+			}
+			Object Panel
+			{
+				RectWH 70 5 100 70
+				TextColor RGBA(0,0,0,255)
+				DrawClient false					
+				Text 密碼:
+			}
+			Object Edit
+			{
+				Name user_pw
+				RectWH 180 5 300 70
+				TextColor RGBA(0,0,0,255)
+				DrawClient false
+				Text user_pw
+				Password *
+			}
+		}
+		Object Button
+		{
+			Name login_btn
+			RectWH 100 300 500 80
+//			Align CenterW
+			DrawClient false
+			DrawBorder false
+			Board menu_item_bg_normal_1.png 20 20 186 61
+			BoardDown menu_item_bg_normal_1.png 20 20 186 61
+			Color RGBA(231,141,0,255)
+			ColorDown RGBA(255,202,58,255)
+			Text 登入
+		}
+	}
+	Object Button
+	{
+		Name fullscreen
+		RectWH 1860 10 50 50
+		Color RGBA(255,200,0,255)
+		ColorDown RGBA(200,150,0,255)
+		Image fullscreen.png
+	}
+
+	Object Image
+	{
+		RectWH 750 1000 514 20
+		Align CenterW
+		Image Copyright.png
+	}
+}
+
+Object Panel
+{
+	Name numpad
+	RectWH 250 500 205 280
+	DrawClient false
+	Color RGBA(255,255,255,255)
+	Board menu_item_bg_normal_1.png 20 20 186 61
+	Drag true
+	//Visible false
+	Object Panel
+	{
+		Name numpad_key1
+		RectWH 5 5 200 60
+		DrawClient false
+		Notify false
+		Object[3] Button
+		{
+			Name key
+			RectWH 0 0 60 60
+			DrawClient false
+			//DrawBorder false
+			Color RGBA(255,255,255,255)
+			ColorDown RGBA(200,200,200,255)
+			TextColor RGBA(55,55,55,255)
+			Image order_button_hook_bg.png
+			ImageDown order_button_hook_bg.png
+			Text 0
+			+X 65
+		}
+	}
+	Clone numpad_key1
+	{
+		Name numpad_key2
+		Top 70
+	}
+	Clone numpad_key1
+	{
+		Name numpad_key3
+		Top 140
+	}
+	Clone numpad_key1
+	{
+		Name numpad_key4
+		Top 210
+		Param key[1]
+		{
+			Visible false
+		}
+		Param key[2]
+		{
+			Text ←
+		}
+	}
+}

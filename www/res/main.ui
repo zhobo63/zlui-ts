@@ -1,5 +1,6 @@
 ifnot DarkTheme include dark.ui
 include imagetext.ui
+#include login.ui
 
 Clone Panel
 {

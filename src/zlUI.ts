@@ -2,9 +2,14 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.6";
+export const Version="0.1.11";
 
-export let Use_ImTransform=true;
+export var Use_ImTransform=true;
+
+export function SetUseImTransform(b:boolean){
+    Use_ImTransform=b;
+}
+
 //export let Use_ImTransform=false;
 
 /*
@@ -407,8 +412,20 @@ function ParseCorner(tok:string):ImGui.ImDrawCornerFlags
 
 export enum ScaleMode
 {
+    None,
     Stretch,
     AspectRatio,
+}
+
+export function ParseScaleMode(tok:string):ScaleMode
+{
+    switch(tok) {
+    case "stretch":
+        return ScaleMode.Stretch;
+    case "aspectratio":
+        return ScaleMode.AspectRatio;
+    }
+    return ScaleMode.None;
 }
 
 export interface TexturePack
@@ -625,6 +642,15 @@ export class Rect
         v.z=this.max.x;
         v.w=this.max.y;
     }
+
+    get x():number {return this.xy.x;}
+    get y():number {return this.xy.y;}
+    get z():number {return this.max.x;}
+    get w():number {return this.max.y;}
+    set x(n:number) {this.xy.x=n;}
+    set y(n:number) {this.xy.y=n;}
+    set z(n:number) {this.max.x=n;}
+    set w(n:number) {this.max.y=n;}
 
     xy:ImGui.ImVec2;
     max:ImGui.ImVec2;
@@ -1799,11 +1825,9 @@ export class zlUIImage extends zlUIWin
     SetImage(name: string): void {
         this.image=this._owner.GetTexture(name);
     }
-
-    Paint(drawlist:ImGui.ImDrawList):void 
+    PaintImage(drawlist:ImGui.ImDrawList):void 
     {
-        if(this.image)  {
-            let vstart=Use_ImTransform?drawlist.GetVertexSize():0;
+        if(this.image)  {            
             let im=this.image;
             if(im.texture._texture) {
                 if(!im.uv1) {
@@ -1815,9 +1839,17 @@ export class zlUIImage extends zlUIWin
                     MultiplyAlpha(this.color, this.alpha),
                     this.rounding, this.roundingCorner);
             }
-            if(Use_ImTransform) {
-                drawlist.Transform(this._world, vstart);
-            }
+        }
+    }
+
+    Paint(drawlist:ImGui.ImDrawList):void 
+    {
+        if(Use_ImTransform) {
+            let vstart=drawlist.GetVertexSize();
+            this.PaintImage(drawlist);
+            drawlist.Transform(this._world, vstart);
+        }else {
+            this.PaintImage(drawlist);
         }
         super.Paint(drawlist);
     }
@@ -2073,16 +2105,7 @@ export class zlUIPanel extends zlUIImage
     }
     PaintPanel(drawlist:ImGui.ImDrawList):void 
     {
-        if(this.image)  {
-            let im=this.image;
-            if(im.texture._texture) {
-                if(!im.uv1) {
-                    this.image= UpdateTexturePack(im);
-                }
-                drawlist.AddImage(im.texture._texture, this._localRect.xy, this._localRect.max, im.uv1, im.uv2,
-                    MultiplyAlpha(this.color,this.alpha));
-            }
-        }
+        this.PaintImage(drawlist);
         this.PaintClient(drawlist);
         if(this.drawBoard)  {
             this.drawBoard.color=this.color;
@@ -2146,7 +2169,10 @@ export class zlUIPanel extends zlUIImage
         }else {
             this.PaintPanel(drawlist);
         }
-        super.Paint(drawlist);
+
+        this._owner.paint_count++;
+        this._isPaintout=true;
+        this.PaintChild(drawlist);
     }
 
     SetText(text:string):void
@@ -2565,9 +2591,11 @@ export class zlUIButton extends zlUIPanel
             this.isDrawHover=false;
             this.drawBoard=this.boardHover;
             this.image=this.imageHover;
+            this.color=this.colorHover;
         }else {
             this.drawBoard=this.boardUp;
             this.image=this.imageUp;
+            this.color=this.colorUp;
         }
     }
     PaintTextColor():void
@@ -2577,8 +2605,8 @@ export class zlUIButton extends zlUIPanel
         }
         else if(this.isDown) {
             this.textColor=this.textColorDown;
-        }else if(this._owner.hover==this) {
-
+        }else if(this._owner.hover==this&&this.textColorHover) {
+            this.textColor=this.textColorHover;
         }else {
             this.textColor=this.textColorUp;
         }
@@ -4406,6 +4434,9 @@ export class zlUIMgr extends zlUIWin
             this.default_w=this.w=Number.parseInt(toks[1]);
             this.default_h=this.h=Number.parseInt(toks[2]);
             break;
+        case "scalemode":
+            this.scale_mode=ParseScaleMode(toks[1]);
+            break;
         case "defaultpanelcolor":
             this.default_panel_color=ParseColor(toks[1]);
             break;
@@ -4713,6 +4744,17 @@ export class zlUIMgr extends zlUIWin
     {
         this.track.track[name].Stop();
     }
+    OnResize(w:number, h:number):void
+    {
+        if(this.scale_mode) {
+            this.ScaleWH(w, h, this.scale_mode);
+        }else {
+            this.w=w;
+            this.h=h;
+            this.SetCalRect();
+        }
+    }
+
     get DefaultComboMenu():zlUISlider
     {
         if(!this.default_combo_menu) {
@@ -4756,6 +4798,7 @@ export class zlUIMgr extends zlUIWin
 
     default_w:number;
     default_h:number;
+    scale_mode:ScaleMode;
 
     default_combo_menu:zlUISlider;
     default_combo_item:zlUIButton;
