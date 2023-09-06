@@ -134,19 +134,9 @@ window.addEventListener('DOMContentLoaded', async () =>{
     window.onresize=()=>{
         if(app) {app.onResize(canvas.scrollWidth, canvas.scrollHeight);}
     };
-    let style=ImGui.GetStyle();
-    style.WindowRounding=4;
-    style.FrameRounding=4;
-    style.FrameBorderSize=1;
-    style.ChildRounding=4;
-    style.PopupRounding=4;
-    style.WindowMinSize.Set(200,160);
-    style.Colors[ImGui.ImGuiCol.PopupBg].Set(0.2,0.2,0.2,1);
 
     backgroundColor=new ImVec4(23/255,26/255,29/255,1);
-    
-    console.log(style);
-
+   
     window.requestAnimationFrame(_loop);
 });
 

@@ -2,13 +2,15 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.4";
+export const Version="0.1.6";
 
 export let Use_ImTransform=true;
 //export let Use_ImTransform=false;
 
 /*
 TODO
+
+zlUIAni
 TrackGroup
 Hint
 
@@ -193,6 +195,16 @@ export function fromColorHex(c:number):Vec4
     let b=((c&0x00ff0000)>>16)/255;
     let a=((c&0xff000000)>>24)/255;
     return {x:r,y:g,z:b,w:a};
+}
+
+export function MultiplyAlpha(c:number, alpha:number):number
+{
+    if(alpha>=1) return c;
+    if(alpha<=0) return 0;
+    let a=((c&0xff000000)>>>24);
+    a=a*alpha/255;
+    a=Math.round(a*255)<<24>>>0;
+    return ((a)|(c&0x00ffffff))>>>0;
 }
 
 export function ParseBool(tok:string):boolean
@@ -498,17 +510,17 @@ export enum EDock
 
 export interface IDock
 {
-    mode:EDock
-    x:number
-    y:number
-    z:number
-    w:number
+    mode:EDock;
+    x:number;
+    y:number;
+    z:number;
+    w:number;
 }
 
 export interface Vec2
 {
-    x:number
-    y:number
+    x:number;
+    y:number;
 }
 
 function Vec2Add(a:Vec2, b:Vec2):Vec2
@@ -526,10 +538,96 @@ function Vec2Multiply(a:Vec2, b:Vec2):Vec2
 
 export interface Vec4
 {
-    x:number
-    y:number
-    z:number
-    w:number
+    x:number;
+    y:number;
+    z:number;
+    w:number;
+}
+
+export class Rect
+{
+    constructor(xy?:ImGui.ImVec2, max?:ImGui.ImVec2)
+    {
+        if(!xy) {
+            xy=new ImGui.ImVec2(0,0);            
+        }
+        if(!max) {
+            max=new ImGui.ImVec2(0,0);
+        }
+        this.xy=xy;
+        this.max=max;
+    }
+    Set(x:number, y:number, right:number, down:number):void
+    {
+        this.xy.Set(x,y);
+        this.max.Set(right,down);
+    }
+
+    Clone():Rect
+    {
+        let xy=new ImGui.ImVec2().Copy(this.xy);
+        let max=new ImGui.ImVec2().Copy(this.max);
+        return new Rect(xy, max);
+    }
+    Copy(r:Rect):this
+    {
+        this.xy.Copy(r.xy);
+        this.max.Copy(r.max);
+        return this;
+    }
+    Inside(pt:ImGui.ImVec2):boolean
+    {
+        let xy=this.xy;
+        let max=this.max;
+        return (pt.x>=xy.x&&pt.x<=max.x&&pt.y>=xy.y&&pt.y<=max.y)?true:false;
+    }
+    InsideRect(rc:Vec4):boolean
+    {
+        if(this.max.x<rc.x||this.xy.x>rc.z||this.max.y<rc.y||this.xy.y>rc.w) {
+            return false;
+        }
+        return true;
+    }
+
+    TransformTo(tm:ImGui.ImTransform, target:Rect):void
+    {
+        tm.TransformTo(this.xy, target.xy);
+        tm.TransformTo(this.max, target.max);
+    }
+    Intersec(rc:Rect)
+    {
+        if(this.xy.x<rc.xy.x) {
+            this.xy.x=rc.xy.x;
+        }
+        if(this.xy.y<rc.xy.y) {
+            this.xy.y=rc.xy.y;
+        }
+        if(this.max.x>rc.max.x) {
+            this.max.x=rc.max.x;
+        }
+        if(this.max.y>rc.max.y) {
+            this.max.y=rc.max.y;
+        }
+    }
+    toVec4():Vec4
+    {
+        return {
+            x:this.xy.x,
+            y:this.xy.y,
+            z:this.max.x,
+            w:this.max.y
+        }
+    }
+    CopyTo(v:ImGui.ImVec4):void
+    {
+        v.x=this.xy.x;
+        v.y=this.xy.y;
+        v.z=this.max.x;
+        v.w=this.max.y;
+    }
+
+    xy:ImGui.ImVec2;
+    max:ImGui.ImVec2;
 }
 
 function ParseDock(tok:string):EDock
@@ -1124,12 +1222,9 @@ export class zlUIWin
     {
         let clip=this._owner.LastClipRect;
         if(clip) {
-            let screenXY=obj.screenXY;
-            let screenMax=obj.screenMax;
-            if(screenMax.x<clip.x||screenXY.x>clip.z||
-                screenMax.y<clip.y||screenXY.y>clip.w) {
-                return false;
-            }
+            if(!obj._screenRect.InsideRect(clip)) {
+                return false
+            }   
         }
 
         if(obj.x>this.w||obj.y>this.h)
@@ -1138,40 +1233,23 @@ export class zlUIWin
             return false;
         return true;
     }
-    SetClipRect(xy:ImVec2, max:ImVec2)
+    SetClipRect(rc:Rect)
     {
         if(this.isClip) {
-            if(this._clipXY.x<xy.x) {
-                this._clipXY.x=xy.x;
-            }
-            if(this._clipXY.y<xy.y) {
-                this._clipXY.y=xy.y;
-            }
-            if(this._clipMax.x>max.x) {
-                this._clipMax.x=max.x;
-            }
-            if(this._clipMax.y>max.y) {
-                this._clipMax.y=max.y;
-            }
-            xy=this._clipXY;
-            max=this._clipMax;
+            this._clipRect.Intersec(rc);
+            rc=this._clipRect;
         }
         for(let ch of this.pChild) {
-            ch.SetClipRect(xy, max);
+            ch.SetClipRect(rc);
         }
     }
 
     PaintChild(drawlist:ImGui.ImDrawList):void
     {
         if(this.isClip) {
-            drawlist.PushClipRect(this._clipXY, this._clipMax);
-            this._owner.clip_stack.push({
-                x:this._clipXY.x,
-                y:this._clipXY.y,
-                z:this._clipMax.x,
-                w:this._clipMax.y
-            })
-            this.SetClipRect(this._clipXY, this._clipMax);
+            drawlist.PushClipRect(this._clipRect.xy, this._clipRect.max);
+            this._owner.clip_stack.push(this._clipRect.toVec4())
+            this.SetClipRect(this._clipRect);
         }
         for(let i=0;i<this.pChild.length;i++)   {
             let obj=this.pChild[i];
@@ -1349,13 +1427,12 @@ export class zlUIWin
                 px=parent.w*parent.origin.x;
                 py=parent.h*parent.origin.y;
             }else {        
-                px=parent._screenXY.x+this.offset.x;    //+parent.borderWidth;
-                py=parent._screenXY.y+this.offset.y;    //+parent.borderWidth;
+                px=parent._localRect.xy.x+this.offset.x;    //+parent.borderWidth;
+                py=parent._localRect.xy.y+this.offset.y;    //+parent.borderWidth;
             }
         }
 
         if(Use_ImTransform) {
-
             let ox=this.w*this.origin.x;
             let oy=this.h*this.origin.y;
             if(this.originOffset) {
@@ -1383,16 +1460,19 @@ export class zlUIWin
         x2=Math.round(x2);
         y1=Math.round(y1);
         y2=Math.round(y2);
-        this._screenXY.Set(x1, y1);
-        this._screenMax.Set(x2, y2);
+        this._localRect.Set(x1, y1, x2, y2);
         if(Use_ImTransform) {
-            let screenXY=this.screenXY;
-            let screenMax=this.screenMax;
-            this._clipXY.Set(screenXY.x+this.padding,screenXY.y+this.padding);
-            this._clipMax.Set(screenMax.x-this.padding,screenMax.y-this.padding);
+            this._localRect.TransformTo(this._world, this._screenRect);
+            let screenXY=this._screenRect.xy;
+            let screenMax=this._screenRect.max;
+            this._clipRect.Set(
+                screenXY.x+this.padding,screenXY.y+this.padding,
+                screenMax.x-this.padding,screenMax.y-this.padding);
         }else {
-            this._clipXY.Set(x1+this.padding,y1+this.padding);
-            this._clipMax.Set(x2-this.padding,y2-this.padding);
+            this._screenRect=this._localRect;
+            this._clipRect.Set(
+                x1+this.padding,y1+this.padding,
+                x2-this.padding,y2-this.padding);
         }
         this.isCalRect=false;
 
@@ -1511,17 +1591,19 @@ export class zlUIWin
             return undefined;
         if(!this.isVisible)
             return undefined;
+        if(this.alpha<=0)
+            return undefined;
 
         if(Use_ImTransform) {
             if(!this._invWorld)
                 return undefined;
             let pt=this._invWorld.Transform(pos);
-            if(!Inside(pt, this._screenXY, this._screenMax)) {
+            if(!this._localRect.Inside(pt)) {
                 return undefined;
             }
         }
         else { 
-            if(!Inside(pos, this._screenXY, this._screenMax))
+            if(!this._screenRect.Inside(pos))
                 return undefined;
         }
         for(let i=this.pChild.length-1;i>=0;i--) {
@@ -1542,11 +1624,12 @@ export class zlUIWin
             if(!this._invWorld)
                 return undefined;
             let pt=this._invWorld.Transform(pos);
-            if(!Inside(pt, this._screenXY, this._screenMax))
+            if(!this._localRect.Inside(pt)) {
                 return undefined;
+            }
         }
         else {
-            if(!Inside(pos, this._screenXY, this._screenMax))
+            if(!this._screenRect.Inside(pos))
                 return undefined;
         }
         for(let i=this.pChild.length-1;i>=0;i--) {
@@ -1599,17 +1682,23 @@ export class zlUIWin
         }
         return false;
     }
-    set Text(text:string) {}
-    set Image(name:string) {}
+    SetText(text:string) {}
+    SetImage(name:string) {}
     set Color(color:Vec4) {}
     get Color():Vec4 {return {x:1,y:1,z:1,w:1}}
-    get screenXY():ImGui.ImVec2
-    {
-        return Use_ImTransform&&this._world?this._world.Transform(this._screenXY): this._screenXY;
+    SetAlpha(alpha:number) {
+        this.alpha_set=alpha;
+        this.alpha=alpha*this.alpha_local;
+        for(let ch of this.pChild) {
+            ch.SetAlpha(this.alpha);
+        }
     }
-    get screenMax():ImGui.ImVec2
-    {
-        return Use_ImTransform&&this._world?this._world.Transform(this._screenMax): this._screenMax;
+    SetLocalAlpha(alpha:number) {
+        this.alpha_local=alpha;
+        this.alpha=alpha*this.alpha_set;
+        for(let ch of this.pChild) {
+            ch.SetAlpha(this.alpha);
+        }
     }
 
     Name:string;
@@ -1620,7 +1709,6 @@ export class zlUIWin
     isCanNotify:boolean=true;
     isCanDrag:boolean=false;
     isClip:boolean=false;
-    //isAutoHeight:boolean=false;
     isDelete:boolean=false;
     pChild:zlUIWin[]=[];
     x:number=0;
@@ -1639,6 +1727,9 @@ export class zlUIWin
     offset:Vec2={x:0,y:0}
     autosize:EAutosize=EAutosize.None;    
     hint:string;
+
+    alpha_set:number=1;
+    alpha_local:number=1;
     alpha:number=1;
 
     rotate:number=0;
@@ -1648,10 +1739,9 @@ export class zlUIWin
 
     _csid:string;
     _owner:zlUIMgr;
-    _screenXY:ImGui.ImVec2=new ImGui.ImVec2(0,0);
-    _screenMax:ImGui.ImVec2=new ImGui.ImVec2(0,0);
-    _clipXY:ImGui.ImVec2=new ImGui.ImVec2(0,0);
-    _clipMax:ImGui.ImVec2=new ImGui.ImVec2(0,0);
+    _localRect:Rect=new Rect;
+    _screenRect:Rect=new Rect;
+    _clipRect:Rect=new Rect;
     _autosize_change:boolean=false;
     _isPaintout:boolean=false;
 
@@ -1721,7 +1811,8 @@ export class zlUIImage extends zlUIWin
                 }
                 drawlist.AddImageRounded(
                     im.texture._texture, 
-                    this._screenXY, this._screenMax, im.uv1, im.uv2, this.color,
+                    this._localRect.xy, this._localRect.max, im.uv1, im.uv2,
+                    MultiplyAlpha(this.color, this.alpha),
                     this.rounding, this.roundingCorner);
             }
             if(Use_ImTransform) {
@@ -1731,7 +1822,6 @@ export class zlUIImage extends zlUIWin
         super.Paint(drawlist);
     }
 
-    set Image(name:string) {this.SetImage(name);}
     set Color(c:Vec4) {this.color=toColorHex(c);}
     get Color():Vec4 {return fromColorHex(this.color);}
 
@@ -1883,14 +1973,14 @@ export class zlUIPanel extends zlUIImage
         if(!board.vert)   {
             const iw=board.image.x2-board.image.x1;
             const ih=board.image.y2-board.image.y1;
-            const x1=this._screenXY.x;
+            const x1=this._localRect.xy.x;
             const x2=x1+board.x1;
-            const x3=this._screenMax.x-(iw-board.x2);
-            const x4=this._screenMax.x;
-            const y1=this._screenXY.y;
+            const x3=this._localRect.max.x-(iw-board.x2);
+            const x4=this._localRect.max.x;
+            const y1=this._localRect.xy.y;
             const y2=y1+board.y1;
-            const y3=this._screenMax.y-(ih-board.y2);
-            const y4=this._screenMax.y;
+            const y3=this._localRect.max.y-(ih-board.y2);
+            const y4=this._localRect.max.y;
 
             board.vert=[];
             board.vert.push(new ImGui.Vec2(x1, y1));    
@@ -1949,16 +2039,17 @@ export class zlUIPanel extends zlUIImage
             board.uv.push(new ImGui.Vec2(u3, v4));
             board.uv.push(new ImGui.Vec2(u4, v4));
         }
+        let col=MultiplyAlpha(board.color, this.alpha);
 
         for(let i=0;i<3;i++)    {
             if(board.visible[i])    {
-                drawlist.AddImage(board.image.texture._texture,board.vert[i], board.vert[i+5], board.uv[i], board.uv[i+5], board.color);
+                drawlist.AddImage(board.image.texture._texture,board.vert[i], board.vert[i+5], board.uv[i], board.uv[i+5], col);
             }
             if(board.visible[i+3])    {
-                drawlist.AddImage(board.image.texture._texture,board.vert[i+4], board.vert[i+9], board.uv[i+4], board.uv[i+9], board.color);
+                drawlist.AddImage(board.image.texture._texture,board.vert[i+4], board.vert[i+9], board.uv[i+4], board.uv[i+9], col);
             }
             if(board.visible[i+6])    {
-                drawlist.AddImage(board.image.texture._texture,board.vert[i+8], board.vert[i+13], board.uv[i+8], board.uv[i+13], board.color);                
+                drawlist.AddImage(board.image.texture._texture,board.vert[i+8], board.vert[i+13], board.uv[i+8], board.uv[i+13], col);
             }
         }
     }
@@ -1967,11 +2058,15 @@ export class zlUIPanel extends zlUIImage
         if(this.isDrawClient)   {
             if(this.color4) {
                 drawlist.AddRectFilledMultiColorRound(
-                    this._screenXY, this._screenMax, 
-                    this.color4[0], this.color4[1], this.color4[2], this.color4[3],
+                    this._localRect.xy, this._localRect.max, 
+                    MultiplyAlpha(this.color4[0],this.alpha), 
+                    MultiplyAlpha(this.color4[1],this.alpha), 
+                    MultiplyAlpha(this.color4[2],this.alpha), 
+                    MultiplyAlpha(this.color4[3],this.alpha),
                     this.rounding, this.roundingCorner);
             }else {
-                drawlist.AddRectFilled(this._screenXY, this._screenMax, this.color,
+                drawlist.AddRectFilled(this._localRect.xy, this._localRect.max, 
+                    MultiplyAlpha(this.color, this.alpha),
                     this.rounding, this.roundingCorner);
             }
         }
@@ -1984,7 +2079,8 @@ export class zlUIPanel extends zlUIImage
                 if(!im.uv1) {
                     this.image= UpdateTexturePack(im);
                 }
-                drawlist.AddImage(im.texture._texture, this._screenXY, this._screenMax, im.uv1, im.uv2, this.color);
+                drawlist.AddImage(im.texture._texture, this._localRect.xy, this._localRect.max, im.uv1, im.uv2,
+                    MultiplyAlpha(this.color,this.alpha));
             }
         }
         this.PaintClient(drawlist);
@@ -1995,17 +2091,22 @@ export class zlUIPanel extends zlUIImage
         if(this.isDrawHover && this._owner.hover==this) {
             if(this.colorHover4) {
                 drawlist.AddRectFilledMultiColorRound(
-                    this._screenXY, this._screenMax, 
-                    this.colorHover4[0], this.colorHover4[1], this.colorHover4[2], this.colorHover4[3],
+                    this._localRect.xy, this._localRect.max, 
+                    MultiplyAlpha(this.colorHover4[0], this.alpha),
+                    MultiplyAlpha(this.colorHover4[1], this.alpha),
+                    MultiplyAlpha(this.colorHover4[2], this.alpha),
+                    MultiplyAlpha(this.colorHover4[3], this.alpha),
                     this.rounding, this.roundingCorner)                
             }else {
-                drawlist.AddRectFilled(this._screenXY, this._screenMax, this.colorHover,
+                drawlist.AddRectFilled(this._localRect.xy, this._localRect.max,
+                    MultiplyAlpha(this.colorHover, this.alpha),
                     this.rounding, this.roundingCorner);
             }
         }
         if(this.isDrawBorder)   {
-            drawlist.AddRect(this._screenXY, this._screenMax, this.borderColor, this.rounding, 
-                this.roundingCorner, this.borderWidth);
+            drawlist.AddRect(this._localRect.xy, this._localRect.max, 
+                MultiplyAlpha(this.borderColor, this.alpha),
+                this.rounding, this.roundingCorner, this.borderWidth);
         }
         if(this.text)   {
             let text=this.text;
@@ -2023,11 +2124,10 @@ export class zlUIPanel extends zlUIImage
             if(this.textColorHover && this._owner.hover==this) {
                 color=this.textColorHover;
             }
-            if(!color)  {
-                console.log(this);
-            }
+            color=MultiplyAlpha(color, this.alpha);
             if(Use_ImTransform) {
-                font.RenderText(drawlist, font.FontSize, this._textPos, color,
+                font.RenderText(drawlist, font.FontSize, this._textPos, 
+                    color,
                     this._textClip, text, text.length, wrap, false);    
             }else {
                 drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap);
@@ -2063,10 +2163,6 @@ export class zlUIPanel extends zlUIImage
     CalRect(parent:zlUIWin):void 
     {
         super.CalRect(parent);
-        //let screenXY=this.screenXY;
-        //let screenMax=this.screenMax;
-        //this._clipXY.Set(screenXY.x+this.borderWidth,screenXY.y+this.borderWidth);
-        //this._clipMax.Set(screenMax.x-this.borderWidth, screenMax.y-this.borderWidth);
         if(this.board)  {
             this.board.vert=null;
             this.board.color=this.color;
@@ -2137,8 +2233,8 @@ export class zlUIPanel extends zlUIImage
                 y+=this.textoffset.y;
             }
     
-            x+=this._screenXY.x;
-            y+=this._screenXY.y;
+            x+=this._localRect.xy.x;
+            y+=this._localRect.xy.y;
             x=Math.round(x);
             y=Math.round(y);
             if(!this._textPos) {
@@ -2150,10 +2246,10 @@ export class zlUIPanel extends zlUIImage
             if(!this._textClip) {
                 this._textClip=new ImGui.Vec4(0,0);
             }
-            this._textClip.x=this._screenXY.x;
-            this._textClip.y=this._screenXY.y;
-            this._textClip.z=this._screenMax.x;
-            this._textClip.w=this._screenMax.y;
+            this._textClip.x=this._localRect.xy.x;
+            this._textClip.y=this._localRect.xy.y;
+            this._textClip.z=this._localRect.max.x;
+            this._textClip.w=this._localRect.max.y;
 
             if((this.autosize&EAutosize.Height) &&size.y>0) {
                 if(size.y>this.h)    {
@@ -2169,8 +2265,6 @@ export class zlUIPanel extends zlUIImage
             }
         }
     }
-
-    set Text(text:string) {this.SetText(text);}
 
     text:string="";
     textColor:number=0xff000000;
@@ -2282,7 +2376,7 @@ export class zlUIEdit extends zlUIPanel
             inp._dom_input.style.textAlign="right";
             break;
         }
-        let screenXY=this.screenXY;
+        let screenXY=this._screenRect.xy;
         inp.setText(this.text, 0, this._owner.GetFont(this.fontIndex));
         inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
         inp._dom_input.style.backgroundColor=textBg;
@@ -2441,11 +2535,15 @@ export class zlUIButton extends zlUIPanel
 
             if(color4) {
                 drawlist.AddRectFilledMultiColorRound(
-                    this._screenXY, this._screenMax, 
-                    color4[0], color4[1], color4[2], color4[3],
+                    this._localRect.xy, this._localRect.max, 
+                    MultiplyAlpha(color4[0], this.alpha), 
+                    MultiplyAlpha(color4[1], this.alpha), 
+                    MultiplyAlpha(color4[2], this.alpha), 
+                    MultiplyAlpha(color4[3], this.alpha), 
                     this.rounding, this.roundingCorner);
             }else {
-                drawlist.AddRectFilled(this._screenXY, this._screenMax, color,
+                drawlist.AddRectFilled(this._localRect.xy, this._localRect.max,
+                    MultiplyAlpha(color, this.alpha),
                     this.rounding, this.roundingCorner);
             }
         }
@@ -2621,12 +2719,13 @@ export class zlUICheck extends zlUIButton
         if(this.isDrawCheck)    {
             let vstart=(Use_ImTransform)?drawlist.GetVertexSize():0;
             drawlist.AddRect(this.checkmark_xy, this.checkmark_max,
-                this.borderColor, this.rounding, 
-                ImGui.ImDrawCornerFlags.All, 1);
+                MultiplyAlpha(this.borderColor, this.alpha), 
+                this.rounding, ImGui.ImDrawCornerFlags.All, 1);
             if(this.isChecked) {
                 let x=this.checkmark_xy.x+2;
                 let y=this.checkmark_xy.y+2;
-                RenderCheckMark(drawlist, x,y,this.textColor, 16);
+                RenderCheckMark(drawlist, x,y,
+                    MultiplyAlpha(this.textColor, this.alpha), 16);
             }
             if(Use_ImTransform) {
                 drawlist.Transform(this._world, vstart);
@@ -2646,8 +2745,8 @@ export class zlUICheck extends zlUIButton
     CalRect(parent: zlUIWin): void {
         super.CalRect(parent);
 
-        let x=this._screenXY.x+12;
-        let y=(this._screenMax.y+this._screenXY.y)*0.5;
+        let x=this._localRect.xy.x+12;
+        let y=(this._localRect.max.y+this._localRect.xy.y)*0.5;
         this.checkmark_xy.Set(x-10,y-10);
         this.checkmark_max.Set(x+10,y+10);        
     }
@@ -2707,7 +2806,8 @@ export class zlUICombo extends zlUIButton
         super.Paint(drawlist);
         if(this.isDrawCombo) {
             let vstart=(Use_ImTransform)?drawlist.GetVertexSize():0;
-            RenderArrow(drawlist, this.arrow_xy, this.textColor, ImGui.ImGuiDir.Down, 16, 1);
+            RenderArrow(drawlist, this.arrow_xy, 
+                MultiplyAlpha(this.textColor, this.alpha), ImGui.ImGuiDir.Down, 16, 1);
             if(Use_ImTransform) {
                 drawlist.Transform(this._world, vstart);
             }
@@ -2717,8 +2817,8 @@ export class zlUICombo extends zlUIButton
     {
         super.CalRect(parent);
 
-        this.arrow_xy.x=this._screenMax.x-18;
-        this.arrow_xy.y=(this._screenMax.y+this._screenXY.y)*0.5-8;
+        this.arrow_xy.x=this._localRect.max.x-18;
+        this.arrow_xy.y=(this._localRect.max.y+this._localRect.xy.y)*0.5-8;
     }
     Combo(value:number, items?:string[], on_combo?:(value:number)=>any)
     {
@@ -2754,15 +2854,8 @@ export class zlUICombo extends zlUIButton
             }
             if(i==0)
                 return;
-            if(Use_ImTransform) {
-                let pt=new ImGui.ImVec2(this._screenXY.x,this._screenMax.y);
-                pt=this._world.Transform(pt)
-                combo_menu.x=pt.x;
-                combo_menu.y=pt.y;
-            }else {
-                combo_menu.x=this._screenXY.x;
-                combo_menu.y=this._screenMax.y;
-            }
+            combo_menu.x=this._screenRect.xy.x;
+            combo_menu.y=this._screenRect.max.y;
             combo_menu.w=this.w;
             combo_menu.h=i*combo_item.h;
             if(combo_menu.y+combo_menu.h>this._owner.h) {
@@ -2975,10 +3068,12 @@ export class zlUISlider extends zlUIPanel
             let vstart=(Use_ImTransform)?drawlist.GetVertexSize():0;
             let scroll=this.GetScrollType();
             if(scroll.isScrollH)  {
-                drawlist.AddRectFilled(this._scrollHxy, this._scrollHxy2, this.scrollbarColor, 4);
+                drawlist.AddRectFilled(this._scrollHxy, this._scrollHxy2, 
+                    MultiplyAlpha(this.scrollbarColor, this.alpha), 4);
             }
             if(scroll.isScrollW)  {
-                drawlist.AddRectFilled(this._scrollWxy, this._scrollWxy2, this.scrollbarColor, 4);
+                drawlist.AddRectFilled(this._scrollWxy, this._scrollWxy2, 
+                    MultiplyAlpha(this.scrollbarColor, this.alpha), 4);
             }
             if(Use_ImTransform) {
                 drawlist.Transform(this._world, vstart);
@@ -3015,17 +3110,17 @@ export class zlUISlider extends zlUIPanel
         let scroll=this.GetScrollType();
         if(scroll.isScrollH)  {
             let h=this.h-this.borderWidth-this.borderWidth;
-            let mx=this._screenMax.x-this.borderWidth;
+            let mx=this._localRect.max.x-this.borderWidth;
             let scaleh=h/(h+this.scroll_max);
-            this._scrollHxy.Set(mx-8, this._screenXY.y+this.borderWidth+this.scroll_value*scaleh);
+            this._scrollHxy.Set(mx-8, this._localRect.xy.y+this.borderWidth+this.scroll_value*scaleh);
             let mh=this.scroll_max>0?h*scaleh:h;
             this._scrollHxy2.Set(mx, this._scrollHxy.y+mh);
         }
         if(scroll.isScrollW)  {
             let w=this.w-this.borderWidth-this.borderWidth;
-            let my=this._screenMax.y-this.borderWidth;
+            let my=this._localRect.max.y-this.borderWidth;
             let scalew=w/(w+this.scroll_max);
-            this._scrollWxy.Set(this._screenXY.x+this.borderWidth+this.scroll_value*scalew, my-8);
+            this._scrollWxy.Set(this._localRect.xy.x+this.borderWidth+this.scroll_value*scalew, my-8);
             let mw=this.scroll_max>0?w*scalew:w;
             this._scrollWxy2.Set(this._scrollWxy.x+mw, my);
         }
@@ -3217,13 +3312,14 @@ export class zlUIImageText extends zlUIWin
 
     PaintImageText(drawlist:ImGui.ImDrawList):void 
     {
+        let col=MultiplyAlpha(this.color, this.alpha);
         for(let image of this.imageText)
         {
             let imgFont=image.imageFont;
             let tex=imgFont.texure;            
             drawlist.AddImage(tex.texture._texture,
                 image.screenXY, image.screenMax, 
-                imgFont.uv1, imgFont.uv2, this.color);
+                imgFont.uv1, imgFont.uv2, col);
         }
     }
 
@@ -3263,8 +3359,8 @@ export class zlUIImageText extends zlUIWin
         }
         this.text_width=tw;
         this.text_height=th;
-        let x=this._screenXY.x+(this.w-tw)*this.textAnchor.x;
-        let y=this._screenXY.y+(this.h-th)*this.textAnchor.y;
+        let x=this._localRect.xy.x+(this.w-tw)*this.textAnchor.x;
+        let y=this._localRect.xy.y+(this.h-th)*this.textAnchor.y;
         for(let im of this.imageText) {
             let tx=x+im.imageFont.offset_x;
             let ty=y+im.imageFont.offset_y;
@@ -3686,7 +3782,7 @@ export class zlTrack
                 cmd:ETrackCmd.AlphaLerp,
                 time_from:time1,
                 time_to:time2,
-                alpha:Number.parseFloat(toks[3]),
+                alpha:Number.parseFloat(toks[3])/255,
                 speed:Number.parseFloat(toks[4]),
             });
             break;
@@ -3746,8 +3842,31 @@ export class zlTrack
             });            
             break;
         case "setcolor":
+            this.cmd.push({
+                cmd:ETrackCmd.SetColor,
+                time_from:time1,
+                time_to:time1,
+                color:fromColorHex(ParseColor(toks[2]))
+            })
+            break;
         case "color":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.Color,
+                time_from:time1,
+                time_to:time2,
+                color:fromColorHex(ParseColor(toks[2]))
+            })
+            break;
         case "colorlerp":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.ColorLerp,
+                time_from:time1,
+                time_to:time2,
+                color:fromColorHex(ParseColor(toks[2])),
+                speed:Number.parseFloat(toks[3])
+            })
             break;
         case "width":
             time2=Number.parseFloat(toks[2])*TimeUint;
@@ -3983,20 +4102,20 @@ export class zlTrack
                 obj.SetCalRect();
                 break;
             case ETrackCmd.Image:
-                obj.Image=cmd.image;
+                obj.SetImage(cmd.image);
                 break;
             case ETrackCmd.SetAlpha:
-                obj.alpha=cmd.alpha;
+                obj.SetLocalAlpha(cmd.alpha);
                 break;
             case ETrackCmd.Alpha:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
-                    cmd.initData={alpha:obj.alpha}
+                    cmd.initData={alpha:obj.alpha_local}
                 }
-                obj.alpha=cmd.initData.alpha+(cmd.alpha-cmd.initData.alpha)*t;
+                obj.SetLocalAlpha(cmd.initData.alpha+(cmd.alpha-cmd.initData.alpha)*t);
                 break;
             case ETrackCmd.AlphaLerp:
-                obj.alpha+=(cmd.alpha-obj.alpha)*cmd.speed*ti;
+                obj.SetLocalAlpha(obj.alpha_local+(cmd.alpha-obj.alpha_local)*cmd.speed*ti);
                 break;
             case ETrackCmd.Hide:
                 obj.isVisible=false;
@@ -4085,7 +4204,7 @@ export class zlTrack
                 obj.isDisable=true;
                 break;
             case ETrackCmd.Text:
-                obj.Text=cmd.text;
+                obj.SetText(cmd.text);
                 break;
             default:
                 console.log("TODO zlTrack", cmd);
@@ -4302,6 +4421,9 @@ export class zlUIMgr extends zlUIWin
         case "defaultcomboitem":
             this.default_combo_item=this.GetUI(toks[1]) as zlUIButton;
             break;
+        case "defaulthintpanel":
+            this.default_hint_panel=this.GetUI(toks[1]).Clone() as zlUIPanel;
+            break;
         case "font":
             let id=Number.parseInt(toks[1]);
             let font=ImGui.CreateFont(toks[2].replace(/\\s/g," "), Number.parseInt(toks[3]), toks[4]);
@@ -4456,7 +4578,7 @@ export class zlUIMgr extends zlUIWin
             this.drag.SetCalRect();
         }
         if(this.popup) {
-            if(isDown&&!Inside(this.mouse_pos, this.popup._screenXY, this.popup._screenMax))    {
+            if(isDown&&!this.popup._screenRect.Inside(this.mouse_pos))    {
                 this.ClosePopup();
             }
         }
@@ -4637,6 +4759,7 @@ export class zlUIMgr extends zlUIWin
 
     default_combo_menu:zlUISlider;
     default_combo_item:zlUIButton;
+    default_hint_panel:zlUIPanel;
 
     prevDown:boolean=false;
     any_pointer_down:boolean=false;

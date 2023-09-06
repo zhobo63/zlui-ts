@@ -118,17 +118,24 @@ TrackGroup rot_pnl1
         Rotate 0 120 360
         Rotate 120 240 0
     }
+    Track pnl_arrange
+    {
+        SetAlpha 0 255
+        Alpha 0 60 0
+        Alpha 100 160 255
+        SetAlpha 240 255
+    }
 }
 TrackGroup img_text
 {
     Track imagetext_num1
     {
         Text 0 6
-        Text 10 63
-        Text 20 632
-        Text 30 6321
-        Text 40 63212
-        Text 50 63212
+        Text 20 63
+        Text 40 632
+        Text 60 6321
+        Text 80 63212
+        Text 100 63212
     }
 }
 
