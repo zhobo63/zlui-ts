@@ -60,6 +60,11 @@ ImTransform when rotate or scale
 - Edit Box
 - Clip Rect 
 
+### Update History
+
+0.1.6 Rotate scale and alpha animation
+
+<img src="https://zhobo63.github.io/zlui/zlui-5-ed5913f65.gif">
 
 ### zlui-ts ui file format
 
@@ -537,22 +542,24 @@ TrackGroup name
 
         Image time1 name
 
-        //TODO
+        //alpha = 0 ~ 255
         SetAlpha time1 alpha
         Alpha time1 time2 alpha
         AlphaLerp time1 time2 alpha speed
 
         Hide time1
         Show time1
+
+        //TODO
         FlipW time1
         FlipH time1
 
-        //TODO
+        //rotate is angle (degree)
         SetRotate time1 rotate
         Rotate time1 time2 rotate
         RotateLerp time1 time2 rotate speed
 
-        //TODO
+        //color can be: RGB(r,g,b) or RGBA(r,g,b,a) or 0xffffffff 
         SetColor time1 color
         Color time1 time2 color
         ColorLerp time1 time2 color speed
@@ -563,15 +570,18 @@ TrackGroup name
         Height time1 time2 height
         HeightLerp time1 time2 height speed
 
+        //TODO zlUIAni
         StopAni time1
         PlayAni time1
         AniSpeed time1
         AniStartEnd time1
 
+        //TODO
         PlaySound
         SoundFade
         Volume
 
+        //TODO zlUIAni
         SetImageClip
         ImageClip
         ImageClipLerp
