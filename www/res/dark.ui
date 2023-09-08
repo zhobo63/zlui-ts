@@ -44,6 +44,16 @@ Object Win
 		BorderWidth 1
 		DrawBorder true
 	}
+	Clone Panel
+	{
+		Name HintPanel
+		Padding 10
+		Color RGBA(35,39,49,200)
+		TextColor RGBA(200,200,200,255)
+		Rounding 5
+		#DrawBorder false
+		Align textSize
+	}
 
 	Object Panel
 	{
@@ -237,4 +247,4 @@ Object Win
 
 DefaultComboMenu Popup
 DefaultComboItem PopupItem
-
+DefaultHintPanel HintPanel

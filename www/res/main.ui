@@ -5,13 +5,30 @@ include imagetext.ui
 Clone Panel
 {
     Name pnl_padding
-    RectWH 100 100 500 300
+    RectWH 200 100 500 300
     Padding 20
     Rounding 10
     Clip true
+    Drag true
     Color4 RGBA(35,39,49,255) RGBA(35,39,49,155) RGBA(27,21,30,255) RGBA(27,21,30,155)
     #Visible false
  
+    Clone Edit
+    {
+        Name ed_text
+        RectWH 20 20 120 30
+        Hint edit1
+    }
+
+    Clone Edit
+    {
+        Name ed_pw
+        RectWH 20 60 120 30
+        Password *
+        Text 123
+        Hint edit\spassword
+    }
+
     Clone Button
     {
         Name btn_ok
@@ -41,7 +58,7 @@ Clone Panel
     #Clip true
     Arrange vertical content
     #Arrange vertical item 5 (100,100)
-    #Visible false
+    Visible false
     
     Clone[5] Button
     {
@@ -144,4 +161,4 @@ PlayTrack rot -1
 PlayTrack rot_pnl1 -1
 PlayTrack img_text -1
 
-include sidebar.ui
+#include sidebar.ui

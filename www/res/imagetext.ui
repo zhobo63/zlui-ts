@@ -32,6 +32,7 @@ Clone Panel
         Ascii 8 8
         Ascii 9 9
         Text 568				
+        Hint This\sis\sa\sImageText
     }
 
 }

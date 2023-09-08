@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.11";
+export const Version="0.1.12";
 
 export var Use_ImTransform=true;
 
@@ -1097,7 +1097,7 @@ export class zlUIWin
             }
             break;
         case "hint":
-            this.hint=toks[1]
+            this.hint=ParseText(toks.pop())
             break;
         case "margin":
             this.margin.x=Number.parseInt(toks[1]);
@@ -1129,7 +1129,7 @@ export class zlUIWin
             this.scale=Number.parseFloat(toks[1]);
             break;
         case "rotate":
-            this.rotate=Number.parseFloat(toks[1]);
+            this.rotate=Number.parseFloat(toks[1])*Math.PI/180.0;
             break;
         default:
             console.log("zlUIWin " + this.Name + " unknow param " + name);
@@ -1973,8 +1973,6 @@ export class zlUIPanel extends zlUIImage
         this.textAlignW=o.textAlignW;
         this.textAlignH=o.textAlignH;
         this.isMultiline=o.isMultiline;
-        this.isPassword=o.isPassword;
-        this.passwordText=o.passwordText;
         this.fontIndex=o.fontIndex;
         this.isDrawClient=o.isDrawClient;
         this.isDrawBorder=o.isDrawBorder;
@@ -2103,6 +2101,28 @@ export class zlUIPanel extends zlUIImage
             }
         }
     }
+    PaintText(drawlist:ImGui.ImDrawList):void 
+    {
+        if(this.text)   {
+            let text=this.text;
+            let font=this._owner.GetFont(this.fontIndex);
+            let wrap=this.isMultiline?this.w:0;
+            let color=this.textColor;
+            if(this.textColorHover && this._owner.hover==this) {
+                color=this.textColorHover;
+            }
+            color=MultiplyAlpha(color, this.alpha);
+            if(Use_ImTransform) {
+                font.RenderText(drawlist, font.FontSize, this._textPos, 
+                    color,
+                    this._textClip, text, text.length, wrap, false);    
+            }else {
+                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap);
+            }
+        }
+
+    }
+
     PaintPanel(drawlist:ImGui.ImDrawList):void 
     {
         this.PaintImage(drawlist);
@@ -2131,31 +2151,7 @@ export class zlUIPanel extends zlUIImage
                 MultiplyAlpha(this.borderColor, this.alpha),
                 this.rounding, this.roundingCorner, this.borderWidth);
         }
-        if(this.text)   {
-            let text=this.text;
-            let font=this._owner.GetFont(this.fontIndex);
-            if(this.isPassword) {
-                if(!this.passwordText || this.text.length!=this.passwordText.length)  {
-                    this.passwordText=this.text;
-                    this.passwordText=this.passwordText.replace(/./g, '*')
-                }
-                text=this.passwordText;
-            }else {
-            }
-            let wrap=this.isMultiline?this.w:0;
-            let color=this.textColor;
-            if(this.textColorHover && this._owner.hover==this) {
-                color=this.textColorHover;
-            }
-            color=MultiplyAlpha(color, this.alpha);
-            if(Use_ImTransform) {
-                font.RenderText(drawlist, font.FontSize, this._textPos, 
-                    color,
-                    this._textClip, text, text.length, wrap, false);    
-            }else {
-                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap);
-            }
-        }
+        this.PaintText(drawlist);
     }
 
     Paint(drawlist:ImGui.ImDrawList):void 
@@ -2186,6 +2182,11 @@ export class zlUIPanel extends zlUIImage
         }
     }
 
+    CalRectText():string
+    {
+        return this.text;
+    }
+
     CalRect(parent:zlUIWin):void 
     {
         super.CalRect(parent);
@@ -2197,10 +2198,7 @@ export class zlUIPanel extends zlUIImage
         if(this.text)   {
             let font=this._owner.GetFont(this.fontIndex);
             let wrap=this.isMultiline?this.w:0;
-            let text=this.text;
-            if(this.isPassword && this.passwordText) {
-                text=this.passwordText;
-            }
+            let text=this.CalRectText();
             let isReady: ImGui.ImScalar<boolean> = [false];
             let size=font.CalcTextSizeA(font.FontSize, ImGui.FLT_MAX, wrap, text, null, null, isReady);
             if(!isReady[0]) {
@@ -2298,8 +2296,6 @@ export class zlUIPanel extends zlUIImage
     textAlignW:Align=Align.Center;
     textAlignH:Align=Align.Center;
     isMultiline:boolean=false;
-    isPassword:boolean=false;
-    passwordText:string;
     fontIndex:number=0;
     isDrawClient:boolean=true;
     isDrawBorder:boolean=false;
@@ -2351,8 +2347,10 @@ export class zlUIEdit extends zlUIPanel
     {
         super.Copy(obj);
         let o=obj as zlUIEdit;
-        this.password_char=o.password_char;
         this.isEnable=o.isEnable;
+        this.isPassword=o.isPassword;
+        this.passwordText=o.passwordText;
+        this.password_char=o.password_char;
         this.max_text_length=o.max_text_length;
     }
     Clone():zlUIWin
@@ -2376,6 +2374,42 @@ export class zlUIEdit extends zlUIPanel
         const g=(c>>8)&0xff;
         const b=(c>>16)&0xff;
         return "rgba("+r+","+g+","+b+",255)";
+    }
+
+    PaintText(drawlist:ImGui.ImDrawList):void 
+    {
+        if(this.text)   {
+            let text=this.text;
+            let font=this._owner.GetFont(this.fontIndex);
+            if(this.isPassword) {
+                if(!this.passwordText || this.text.length!=this.passwordText.length)  {
+                    this.passwordText=this.text;
+                    this.passwordText=this.passwordText.replace(/./g, this.password_char)
+                }
+                text=this.passwordText;
+            }else {
+            }
+            let wrap=this.isMultiline?this.w:0;
+            let color=this.textColor;
+            if(this.textColorHover && this._owner.hover==this) {
+                color=this.textColorHover;
+            }
+            color=MultiplyAlpha(color, this.alpha);
+            if(Use_ImTransform) {
+                font.RenderText(drawlist, font.FontSize, this._textPos, 
+                    color,
+                    this._textClip, text, text.length, wrap, false);    
+            }else {
+                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap);
+            }
+        }
+    }
+    CalRectText(): string {
+        let text=this.text;
+        if(this.isPassword && this.passwordText) {
+            text=this.passwordText;
+        }
+        return text;
     }
 
     OnNotify(): void {
@@ -2429,8 +2463,10 @@ export class zlUIEdit extends zlUIPanel
         console.log("OnNotify", this);
     }
 
-    password_char:string;
     isEnable:boolean=true;
+    isPassword:boolean=false;
+    passwordText:string;
+    password_char:string;
     max_text_length:number;
 }
 
@@ -4454,6 +4490,7 @@ export class zlUIMgr extends zlUIWin
             break;
         case "defaulthintpanel":
             this.default_hint_panel=this.GetUI(toks[1]).Clone() as zlUIPanel;
+            this.default_hint_panel.isVisible=false;
             break;
         case "font":
             let id=Number.parseInt(toks[1]);
@@ -4601,6 +4638,12 @@ export class zlUIMgr extends zlUIWin
                 }
             }
             this.hover=notify;
+
+            if(notify.hint) {
+                this.ShowHint(notify.hint, {x:this.mouse_pos.x+20, y:this.mouse_pos.y});
+            }else {
+                this.HideHint();
+            }
         }
         if(this.drag)   {
             this.drag.x=this.drag_x+this.mouse_pos.x-this.first_pos_x;
@@ -4704,7 +4747,28 @@ export class zlUIMgr extends zlUIWin
             }
             this.popup=undefined;
         }
-    }    
+    }
+    ShowHint(hint:string, pt:Vec2):void
+    {
+        let pnl=this.DefaultHintPanel;
+        pnl.x=pt.x;
+        pnl.y=pt.y;
+        pnl.SetText(hint);
+        pnl.SetCalRect();
+        if(!pnl.isVisible) {
+            pnl.isVisible=true;
+            this.AddChild(pnl);
+        }
+    }
+    HideHint():void
+    {
+        let pnl=this.DefaultHintPanel;
+        if(pnl.isVisible) {
+            pnl.isVisible=false;
+            pnl.isDelete=true;
+        }
+    }
+
     NextEdit(current:zlUIEdit)
     {
         let wait:zlUIWin[]=[this];
@@ -4769,6 +4833,14 @@ export class zlUIMgr extends zlUIWin
         }
         return this.default_combo_item;
     }
+    get DefaultHintPanel():zlUIPanel {
+        if(!this.default_hint_panel) {
+            this.default_hint_panel=new zlUIPanel(this);
+            this.default_hint_panel.isVisible=false;
+        }
+        return this.default_hint_panel;
+    }
+
     get LastClipRect():Vec4
     {
         if(this.clip_stack.length>0) {
@@ -4778,9 +4850,6 @@ export class zlUIMgr extends zlUIWin
     }
 
     path:string;
-    include:string[];
-    image_pack:string[];
-
     texture:zlTexturePack;
     fonts:ImGui.Font[]=[];
     notify:zlUIWin;
