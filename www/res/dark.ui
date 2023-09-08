@@ -2,6 +2,7 @@
 CreateFont Fontawesome fa-solid-900.woff2
 Font 0 Arial 16 bold
 Font 1 Verdana 26 bold
+Font 2 Arial 12 bold
 MergeFont 0 \uf000 \uffff Fontawesome 16 normal
 
 /*
@@ -51,6 +52,9 @@ Object Win
 		Color RGBA(35,39,49,200)
 		TextColor RGBA(200,200,200,255)
 		Rounding 5
+		Origin 0 0
+		Font 2
+		#Scale 0.8
 		#DrawBorder false
 		Align textSize
 	}

@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.12";
+export const Version="0.1.13";
 
 export var Use_ImTransform=true;
 
@@ -17,7 +17,6 @@ TODO
 
 zlUIAni
 TrackGroup
-Hint
 
 ///////////////////////////////////
 /// zlUIWin 
@@ -4070,7 +4069,9 @@ export class zlTrack
 
     Refresh(ti:number):boolean
     {
-        for(let i=this.wait_cmd.length-1;i>=0;i--) {
+        let toDelete:number[];
+        let i;
+        for(i=0;i<this.wait_cmd.length;i++) {
             let cmd=this.wait_cmd[i];
             if(this.time<cmd.time_from)
                 continue;
@@ -4276,6 +4277,15 @@ export class zlTrack
             }
 
             if(this.time>cmd.time_to) {
+                if(!toDelete)   {
+                    toDelete=[];
+                }
+                toDelete.push(i);
+            }
+        }
+        if(toDelete) {
+            while(toDelete.length>0) {
+                i=toDelete.pop();
                 this.wait_cmd.splice(i,1);
             }
         }

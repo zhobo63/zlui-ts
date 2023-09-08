@@ -58,7 +58,7 @@ Clone Panel
     #Clip true
     Arrange vertical content
     #Arrange vertical item 5 (100,100)
-    Visible false
+    #Visible false
     
     Clone[5] Button
     {
@@ -121,11 +121,11 @@ TrackGroup rot
 {
     Track pnl_arrange
     {
+        SetRotate 0 0
         Rotate 0 1200 360
-        SetRotate 1201 0
-        Scale 0 100 1.2
-        Scale 100 200 0.5
-        Scale 200 1200 1
+        #Scale 0 100 1.2
+        #Scale 100 200 0.5
+        #Scale 200 1200 1
     }
 }
 TrackGroup rot_pnl1
@@ -133,15 +133,19 @@ TrackGroup rot_pnl1
     Track pnl1
     {
         SetRotate 0 0
-        Rotate 0 120 360
-        Rotate 120 240 0
+        RotateLerp 0 60 360 4
+        RotateLerp 60 120 0 4
     }
     Track pnl_arrange
     {
-        SetAlpha 0 255
-        Alpha 0 60 0
+        SetAlpha 0 0
+        SetScale 0 2
+        #Alpha 0 60 0
+        Scale 100 160 1
         Alpha 100 160 255
         SetAlpha 240 255
+        AlphaLerp 240 300 0 4
+        Scale 240 300 2 
     }
 }
 TrackGroup img_text
