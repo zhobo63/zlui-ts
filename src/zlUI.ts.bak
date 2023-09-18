@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.15";
+export const Version="0.1.14";
 
 export var Use_ImTransform=true;
 
@@ -1077,14 +1077,6 @@ export class zlUIWin
                 w:Number.parseFloat(toks[5]),
             }
             break;
-        case "dockoffset":
-            this.dockOffset={
-                x:Number.parseFloat(toks[1]),
-                y:Number.parseFloat(toks[2]),
-                z:Number.parseFloat(toks[3]),
-                w:Number.parseFloat(toks[4]),
-            }
-            break;
         case "offset":
             this.offset.x=Number.parseFloat(toks[1])
             this.offset.y=Number.parseFloat(toks[2])
@@ -1178,7 +1170,6 @@ export class zlUIWin
         this.padding=obj.padding;
         this.anchor=Clone(obj.anchor);
         this.dock=Clone(obj.dock);
-        this.dockOffset=Clone(obj.dockOffset);
         this.offset=Clone(obj.offset);
         this.arrange=Clone(obj.arrange);
         this.autosize=obj.autosize;
@@ -1457,25 +1448,22 @@ export class zlUIWin
             }
             if(this.dock) {
                 let dock=this.dock;
-                let dockOffset=this.dockOffset?this.dockOffset:{x:0,y:0,z:0,w:0};
                 let pw=parent.w-padding-padding;
                 let ph=parent.h-padding-padding;
                 if(dock.mode&EDock.Left) {
-                    x1=padding+pw*dock.x+dockOffset.x;
+                    x1=padding+pw*dock.x;
                 }
                 if(dock.mode&EDock.Top) {
-                    y1=padding+ph*dock.y+dockOffset.y;
+                    y1=padding+ph*dock.y;
                 }
                 if(dock.mode&EDock.Right) {
-                    x2=padding+pw*dock.z-1+dockOffset.z;
+                    x2=padding+pw*dock.z-1;
                 }
                 if(dock.mode&EDock.Down) {
-                    y2=padding+ph*dock.w-1+dockOffset.w;
+                    y2=padding+ph*dock.w-1;
                 }
                 this.w=x2-x1;
                 this.h=y2-y1;
-                if(this.w<0) this.w=0;
-                if(this.h<0) this.h=0;
             }
 
             if(Use_ImTransform) {
@@ -1780,7 +1768,6 @@ export class zlUIWin
     margin:Vec2={x:0,y:0};
     anchor:IAnchor;
     dock:IDock;
-    dockOffset:Vec4;
     arrange:IArrange;
     offset:Vec2={x:0,y:0}
     autosize:EAutosize=EAutosize.None;    
@@ -2824,7 +2811,7 @@ export class zlUICheck extends zlUIButton
         else if(this.isChecked) {
             this.textColor=this.textColorDown;
         }else if(this._owner.hover==this) {
-            this.textColor=this.textColorHover;            
+
         }else {
             this.textColor=this.textColorUp;
         }
@@ -4813,7 +4800,6 @@ export class zlUIMgr extends zlUIWin
     Popup(ui:zlUIWin):void
     {
         ui.isVisible=true;
-        this.AddChild(ui);
         this.popup=ui;
     }
     ClosePopup():void

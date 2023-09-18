@@ -44,6 +44,13 @@ Clone Panel
         Anchor xy 1 1
         Text Cancel
     }
+    Clone Slider
+    {
+        Name sdr_
+        RectWH 0 0 120 30
+        Dock all 0 0 1 1
+        DockOffset 130 0 0 -40
+    }
 }
 
 
@@ -133,7 +140,7 @@ TrackGroup rot_pnl1
     Track pnl1
     {
         SetRotate 0 0
-        RotateLerp 0 60 360 4
+        RotateLerp 0 60 360 2
         RotateLerp 60 120 0 4
     }
     Track pnl_arrange
