@@ -11,7 +11,7 @@ Clone Panel
     Clip true
     Drag true
     Color4 RGBA(35,39,49,255) RGBA(35,39,49,155) RGBA(27,21,30,255) RGBA(27,21,30,155)
-    #Visible false
+    Visible false
  
     Clone Edit
     {
@@ -53,6 +53,36 @@ Clone Panel
     }
 }
 
+Object Tree
+{
+    Name tree_1
+    RectWH 200 410 400 300
+    Color RGBA(35,39,49,255)
+    BorderColor RGBA(57,61,70,255)
+    TextColor RGBA(250,250,250,255)
+    Padding 10
+
+    TreeNode 111
+    {
+        TreeNode 222
+        {
+        }
+        TreeNode 333
+        {
+        }
+        TreeNode 444
+        {
+            TreeNode 444
+            {
+            }
+
+        }
+    }
+    TreeNode Abcde
+    {
+    }
+}
+
 
 Clone Panel
 {    
@@ -65,7 +95,7 @@ Clone Panel
     #Clip true
     Arrange vertical content
     #Arrange vertical item 5 (100,100)
-    #Visible false
+    Visible false
     
     Clone[5] Button
     {

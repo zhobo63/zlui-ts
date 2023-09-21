@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.15";
+export const Version="0.1.16";
 
 export var Use_ImTransform=true;
 
@@ -16,93 +16,6 @@ export function SetUseImTransform(b:boolean){
 TODO
 
 zlUIAni
-TrackGroup
-
-///////////////////////////////////
-/// zlUIWin 
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUIImage extends zlUIWin 
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUIPanel extends zlUIImage 
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUIEdit extends zlUIPanel 
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUIButton extends zlUIPanel 
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUICheck extends zlUIButton
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUICombo extends zlUIButton
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUISlider extends zlUIPanel 
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUIImageText extends zlUIWin
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlTexturePack
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlTrack
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlTrackGroup
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlTrackMgr
-///////////////////////////////////
-
-///////////////////////////////////
-/// zlUIMgr extends zlUIWin
-///////////////////////////////////
-
-    on_click
-    on_edit
-    on_popup_closed
-
-    # 建立字型 
-    # fontstyle=css font property, values:normal, italic, oblique, bold, bolder, lighter
-    Font id fontname fontsize fontstyle
-
-    # 合併字形
-    # 合併字形到id, id必須先建立第一個字形
-    # 字碼從start到end區間使用此字形
-    MergeFont id start end fontname fontsize fontstyle
-
-    # 預設視窗長寬
-    # 如果使用ScaleWH 將以此大小為縮放依據
-    DefaultScreenSize width height
-
-    DefaultPanelColor color
-
-    # 載入檔案
-    include file.ui
-
-    # 預設Combo彈出物件
-    # Menu必須為zlUISlider元件, Item必須為zlUIButton元件
-    DefaultComboMenu name
-    DefaultComboItem name
-
-    # 載入包圖
-    LoadPackImage file.txt
     
 */
 
@@ -844,6 +757,52 @@ export class Bezier
     controlPoints:Vec2[];
 }
 
+class Parser
+{
+    constructor(txt:string)
+    {
+        this.lines=txt.split(/\r|\n/g).filter(e=>e);
+        this.current=0;
+    }
+
+    CurrentLine():string 
+    {
+        return (this.current<this.lines.length)?
+            this.lines[this.current]:undefined;
+    }
+    NextLine():string
+    {
+        this.current++;
+        return this.CurrentLine();
+    }
+    Toks():string[]
+    {
+        let line=this.CurrentLine();
+        if(!line)   
+            return undefined;
+        let l=line.toLowerCase();
+        this.toks = l.split(/\s/g).filter(e=>e);
+        if(this.toks.length>0) {
+            let tok=this.toks[0];
+            let next=l.indexOf(tok);
+            this.toks.push(line.slice(next+1+tok.length));
+        }
+        return this.toks;
+    }
+    LastTok():string
+    {
+        return this.toks[this.toks.length-1];
+    }
+    EOF():boolean
+    {
+        return !(this.current<this.lines.length);
+    }
+
+    lines:string[];
+    current:number;
+    toks:string[];
+}
+
 export {zlUIWin as UIWin}
 
 export class zlUIWin
@@ -872,17 +831,15 @@ export class zlUIWin
         }
     }
 
-    async Parse(lines:string[], start:number):Promise<number>
+    async Parse(parser:Parser):Promise<number>
     {        
         let isComment=false;
-        for(;start<lines.length;start++) {
-            let line=lines[start];
-            let toks:string[]=line.toLowerCase().split(/\s/g).filter(e=>e);
+        while(!parser.EOF()) {
+            let toks:string[]=parser.Toks();
+            parser.NextLine();
             
             if(toks.length>0)   {
                 let tok=toks[0];
-                let next=line.toLowerCase().indexOf(tok);
-                toks.push(line.slice(next+1+tok.length));
                 if(tok.startsWith('//')||tok.startsWith('#'))  {
                 }
                 else if(tok.startsWith("/*"))
@@ -903,7 +860,7 @@ export class zlUIWin
                     let obj=this._owner.Create(toks[1]);
                     if(obj) {
                         this.AddChild(obj);
-                        start=await obj.Parse(lines, start + 1);
+                        await obj.Parse(parser);
                         let name=obj.Name;
                         obj.Name=name+"[0]";
 
@@ -930,7 +887,7 @@ export class zlUIWin
                     }
                     if(obj) {
                         let ch=obj.Clone();
-                        start=await ch.Parse(lines, start+1);
+                        await ch.Parse(parser);
                         let name=ch.Name;
                         this.AddChild(ch);
                         ch.Name=name+"[0]";
@@ -954,7 +911,7 @@ export class zlUIWin
                         obj=this._owner.Create(toks[1]);
                         if(obj) {
                             this.AddChild(obj);
-                            start=await obj.Parse(lines, start + 1);
+                            await obj.Parse(parser);
                         }
                         break;
                     case 'clone':
@@ -965,7 +922,7 @@ export class zlUIWin
                         if(obj) {
                             obj=obj.Clone();
                             this.AddChild(obj);
-                            start=await obj.Parse(lines, start+1);
+                            await obj.Parse(parser);
                         }else {
                             console.log("Clone " + toks[1] + " not found", this._owner)
                         }
@@ -973,25 +930,22 @@ export class zlUIWin
                     case 'param':
                         obj=this.GetUI(toks[1]);
                         if(obj) {
-                            start=await obj.Parse(lines, start+1);
+                            await obj.Parse(parser);
                         }else {
                             console.log("Param " + toks[1] + " not found")
                         }
                         break;
-                    case 'trackgroup':
-                        start=this._owner.track.Parse(lines, start);
-                        break;
                     case '}':
                         this.ParseEnd();
-                        return start;
+                        return parser.current;
                     default:
-                        await this.ParseCmd(tok, toks);
+                        await this.ParseCmd(tok, toks, parser);
                         break;
                     }
                 }
             }
         }
-        return start;
+        return parser.current;
     }
 
     ParseEnd():void
@@ -999,7 +953,7 @@ export class zlUIWin
 
     }
 
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "name":
@@ -1124,12 +1078,12 @@ export class zlUIWin
             break;
         case "if":
             if(this._owner.GetUI(toks[1])) {
-                await this.ParseCmd(toks[2], toks.slice(2));
+                await this.ParseCmd(toks[2], toks.slice(2), parser);
             }
             break;
         case "ifnot":
             if(!this._owner.GetUI(toks[1])) {
-                await this.ParseCmd(toks[2], toks.slice(2));
+                await this.ParseCmd(toks[2], toks.slice(2), parser);
             }
             break;
         case "origin":
@@ -1281,6 +1235,7 @@ export class zlUIWin
             return false;
         return true;
     }
+    IsSlider(): boolean { return false; }
     SetClipRect(rc:Rect)
     {
         if(this.isClip) {
@@ -1695,6 +1650,32 @@ export class zlUIWin
             return undefined;
         return (this._csid==csid)?this:undefined;        
     }
+    GetUISlider(pos:ImGui.ImVec2):zlUIWin
+    {
+        if(this.isDisable)
+            return undefined;
+        if(!this.isVisible)
+            return undefined;
+        if(Use_ImTransform) {
+            if(!this._invWorld)
+                return undefined;
+            let pt=this._invWorld.Transform(pos);
+            if(!this._localRect.Inside(pt)) {
+                return undefined;
+            }
+        }
+        else {
+            if(!this._screenRect.Inside(pos))
+                return undefined;
+        }
+        for(let i=this.pChild.length-1;i>=0;i--) {
+            let n=this.pChild[i].GetUISlider(pos);
+            if(n) return n;
+        }
+        if(!this.isCanNotify)
+            return undefined;
+        return (this.IsSlider())?this:undefined;
+    }
 
     OnNotify():void { if(this.on_notify) this.on_notify(this);}
     OnClick():void {}
@@ -1819,7 +1800,7 @@ export class zlUIImage extends zlUIWin
         super(own)
         this._csid="Image";
     }
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "image":
@@ -1835,7 +1816,7 @@ export class zlUIImage extends zlUIWin
             this.roundingCorner=ParseCorner(toks[1]);
             break;    
         default:
-            return await super.ParseCmd(name, toks);
+            return await super.ParseCmd(name, toks, parser);
         }
         return true;
     }
@@ -1904,7 +1885,7 @@ export class zlUIPanel extends zlUIImage
         super(own)
         this._csid="Panel";
     }
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "drawclient":
@@ -1977,7 +1958,7 @@ export class zlUIPanel extends zlUIImage
                 ParseColor(toks[4])]
             break;
         default:
-            return await super.ParseCmd(name, toks);
+            return await super.ParseCmd(name, toks, parser);
         }
         return true;
     }
@@ -2135,7 +2116,7 @@ export class zlUIPanel extends zlUIImage
     }
     PaintText(drawlist:ImGui.ImDrawList):void 
     {
-        if(this.text)   {
+        if(this.text && this._textPos)   {
             let text=this.text;
             let font=this._owner.GetFont(this.fontIndex);
             let wrap=this.isMultiline?this.w:0;
@@ -2144,6 +2125,9 @@ export class zlUIPanel extends zlUIImage
                 color=this.textColorHover;
             }
             color=MultiplyAlpha(color, this.alpha);
+            if(color===undefined) {
+                console.log(this.Name);
+            }
             if(Use_ImTransform) {
                 font.RenderText(drawlist, font.FontSize, this._textPos, 
                     color,
@@ -2329,7 +2313,7 @@ export class zlUIPanel extends zlUIImage
 
     text:string="";
     textColor:number=0xff000000;
-    textColorHover:number;
+    textColorHover:number=0xffffffff;
     textAlignW:Align=Align.Center;
     textAlignH:Align=Align.Center;
     isMultiline:boolean=false;
@@ -2370,7 +2354,7 @@ export class zlUIEdit extends zlUIPanel
         this._csid="Edit";
     }
 
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "password":
@@ -2381,7 +2365,7 @@ export class zlUIEdit extends zlUIPanel
             this.max_text_length=Number.parseInt(toks[1]);
             break;
         default:
-            return await super.ParseCmd(name, toks);
+            return await super.ParseCmd(name, toks, parser);
         }
         return true;
     }
@@ -2528,7 +2512,7 @@ export class zlUIButton extends zlUIPanel
         super(own)
         this._csid="Button";
     }
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "boarddown":
@@ -2594,7 +2578,7 @@ export class zlUIButton extends zlUIPanel
             this.isPaintButton=ParseBool(toks[1]);
             break;
         default:
-            return await super.ParseCmd(name, toks);
+            return await super.ParseCmd(name, toks, parser);
         }
         return true;
     }
@@ -2626,21 +2610,8 @@ export class zlUIButton extends zlUIPanel
     }
     PaintClient(drawlist: ImGui.ImDrawList): void {
         if(this.isDrawClient)   {
-            let color:number;
-            let color4:number[];
-
-            if(!this.isEnable)  {
-                color=this.colorDisable;
-            }else if(this.isDown) {
-                color=this.colorDown;
-                color4=this.colorDown4;
-            }else if(this._owner.hover==this) {
-                color=this.colorHover;
-                color4=this.colorHover4;
-            }else {
-                color=this.colorUp;
-                color4=this.colorUp4;
-            }
+            let color:number=this.color;
+            let color4:number[]=this.color4;
 
             if(color4) {
                 drawlist.AddRectFilledMultiColorRound(
@@ -2761,10 +2732,10 @@ export class zlUICheck extends zlUIButton
     constructor(own:zlUIMgr)
     {
         super(own)
-        this.isPaintButton=false;
+        //this.isPaintButton=false;
         this._csid="Check";
     }
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch (name) {
         case "drawcheck":
@@ -2777,7 +2748,7 @@ export class zlUICheck extends zlUIButton
             ];
             break;
         default:
-            return await super.ParseCmd(name, toks);
+            return await super.ParseCmd(name, toks,parser);
         }
         return true;
     }
@@ -2829,6 +2800,19 @@ export class zlUICheck extends zlUIButton
             this.textColor=this.textColorUp;
         }
     }
+    PaintCheck(drawlist: ImGui.DrawList):void
+    {
+        drawlist.AddRect(this.checkmark_xy, this.checkmark_max,
+            MultiplyAlpha(this.borderColor, this.alpha), 
+            this.rounding, ImGui.ImDrawCornerFlags.All, 1);
+        if(this.isChecked) {
+            let x=this.checkmark_xy.x+2;
+            let y=this.checkmark_xy.y+2;
+            RenderCheckMark(drawlist, x,y,
+                MultiplyAlpha(this.textColor, this.alpha), 16);
+        }
+    }
+
     Paint(drawlist:ImGui.ImDrawList):void 
     {
         if(!this.isEnable) {
@@ -2837,15 +2821,7 @@ export class zlUICheck extends zlUIButton
         super.Paint(drawlist);
         if(this.isDrawCheck)    {
             let vstart=(Use_ImTransform)?drawlist.GetVertexSize():0;
-            drawlist.AddRect(this.checkmark_xy, this.checkmark_max,
-                MultiplyAlpha(this.borderColor, this.alpha), 
-                this.rounding, ImGui.ImDrawCornerFlags.All, 1);
-            if(this.isChecked) {
-                let x=this.checkmark_xy.x+2;
-                let y=this.checkmark_xy.y+2;
-                RenderCheckMark(drawlist, x,y,
-                    MultiplyAlpha(this.textColor, this.alpha), 16);
-            }
+            this.PaintCheck(drawlist);
             if(Use_ImTransform) {
                 drawlist.Transform(this._world, vstart);
             }
@@ -2893,7 +2869,7 @@ export class zlUICombo extends zlUIButton
         super(own);
         this._csid="Combo"
     }
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "comboitems":
@@ -2903,7 +2879,7 @@ export class zlUICombo extends zlUIButton
             this.combo_value=Number.parseInt(toks[1]);
             break;
         default:
-            return await super.ParseCmd(name, toks);
+            return await super.ParseCmd(name, toks, parser);
         }
         return true;
     }
@@ -3020,15 +2996,14 @@ export class zlUISlider extends zlUIPanel
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
         this.on_scroll=undefined;
-    }
-
+    }    
     constructor(own:zlUIMgr)
     {
         super(own)
         this._csid="Slider";
         this.isClip=true;
     }
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "direction":
@@ -3041,7 +3016,7 @@ export class zlUISlider extends zlUIPanel
             this.mouse_wheel_speed=Number.parseFloat(toks[1]);
             break;
         default:
-            return await super.ParseCmd(name, toks);
+            return await super.ParseCmd(name, toks, parser);
         }
         return true;
     }
@@ -3062,6 +3037,9 @@ export class zlUISlider extends zlUIPanel
         obj.Copy(this);
         return obj;
     }
+    IsSlider(): boolean {
+        return true;
+    }
     OnScrollValueChange(val:number):void
     {
         let old_value=this.scroll_value;
@@ -3074,7 +3052,7 @@ export class zlUISlider extends zlUIPanel
             let type=this.GetScrollType();
             let scroll_max=0;
             if(type.isScrollH)  {
-                let y=-this.scroll_value;
+                let y=this.padding -this.scroll_value;
                 if(this.pChild) {
                     this.pChild.forEach(ch=>{
                         ch.y=y;
@@ -3087,7 +3065,7 @@ export class zlUISlider extends zlUIPanel
                 scroll_max=(scroll_max>h)?scroll_max-h:0;
             }
             if(type.isScrollW)  {
-                let x=-this.scroll_value;
+                let x=this.padding -this.scroll_value;
                 if(this.pChild) {
                     this.pChild.forEach(ch=>{
                         ch.x=x;
@@ -3325,7 +3303,7 @@ export class zlUIImageText extends zlUIWin
         this._csid="ImageText";
     }
 
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "imagelist":
@@ -3416,7 +3394,7 @@ export class zlUIImageText extends zlUIWin
             this.color=ParseColor(toks[1]);
             break;
         default:
-            return await super.ParseCmd(name,toks);
+            return await super.ParseCmd(name,toks,parser);
         }
         return true;
     }
@@ -3519,6 +3497,259 @@ export class zlUIImageText extends zlUIWin
     imageText:ImageText[];
 }
 
+export {zlUITreeNode as UITreeNode}
+const TREENODE_OPEN_SIZE=20;
+
+class zlUITreeNodeOpen extends zlUICheck
+{
+    constructor(own:zlUIMgr)
+    {
+        super(own);
+        this.x=0;
+        this.y=0;
+        this.w=TREENODE_OPEN_SIZE;
+        this.h=TREENODE_OPEN_SIZE;
+        this.anchor={
+            mode:EAnchor.Y,
+            x:0,
+            y:0.5,
+        };
+        this.isDrawBorder=false;
+        this.isDrawClient=false;
+        this.isDrawCheck=true;
+        this._csid="TreeNodeOpen";
+    }
+    
+    PaintCheck(drawlist: ImGui.DrawList):void
+    {
+        let col=MultiplyAlpha(this.textColor, this.alpha);
+        let pos=this._localRect.xy;
+
+        if(this.isChecked) {
+            RenderArrow(drawlist, pos, col, ImGui.ImGuiDir.Down, TREENODE_OPEN_SIZE ,0.8);
+        }else {
+            RenderArrow(drawlist, pos, col, ImGui.ImGuiDir.Right, TREENODE_OPEN_SIZE ,0.8);
+        }
+    }
+}
+
+export class zlUITreeNode extends zlUICheck
+{
+    constructor(own:zlUIMgr)
+    {
+        super(own);
+        this._csid="TreeNode";
+        this.dock={
+            mode:EDock.Left|EDock.Right,
+            x:0,y:0,z:1,w:1
+        };
+        this.textAnchor={
+            mode:EAnchor.All,
+            x:0,
+            y:0.5
+        };
+        this.colorUp=0;
+        this.colorDown=0x1ec8c8c8;
+        this.colorHover=0x32c8c8c8;
+        this.isDrawClient=true;
+        this.isDrawBorder=false;
+        this.isDrawCheck=false;
+        this.treenodeOpen=new zlUITreeNodeOpen(own);
+        this.treenodeOpen.isChecked=this.open;
+        this.AddChild(this.treenodeOpen);
+    }
+
+    ParseTreeNode(parser:Parser):void
+    {
+        let isComment=false;
+        while(!parser.EOF()) {
+            let toks=parser.Toks();
+            parser.NextLine();            
+            if(toks.length>0) {
+                let tok=toks[0];
+                switch(tok) {
+                case "treenode": {
+                    let tn=this.tree.CreateTreeNode(ParseText(parser.LastTok()), this);
+                    tn.ParseTreeNode(parser);
+                    break; }
+                case "text":
+                    this.SetText(ParseText(toks[1]));
+                    break;
+                case "}":
+                    return;
+                }
+            }
+        }
+    }
+
+    Copy(obj:zlUIWin):void
+    {
+        super.Copy(obj);
+        let o=obj as zlUITreeNode;
+        this.open=o.open;
+    }
+    Clone():zlUIWin
+    {
+        let obj=new zlUITreeNode(this._owner)
+        obj.Copy(this);
+        return obj;
+    }
+
+    Refresh(ti:number, parent?:zlUIWin):void 
+    {
+        super.Refresh(ti, parent);
+        if(this.treenodeOpen.isChecked!=this.open){
+            this.open=this.treenodeOpen.isChecked;
+            this.tree.expandTreeNode=undefined;
+        }
+    }
+    Paint(drawlist:ImGui.ImDrawList):void 
+    {
+        super.Paint(drawlist);
+    }
+    OnClick(): void {
+        super.OnClick();
+        this.tree.OnSelected(this);
+    }
+
+
+    tree:zlUITree;
+    treenode:zlUITreeNode[]=[];
+    treenodeOpen:zlUITreeNodeOpen;
+    open:boolean=true;
+    depth:number=0;
+    itemSpace:number=4;
+}
+
+export {zlUITree as UITree}
+
+export class zlUITree extends zlUISlider
+{
+    constructor(own:zlUIMgr)
+    {
+        super(own);
+        this._csid="Tree";
+    }
+
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
+    {
+        switch(name) {
+        case "singleselect":
+            this.singleSelect=ParseBool(toks[1]);
+            break;
+        case "treenode": {
+            let tn=this.CreateTreeNode(ParseText(parser.LastTok()));
+            tn.ParseTreeNode(parser);
+            break; }
+        default:
+            return await super.ParseCmd(name,toks,parser);    
+        }
+        return true;
+    }
+    Copy(obj: zlUIWin): void 
+    {
+        super.Copy(obj);
+        let o=obj as zlUITree;
+        this.singleSelect=o.singleSelect;
+    }
+    Clone(): zlUIWin {
+        let obj=new zlUITree(this._owner);
+        obj.Copy(this);
+        return obj;
+    }
+
+    Paint(drawlist:ImGui.ImDrawList):void 
+    {
+        super.Paint(drawlist);
+        if(!this.expandTreeNode) {
+            this.CalTreeNode();
+         }
+    }
+
+    CalTreeNode():void
+    {
+        for(let i=this.pChild.length-1; i>=0; i--) {
+            if(this.pChild[i]._csid=="TreeNode"){
+                this.pChild.splice(i,1);
+            }
+        }
+
+        this.expandTreeNode=[];
+        for(let tn of this.treenode){
+            this.ExpandNodeList(tn);
+        }
+        let y=this.padding;
+        for(let tn of this.expandTreeNode) {
+            
+            tn.y=y;
+            tn.treenodeOpen.x=tn.depth*TREENODE_OPEN_SIZE;
+            tn.treenodeOpen.isVisible=tn.treenode.length>0;
+            tn.textoffset={
+                x:tn.treenodeOpen.x+tn.treenodeOpen.w,
+                y:0
+            };
+            if(!tn.h){
+                let font=this._owner.GetFont(tn.fontIndex);
+                tn.h=font.FontSize+tn.itemSpace;
+            }
+
+            this.AddChild(tn);
+            y+=tn.h;
+        }
+        this.SetCalRect();
+    }
+
+    ClearTreeNode():void
+    {
+        this.treenode=[];
+        this.expandTreeNode=undefined;
+        this.treenodeChange=true;
+    }
+
+    CreateTreeNode(text:string, parent?:zlUITreeNode):zlUITreeNode
+    {
+        let tn:zlUITreeNode=new zlUITreeNode(this._owner);
+        tn.fontIndex=this.fontIndex;
+        tn.Name=text;
+        tn.SetText(text);
+        tn.tree=this;
+        if(parent){
+            parent.treenode.push(tn);
+        }else {
+            this.treenode.push(tn);
+        }
+        this.treenodeChange=true;
+        this.expandTreeNode=undefined;
+        return tn;
+    }
+
+    ExpandNodeList(tn:zlUITreeNode):void
+    {
+        this.expandTreeNode.push(tn);
+        if(tn.open){
+            for(let ch of tn.treenode) {
+                ch.depth=tn.depth+1;
+                this.ExpandNodeList(ch);
+            }
+        }
+    }
+    OnSelected(tn:zlUITreeNode):void
+    {
+        if(this.singleSelect && tn.isChecked) {
+            for(let nd of this.expandTreeNode){
+                nd.isChecked=false;
+            }
+            tn.isChecked=true;
+        }
+        //on_select
+    }
+
+    singleSelect:boolean=true;
+    treenode:zlUITreeNode[]=[];
+    treenodeChange:boolean=false;
+    expandTreeNode:zlUITreeNode[];
+}
+
 export class zlTexturePack
 {
     constructor(own:zlUIMgr)
@@ -3532,17 +3763,19 @@ export class zlTexturePack
         })
     }
 
-    async Parse(lines:string[]):Promise<boolean>
+    async Parse(parser:Parser):Promise<boolean>
     {
-        for(let line of lines) {
-            let toks:string[]=line.toLowerCase().split(/\s/g).filter(e=>e);
+        while(!parser.EOF())
+        {
+            let toks:string[]=parser.Toks();
+            parser.NextLine();
             if(toks.length>0)   {
-                await this.ParseCmd(toks[0], toks);
+                await this.ParseCmd(toks[0], toks, parser);
             }
         }
         return true;
     }
-    async ParseCmd(name:string, toks:string[]):Promise<void>
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<void>
     {
         switch(name) {
         case 'image':
@@ -3678,25 +3911,26 @@ export class zlTrack
     {
     }
 
-    Parse(lines:string[], start:number):number
+    Parse(parser:Parser):number
     {
-        for(;start<lines.length;start++) {
-            let line=lines[start];
-            let toks:string[]=line.toLowerCase().split(/\s/g).filter(e=>e);
+        while(!parser.EOF())
+        {
+            let toks:string[]=parser.Toks();
+            parser.NextLine();
             if(toks.length>0)   {
                 let tok=toks[0];
                 if(tok==="}") {
-                    return start;
+                    return parser.current;
                 }
                 else if(tok.startsWith("//") || tok.startsWith("#"))   {
                 }else {
-                    this.ParseCmd(tok, toks);
+                    this.ParseCmd(tok, toks, parser);
                 }
             }
         }
-        return start;
+        return parser.current;
     }
-    ParseCmd(name:string, toks:string[]):boolean 
+    ParseCmd(name:string, toks:string[], parser:Parser):boolean 
     {
         let time1:number=Number.parseFloat(toks[1])*TimeUint;
         let time2:number;
@@ -4408,11 +4642,11 @@ export class zlTrackGroup
         this.run_track=[];
     }
 
-    Parse(lines:string[], start:number):number
+    Parse(parser:Parser):number
     {
-        for(;start<lines.length;start++) {
-            let line=lines[start];
-            let toks:string[]=line.toLowerCase().split(/\s/g).filter(e=>e);
+        while(!parser.EOF()) {
+            let toks=parser.Toks();
+            parser.NextLine();
             if(toks.length>0)   {
                 let tok=toks[0];
                 if(tok==="track") {
@@ -4421,7 +4655,7 @@ export class zlTrackGroup
                         trk.name=toks[1];
                     }
                     this.track.push(trk);
-                    start=trk.Parse(lines, start+1);
+                    trk.Parse(parser);
                     trk.object=this._owner.GetUI(trk.name);
                 }
                 else if(tok==='clone')  
@@ -4434,11 +4668,11 @@ export class zlTrackGroup
                 }
                 else if(tok==='}')  
                 {
-                    return start;
+                    return parser.current;
                 }
             }
         }        
-        return start;
+        return parser.current;
     }
 
     Refresh(ti:number):boolean
@@ -4475,10 +4709,9 @@ export class zlTrackMgr
         this._owner=mgr;
     }    
 
-    Parse(lines:string[], start:number):number
+    Parse(parser:Parser):number
     {
-        let line=lines[start];
-        let toks:string[]=line.toLowerCase().split(/\s/g).filter(e=>e);
+        let toks:string[]=parser.toks;
         if(toks.length>0)   {
             let tok=toks[0];
             if(tok==="trackgroup") {
@@ -4486,11 +4719,11 @@ export class zlTrackMgr
                 if(toks.length>1) {
                     trk.name=toks[1];
                 }
-                start=trk.Parse(lines, start+1);
+                trk.Parse(parser);
                 this.track[trk.name]=trk;
             }
         }
-        return start;
+        return parser.current;
     }
 
     Play(name:string, loop:number)
@@ -4538,7 +4771,7 @@ export class zlUIMgr extends zlUIWin
     on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
 
-    async ParseCmd(name:string, toks:string[]):Promise<boolean>
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "defaultborderwidth":
@@ -4589,8 +4822,11 @@ export class zlUIMgr extends zlUIWin
         case "playtrack":
             this.track.Play(toks[1], Number.parseInt(toks[2]));
             break;
+        case "trackgroup":
+            this.track.Parse(parser);
+            break;
         default:
-            return super.ParseCmd(name, toks);
+            return super.ParseCmd(name, toks, parser);
         }
         return true;
     }
@@ -4616,7 +4852,7 @@ export class zlUIMgr extends zlUIWin
             console.log("Load " + path + file + " failed");
             return "";
         });        
-        return await this.Parse(t.split(/\r|\n/g).filter(e=>e), 0) > 0;
+        return await this.Parse(new Parser(t)) > 0;
     }
     async LoadTexturePack(file:string, path:string):Promise<boolean>
     {
@@ -4630,7 +4866,7 @@ export class zlUIMgr extends zlUIWin
             console.log("LoadTexturePack", r);
             return "";
         });
-        return await this.texture.Parse(t.split(/\r|\n/g).filter(e=>e));
+        return await this.texture.Parse(new Parser(t));
     }
 
     Create(name:string):zlUIWin
@@ -4654,6 +4890,8 @@ export class zlUIMgr extends zlUIWin
             return new zlUISlider(this);
         case 'imagetext':
             return new zlUIImageText(this);
+        case 'tree':
+            return new zlUITree(this);
         default:
             console.log("zlUIMgr unknow object " + name);
             return undefined;
@@ -4661,7 +4899,7 @@ export class zlUIMgr extends zlUIWin
     }
     Refresh(ti:number, parent?:zlUIWin):void 
     {
-        this.hover_slider=this.GetUIWin(this.mouse_pos, "Slider");
+        this.hover_slider=this.GetUISlider(this.mouse_pos);
         let notify=this.GetNotify(this.mouse_pos);
         let isDown=this.any_pointer_down;
         let firstDown=(!this.prevDown && isDown);
@@ -4674,14 +4912,14 @@ export class zlUIMgr extends zlUIWin
                 if(firstDown)    {
                     this.notify=notify;
                     this.notify.OnNotify();
-                }
-                if(this.on_notify) {
-                    this.on_notify(notify);
+                    if(this.on_notify) {
+                        this.on_notify(notify);
+                    }
                 }
             }else if(firstDown) {
                 this.notify.OnNotify();
             }
-            if(this.notify==notify&&this.notify.isDown&&!isDown&&this.notify.Name)  {
+            if(this.notify==notify&&this.notify.isDown&&!isDown)  {
                 let ox=Math.abs(this.mouse_pos.x-this.first_pos_x);
                 let oy=Math.abs(this.mouse_pos.y-this.first_pos_y);
                 if(ox<=this.touch_tolerance&&oy<=this.touch_tolerance) {

@@ -31,6 +31,13 @@ class App
     {
         this.ui=new zlUIMgr;
         await this.ui.Load("main.ui", "res/");
+        this.ui.on_click=(obj:zlUIWin)=>{
+            console.log("click", obj);
+        };  
+        this.ui.on_notify=(obj:zlUIWin)=>{
+            console.log("notify", obj);
+        };  
+
     }
 
     mainLoop(time:number, drawlist:ImGui.DrawList)
