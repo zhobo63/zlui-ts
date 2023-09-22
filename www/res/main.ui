@@ -56,11 +56,12 @@ Clone Panel
 Object Tree
 {
     Name tree_1
-    RectWH 200 410 400 300
+    RectWH 100 210 400 300
     Color RGBA(35,39,49,255)
     BorderColor RGBA(57,61,70,255)
     TextColor RGBA(250,250,250,255)
     Padding 10
+    Drag true
 
     TreeNode 111
     {
@@ -74,6 +75,13 @@ Object Tree
         {
             TreeNode 444
             {
+                H 100
+                TextAnchor xy 0 0
+                Clone Button
+                {
+                    RectWH 10 30 120 50
+                    Text edit me
+                }
             }
 
         }

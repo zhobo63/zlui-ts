@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.17";
+export const Version="0.1.18";
 
 export var Use_ImTransform=true;
 
@@ -3510,7 +3510,7 @@ class zlUITreeNodeOpen extends zlUICheck
         this.anchor={
             mode:EAnchor.Y,
             x:0,
-            y:0.5,
+            y:0,
         };
         this.isDrawBorder=false;
         this.isDrawClient=false;
@@ -3544,7 +3544,7 @@ export class zlUITreeNode extends zlUICheck
         this.textAnchor={
             mode:EAnchor.All,
             x:0,
-            y:0.5
+            y:0
         };
         this.colorUp=0;
         this.colorDown=0x1ec8c8c8;
@@ -3558,7 +3558,7 @@ export class zlUITreeNode extends zlUICheck
         this.AddChild(this.treenodeOpen);
     }
 
-    ParseTreeNode(parser:Parser):void
+    async ParseTreeNode(parser:Parser):Promise<void>
     {
         let isComment=false;
         while(!parser.EOF()) {
@@ -3583,12 +3583,12 @@ export class zlUITreeNode extends zlUICheck
                     switch(tok) {
                     case "treenode": {
                         let tn=this.tree.CreateTreeNode(ParseText(parser.LastTok()), this);
-                        tn.ParseTreeNode(parser);
+                        await tn.ParseTreeNode(parser);
                         break; }
                     case "}":
                         return;
                     default:
-                        this.ParseCmd(tok, toks, parser);
+                        await this.ParseCmd(tok, toks, parser);
                         break;
                     }
                 }
@@ -3652,7 +3652,7 @@ export class zlUITree extends zlUISlider
             break;
         case "treenode": {
             let tn=this.CreateTreeNode(ParseText(parser.LastTok()));
-            tn.ParseTreeNode(parser);
+            await tn.ParseTreeNode(parser);
             break; }
         default:
             return await super.ParseCmd(name,toks,parser);    
