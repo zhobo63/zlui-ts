@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.16";
+export const Version="0.1.17";
 
 export var Use_ImTransform=true;
 
@@ -14,7 +14,7 @@ export function SetUseImTransform(b:boolean){
 
 /*
 TODO
-
+isResizable
 zlUIAni
     
 */
@@ -757,7 +757,7 @@ export class Bezier
     controlPoints:Vec2[];
 }
 
-class Parser
+export class Parser
 {
     constructor(txt:string)
     {
@@ -853,95 +853,13 @@ export class zlUIWin
                 else if(isComment)
                 {
                 }
-                else if(tok.startsWith("object["))
+                else if(tok=='}')
                 {
-                    tok=tok.split("[")[1].replace("]", '');
-                    let num=Number.parseInt(tok);
-                    let obj=this._owner.Create(toks[1]);
-                    if(obj) {
-                        this.AddChild(obj);
-                        await obj.Parse(parser);
-                        let name=obj.Name;
-                        obj.Name=name+"[0]";
-
-                        for(let i=1;i<num;i++)  {
-                            let ch=obj.Clone();
-                            ch.Name=name+"["+i+"]";
-                            if(obj.add_x)   {
-                                ch.x=obj.x+obj.add_x*i;
-                            }
-                            if(obj.add_y)   {
-                                ch.y=obj.y+obj.add_y*i;
-                            }
-                            this.AddChild(ch);
-                        }
-                    }
+                    this.ParseEnd();
+                    return parser.current;
                 }
-                else if(tok.startsWith("clone["))
-                {
-                    tok=tok.split("[")[1].replace("]", '');
-                    let num=Number.parseInt(tok);
-                    let obj=this.GetUI(toks[1]);
-                    if(!obj) {
-                        obj=this._owner.GetUI(toks[1]);
-                    }
-                    if(obj) {
-                        let ch=obj.Clone();
-                        await ch.Parse(parser);
-                        let name=ch.Name;
-                        this.AddChild(ch);
-                        ch.Name=name+"[0]";
-                        for(let i=1;i<num;i++)  {
-                            let ch2=ch.Clone();
-                            ch2.Name=name+"["+i+"]";
-                            if(ch.add_x) {
-                                ch2.x=ch.x+ch.add_x*i;
-                            }
-                            if(ch.add_y) {
-                                ch2.y=ch.y+ch.add_y*i;
-                            }
-                            this.AddChild(ch2);
-                        }
-                    }
-                }                
                 else {
-                    let obj:zlUIWin;
-                    switch (tok) {
-                    case 'object':
-                        obj=this._owner.Create(toks[1]);
-                        if(obj) {
-                            this.AddChild(obj);
-                            await obj.Parse(parser);
-                        }
-                        break;
-                    case 'clone':
-                        obj=this.GetUI(toks[1])
-                        if(!obj) {
-                            obj=this._owner.GetUI(toks[1])
-                        }
-                        if(obj) {
-                            obj=obj.Clone();
-                            this.AddChild(obj);
-                            await obj.Parse(parser);
-                        }else {
-                            console.log("Clone " + toks[1] + " not found", this._owner)
-                        }
-                        break;
-                    case 'param':
-                        obj=this.GetUI(toks[1]);
-                        if(obj) {
-                            await obj.Parse(parser);
-                        }else {
-                            console.log("Param " + toks[1] + " not found")
-                        }
-                        break;
-                    case '}':
-                        this.ParseEnd();
-                        return parser.current;
-                    default:
-                        await this.ParseCmd(tok, toks, parser);
-                        break;
-                    }
+                    await this.ParseCmd(tok, toks, parser);
                 }
             }
         }
@@ -955,7 +873,85 @@ export class zlUIWin
 
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
+        if(name.startsWith("object[")) {
+            let tok=name.split("[")[1].replace("]", '');
+            let num=Number.parseInt(tok);
+            let obj=this._owner.Create(toks[1]);
+            if(obj) {
+                this.AddChild(obj);
+                await obj.Parse(parser);
+                let name=obj.Name;
+                obj.Name=name+"[0]";
+
+                for(let i=1;i<num;i++)  {
+                    let ch=obj.Clone();
+                    ch.Name=name+"["+i+"]";
+                    if(obj.add_x)   {
+                        ch.x=obj.x+obj.add_x*i;
+                    }
+                    if(obj.add_y)   {
+                        ch.y=obj.y+obj.add_y*i;
+                    }
+                    this.AddChild(ch);
+                }
+            }
+        }
+        else if(name.startsWith("clone[")) {
+            let tok=name.split("[")[1].replace("]", '');
+            let num=Number.parseInt(tok);
+            let obj=this.GetUI(toks[1]);
+            if(!obj) {
+                obj=this._owner.GetUI(toks[1]);
+            }
+            if(obj) {
+                let ch=obj.Clone();
+                await ch.Parse(parser);
+                let name=ch.Name;
+                this.AddChild(ch);
+                ch.Name=name+"[0]";
+                for(let i=1;i<num;i++)  {
+                    let ch2=ch.Clone();
+                    ch2.Name=name+"["+i+"]";
+                    if(ch.add_x) {
+                        ch2.x=ch.x+ch.add_x*i;
+                    }
+                    if(ch.add_y) {
+                        ch2.y=ch.y+ch.add_y*i;
+                    }
+                    this.AddChild(ch2);
+                }
+            }
+        }
+        else {
         switch(name) {
+        case 'object': {
+            let obj=this._owner.Create(toks[1]);
+            if(obj) {
+                this.AddChild(obj);
+                await obj.Parse(parser);
+            }
+            break; }
+        case 'clone': {
+            let obj=this.GetUI(toks[1])
+            if(!obj) {
+                obj=this._owner.GetUI(toks[1])
+            }
+            if(obj) {
+                obj=obj.Clone();
+                this.AddChild(obj);
+                await obj.Parse(parser);
+            }else {
+                console.log("Clone " + toks[1] + " not found", this._owner)
+            }
+            break; }
+        case 'param': {
+            let obj=this.GetUI(toks[1]);
+            if(obj) {
+                await obj.Parse(parser);
+            }else {
+                console.log("Param " + toks[1] + " not found")
+            }
+            break; }
         case "name":
             this.Name=toks[1];
             break;
@@ -1107,6 +1103,7 @@ export class zlUIWin
         default:
             console.log("zlUIWin " + this.Name + " unknow param " + name);
             return false;
+        }
         }
         return true;
     }
@@ -1736,7 +1733,7 @@ export class zlUIWin
         this.alpha=alpha*this.alpha_set;
         for(let ch of this.pChild) {
             ch.SetAlpha(this.alpha);
-        }
+        }        
     }
 
     Name:string;
@@ -1746,6 +1743,7 @@ export class zlUIWin
     isDown:boolean=false;
     isCanNotify:boolean=true;
     isCanDrag:boolean=false;
+    isResizable:boolean=false;
     isClip:boolean=false;
     isDelete:boolean=false;
     pChild:zlUIWin[]=[];
@@ -3551,6 +3549,7 @@ export class zlUITreeNode extends zlUICheck
         this.colorUp=0;
         this.colorDown=0x1ec8c8c8;
         this.colorHover=0x32c8c8c8;
+        this.padding=2;
         this.isDrawClient=true;
         this.isDrawBorder=false;
         this.isDrawCheck=false;
@@ -3567,16 +3566,31 @@ export class zlUITreeNode extends zlUICheck
             parser.NextLine();            
             if(toks.length>0) {
                 let tok=toks[0];
-                switch(tok) {
-                case "treenode": {
-                    let tn=this.tree.CreateTreeNode(ParseText(parser.LastTok()), this);
-                    tn.ParseTreeNode(parser);
-                    break; }
-                case "text":
-                    this.SetText(ParseText(toks[1]));
-                    break;
-                case "}":
-                    return;
+                if(tok.startsWith('//')||tok.startsWith('#'))  {
+                }
+                else if(tok.startsWith("/*"))
+                {
+                    isComment=true;
+                }
+                else if(tok.startsWith("*/"))
+                {
+                    isComment=false;
+                }
+                else if(isComment)
+                {
+                }
+                else {
+                    switch(tok) {
+                    case "treenode": {
+                        let tn=this.tree.CreateTreeNode(ParseText(parser.LastTok()), this);
+                        tn.ParseTreeNode(parser);
+                        break; }
+                    case "}":
+                        return;
+                    default:
+                        this.ParseCmd(tok, toks, parser);
+                        break;
+                    }
                 }
             }
         }
@@ -3618,7 +3632,6 @@ export class zlUITreeNode extends zlUICheck
     treenodeOpen:zlUITreeNodeOpen;
     open:boolean=true;
     depth:number=0;
-    itemSpace:number=4;
 }
 
 export {zlUITree as UITree}
@@ -3690,7 +3703,7 @@ export class zlUITree extends zlUISlider
             };
             if(!tn.h){
                 let font=this._owner.GetFont(tn.fontIndex);
-                tn.h=font.FontSize+tn.itemSpace;
+                tn.h=font.FontSize+tn.padding+tn.padding;
             }
 
             this.AddChild(tn);
