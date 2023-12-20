@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.18";
+export const Version="0.1.20";
 
 export var Use_ImTransform=true;
 
@@ -16,6 +16,14 @@ export function SetUseImTransform(b:boolean){
 TODO
 isResizable
 zlUIAni
+zlUIDatePicker
+zlUINumpad
+zlUIKeyboard
+
+zlUISplit
+zlUITab
+zlUIDocker
+zlUIParticle
     
 */
 
@@ -364,6 +372,20 @@ function UpdateTexturePack(image:TexturePack):TexturePack
     return image;
 }
 
+export interface Vec2
+{
+    x:number;
+    y:number;
+}
+
+export interface Vec4
+{
+    x:number;
+    y:number;
+    z:number;
+    w:number;
+}
+
 export interface Board
 {
     x1:number;
@@ -446,11 +468,6 @@ export interface IDock
     w:number;
 }
 
-export interface Vec2
-{
-    x:number;
-    y:number;
-}
 
 function Vec2Add(a:Vec2, b:Vec2):Vec2
 {
@@ -3585,6 +3602,9 @@ export class zlUITreeNode extends zlUICheck
                         let tn=this.tree.CreateTreeNode(ParseText(parser.LastTok()), this);
                         await tn.ParseTreeNode(parser);
                         break; }
+                    case "offset_x": 
+                        this.offset_x=Number.parseFloat(toks[1]);
+                        break;
                     case "}":
                         return;
                     default:
@@ -3601,6 +3621,7 @@ export class zlUITreeNode extends zlUICheck
         super.Copy(obj);
         let o=obj as zlUITreeNode;
         this.open=o.open;
+        this.offset_x=o.offset_x;
     }
     Clone():zlUIWin
     {
@@ -3632,6 +3653,7 @@ export class zlUITreeNode extends zlUICheck
     treenodeOpen:zlUITreeNodeOpen;
     open:boolean=true;
     depth:number=0;
+    offset_x:number=0;
 }
 
 export {zlUITree as UITree}
@@ -3654,6 +3676,10 @@ export class zlUITree extends zlUISlider
             let tn=this.CreateTreeNode(ParseText(parser.LastTok()));
             await tn.ParseTreeNode(parser);
             break; }
+        case "defaulttreenode": 
+            this.defaultTreeNode=new zlUITreeNode(this._owner);
+            await this.defaultTreeNode.Parse(parser);
+            break; 
         default:
             return await super.ParseCmd(name,toks,parser);    
         }
@@ -3695,7 +3721,7 @@ export class zlUITree extends zlUISlider
         for(let tn of this.expandTreeNode) {
             
             tn.y=y;
-            tn.treenodeOpen.x=tn.depth*TREENODE_OPEN_SIZE;
+            tn.treenodeOpen.x=tn.offset_x + tn.depth*TREENODE_OPEN_SIZE;
             tn.treenodeOpen.isVisible=tn.treenode.length>0;
             tn.textoffset={
                 x:tn.treenodeOpen.x+tn.treenodeOpen.w,
@@ -3721,7 +3747,9 @@ export class zlUITree extends zlUISlider
 
     CreateTreeNode(text:string, parent?:zlUITreeNode):zlUITreeNode
     {
-        let tn:zlUITreeNode=new zlUITreeNode(this._owner);
+        let tn:zlUITreeNode=this.defaultTreeNode?
+            this.defaultTreeNode.Clone() as zlUITreeNode:
+            new zlUITreeNode(this._owner);
         tn.fontIndex=this.fontIndex;
         tn.Name=text;
         tn.SetText(text);
@@ -3761,6 +3789,7 @@ export class zlUITree extends zlUISlider
     treenode:zlUITreeNode[]=[];
     treenodeChange:boolean=false;
     expandTreeNode:zlUITreeNode[];
+    defaultTreeNode:zlUITreeNode=null;
 }
 
 export class zlTexturePack
