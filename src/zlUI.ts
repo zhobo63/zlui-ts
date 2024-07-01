@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.20";
+export const Version="0.1.21";
 
 export var Use_ImTransform=true;
 
@@ -875,12 +875,18 @@ export class zlUIWin
     on_notify: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_change: ((this: zlUIWin, text: string) => any) | null; 
     on_hover: ((this:zlUIWin, obj:zlUIWin) => any) | null;
+    on_dragstart: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
+    on_dragover: ((this: zlUIWin, obj: zlUIWin, drag: zlUIWin) => boolean) | null; 
+    on_drop: ((this: zlUIWin, obj: zlUIWin, drop: zlUIWin) => boolean) | null; 
 
     ClearCallback(child:boolean):void {
         this.on_size=undefined;
         this.on_notify=undefined;
         this.on_change=undefined;
         this.on_hover=undefined;
+        this.on_dragstart=undefined;
+        this.on_dragover=undefined;
+        this.on_drop=undefined;
         if(child) {
             for(let ch of this.pChild) {
                 ch.ClearCallback(child);
@@ -1157,6 +1163,15 @@ export class zlUIWin
         case "rotate":
             this.rotate=Number.parseFloat(toks[1])*Math.PI/180.0;
             break;
+        case "dragdrop":
+            this.isDragDrop=ParseBool(toks[1]);
+            break;
+        case "dragtype":
+            this.dragType=Number.parseInt(toks[1]);
+            break;
+        case "droptype":
+            this.dropType=Number.parseInt(toks[1]);
+            break;
         default:
             console.log("zlUIWin " + this.Name + " unknow param " + name);
             return false;
@@ -1180,6 +1195,7 @@ export class zlUIWin
         this.isCanNotify=obj.isCanNotify;
         this.isCanDrag=obj.isCanDrag;
         this.isClip=obj.isClip;
+        this.isDragDrop=obj.isDragDrop;
         this.add_x=obj.add_x;
         this.add_y=obj.add_y;
         this.borderWidth=obj.borderWidth;
@@ -1199,6 +1215,8 @@ export class zlUIWin
         this.scale=obj.scale;
         this.origin=Clone(obj.origin);
         this.originOffset=Clone(obj.originOffset);
+        this.dragType=obj.dragType;
+        this.dropType=obj.dropType;
 
         this.pChild=[];
         for(let ch of obj.pChild) {
@@ -1792,6 +1810,31 @@ export class zlUIWin
             ch.SetAlpha(this.alpha);
         }        
     }
+    OnDragStart(drag:zlUIWin) {
+        if(this.on_dragstart) {
+            this.on_dragstart(drag);
+        }
+    }
+    OnDragOver(drag:zlUIWin):boolean {
+        let ret=false;
+        if(this.dropType && this.dropType==drag.dragType)   {
+            ret=true;
+            if(this.on_dragover) {
+                ret=this.on_dragover(this, drag);
+            }
+        }
+        return ret;
+    }
+    OnDrop(drop:zlUIWin):boolean {
+        let ret=false;
+        if(this.dropType && this.dropType==drop.dragType)   {
+            ret=true;
+            if(this.on_drop) {
+                ret=this.on_drop(this, drop);
+            }
+        }
+        return ret;
+    }
 
     Name:string;
     isCalRect:boolean=false;
@@ -1803,6 +1846,7 @@ export class zlUIWin
     isResizable:boolean=false;
     isClip:boolean=false;
     isDelete:boolean=false;
+    isDragDrop:boolean=false;
     pChild:zlUIWin[]=[];
     x:number=0;
     y:number=0;
@@ -1830,6 +1874,9 @@ export class zlUIWin
     scale:number=1;
     origin:Vec2={x:0.5, y:0.5};
     originOffset:Vec2;
+
+    dragType:number;
+    dropType:number;
 
     _csid:string;
     _owner:zlUIMgr;
@@ -5018,10 +5065,32 @@ export class zlUIMgr extends zlUIWin
                     this.drag=notify;
                     this.drag_x=notify.x;
                     this.drag_y=notify.y;
+                }else if(notify.isDragDrop) {
+                    this.drag_source=notify;
+                    this.drag_drop=undefined;
+                    this.drag_x=notify._screenRect.x;
+                    this.drag_y=notify._screenRect.y;
                 }
             }
             if(!notify.isDisable)   {
                 notify.isDown=isDown;
+            }
+            if(this.drag_source && this.drag_drop === undefined) {
+                let ox=Math.abs(this.mouse_pos.x-this.first_pos_x);
+                let oy=Math.abs(this.mouse_pos.y-this.first_pos_y);
+                if(Math.max(ox,oy)>=5) {
+                    this.drag_drop=this.drag_source.Clone();
+                    this.drag_drop.SetAlpha(0.5);
+                    this.drag_source.OnDragStart(this.drag_drop);
+                }
+            }
+            if(this.drag_over!=notify && this.drag_source && this.drag_over) {
+                this.drag_over=notify;
+                if(notify.OnDragOver(this.drag_source)) {
+                    this.drag_drop.SetAlpha(1);
+                }else {
+                    this.drag_drop.SetAlpha(0.5);
+                }
             }
             if(this.hover!=notify)  {
                 if(this.hover) {
@@ -5042,6 +5111,10 @@ export class zlUIMgr extends zlUIWin
                 this.HideHint();
             }
         }
+        else if(this.drag_over && this.drag_source && this.drag_drop) {
+            this.drag_drop.SetAlpha(0.5);
+            this.drag_over=undefined;
+        }
         if(this.drag)   {
             this.drag.x=this.drag_x+this.mouse_pos.x-this.first_pos_x;
             this.drag.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
@@ -5049,6 +5122,23 @@ export class zlUIMgr extends zlUIWin
             this.drag.SetCalRect();
             if(!isDown) {
                 this.drag=undefined;
+            }
+        }
+        if(this.drag_drop) {
+            this.drag_drop.x=this.drag_x+this.mouse_pos.x-this.first_pos_x;
+            this.drag_drop.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
+            this.SetCalRect();
+            this.Refresh(ti, this);
+
+            if(!isDown) {
+                if(this.drag_source && this.drag_drop) {
+                    if(this.hover && this.hover.OnDrop(this.drag_source)) {
+
+                    }
+                }
+                this.drag_over=undefined;
+                this.drag_source=undefined;
+                this.drag_drop=undefined;
             }
         }
         if(this.popup) {
@@ -5081,6 +5171,9 @@ export class zlUIMgr extends zlUIWin
     Paint(drawlist: ImGui.ImDrawList): void {
         this.paint_count=0;
         super.Paint(drawlist);
+        if(this.drag_drop) {
+            this.drag_drop.Paint(drawlist);
+        }
     }
 
     ScaleWH(w:number, h:number, mode:ScaleMode):void 
@@ -5258,6 +5351,10 @@ export class zlUIMgr extends zlUIWin
     drag_y:number;
     first_pos_x:number;
     first_pos_y:number;
+
+    drag_source:zlUIWin;
+    drag_drop:zlUIWin;
+    drag_over:zlUIWin;
 
     popup:zlUIWin;
 
