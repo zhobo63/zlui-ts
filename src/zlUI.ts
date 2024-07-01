@@ -5082,12 +5082,18 @@ export class zlUIMgr extends zlUIWin
                     this.drag_drop=this.drag_source.Clone();
                     this.drag_drop.SetAlpha(0.5);
                     this.drag_source.OnDragStart(this.drag_drop);
+                    if(this.on_dragstart) {
+                        this.on_dragstart(this.drag_drop);
+                    }
                 }
             }
-            if(this.drag_over!=notify && this.drag_source && this.drag_over) {
+            if((this.drag_over === undefined || this.drag_over!=notify) && this.drag_source && this.drag_drop) {
                 this.drag_over=notify;
                 if(notify.OnDragOver(this.drag_source)) {
                     this.drag_drop.SetAlpha(1);
+                    if(this.on_dragover) {
+                        this.on_dragover(notify, this.drag_source);
+                    }
                 }else {
                     this.drag_drop.SetAlpha(0.5);
                 }
@@ -5127,13 +5133,15 @@ export class zlUIMgr extends zlUIWin
         if(this.drag_drop) {
             this.drag_drop.x=this.drag_x+this.mouse_pos.x-this.first_pos_x;
             this.drag_drop.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
-            this.SetCalRect();
-            this.Refresh(ti, this);
+            this.drag_drop.SetCalRect();
+            this.drag_drop.Refresh(ti, this);
 
             if(!isDown) {
                 if(this.drag_source && this.drag_drop) {
                     if(this.hover && this.hover.OnDrop(this.drag_source)) {
-
+                        if(this.on_drop) {
+                            this.on_drop(this.hover, this.drag_source);
+                        }
                     }
                 }
                 this.drag_over=undefined;

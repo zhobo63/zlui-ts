@@ -37,6 +37,17 @@ class App
         this.ui.on_notify=(obj:zlUIWin)=>{
             console.log("notify", obj);
         };  
+        this.ui.on_dragstart=(obj:zlUIWin)=>{
+            console.log("on_dragstart", obj);
+        };
+        this.ui.on_dragover=(obj:zlUIWin, drag:zlUIWin)=>{
+            console.log("on_dragover", obj, drag);
+            return true;
+        };
+        this.ui.on_drop=(obj:zlUIWin, drop:zlUIWin)=>{
+            console.log("on_drop", obj, drop);
+            return true;
+        };
 
     }
 

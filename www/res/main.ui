@@ -91,6 +91,7 @@ Object Tree
                     Name ed_treenode444
                     RectWH 190 30 150 30
                 }
+                    DropType 1
             }
 
         }
@@ -201,6 +202,14 @@ Clone Panel
 	}	
 }
 
+Clone Panel
+{    
+    Name dragdrop
+    RectWH 100 500 120 30
+    DragDrop true
+    DragType 1
+    Text DragMe
+}
 
 Clone Panel
 {    
