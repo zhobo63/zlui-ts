@@ -48,7 +48,11 @@ class App
             console.log("on_drop", obj, drop);
             return true;
         };
-
+        let ed444=this.ui.GetUI("ed_treenode444");
+        ed444.on_drop=(obj:zlUIWin, drop:zlUIWin)=>{
+            obj.SetText(drop.Name);
+            return true;
+        };
     }
 
     mainLoop(time:number, drawlist:ImGui.DrawList)

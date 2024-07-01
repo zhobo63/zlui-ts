@@ -1760,8 +1760,8 @@ export class zlUIWin
             return this;
         if(!this.pChild)
             return undefined;
-        for(let i=0;i<this.pChild.length;i++)    {
-            let found=this.pChild[i].GetUI(name);
+        for(let ch of this.pChild)    {
+            let found=ch.GetUI(name);
             if(found)
                 return found;
         }
@@ -3733,6 +3733,15 @@ export class zlUITreeNode extends zlUICheck
         super.OnClick();
         this.tree.OnSelected(this);
     }
+    GetTreeNode(name:string) :zlUITreeNode {
+        for(let tn of this.treenode) {
+            if(tn.Name==name)
+                return tn;
+            let ctn=tn.GetTreeNode(name);
+            if(ctn) return ctn;
+        }
+        return null;
+    }
 
 
     tree:zlUITree;
@@ -3762,6 +3771,7 @@ export class zlUITree extends zlUISlider
         case "treenode": {
             let tn=this.CreateTreeNode(ParseText(parser.LastTok()));
             await tn.ParseTreeNode(parser);
+            this.CalTreeNode();
             break; }
         case "defaulttreenode": 
             this.defaultTreeNode=new zlUITreeNode(this._owner);
@@ -3790,6 +3800,16 @@ export class zlUITree extends zlUISlider
         if(!this.expandTreeNode) {
             this.CalTreeNode();
          }
+    }
+
+    GetTreeNode(name:string):zlUITreeNode {
+        for(let tn of this.treenode){
+            if(tn.Name==name)
+                return tn;
+            let ctn=tn.GetTreeNode(name);
+            if(ctn) return ctn;
+        }
+        return null;
     }
 
     CalTreeNode():void

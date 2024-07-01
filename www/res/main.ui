@@ -90,8 +90,9 @@ Object Tree
                 {
                     Name ed_treenode444
                     RectWH 190 30 150 30
-                }
                     DropType 1
+                }
+                DropType 1
             }
 
         }
