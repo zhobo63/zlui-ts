@@ -2219,7 +2219,7 @@ export class zlUIPanel extends zlUIImage
     PaintText(drawlist:ImGui.ImDrawList):void 
     {
         if(this.text && this._textPos)   {
-            let text=this.text;
+            let text=(typeof this.text === "string") ? this.text:""+this.text;
             let font=this._owner.GetFont(this.fontIndex);
             let wrap=this.isMultiline?this.w:0;
             let color=this.textColor;
@@ -2507,7 +2507,7 @@ export class zlUIEdit extends zlUIPanel
     PaintText(drawlist:ImGui.ImDrawList):void 
     {
         if(this.text)   {
-            let text=this.text;
+            let text=(typeof this.text === "string") ? this.text:""+this.text;
             let font=this._owner.GetFont(this.fontIndex);
             if(this.isPassword) {
                 if(!this.passwordText || this.text.length!=this.passwordText.length)  {

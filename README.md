@@ -64,13 +64,14 @@ ImTransform when rotate or scale
 
 - 0.1.22
 
-```ts
     Drag Drop
-    DragDrop true   #enable drag drop
-    DragType number #source object can drop only DragType match target object DropType 
+```ts
+    DragDrop true   //enable drag drop
+    DragType number //source object can drop only DragType match DropType of target object
     DropType number
 ```
-<video autoplay loop src="https://zhobo63.github.io/zlui/screen-recorder-tue-jul-02-2024-11-25-40.webm" type="video/webm" width="80%"> </video>
+
+<video autoplay loop src="https://zhobo63.github.io/zlui/screen-recorder-tue-jul-02-2024-11-25-40.webm" type="video/webm" width="80%"></video>
 
 - 0.1.20  
 
