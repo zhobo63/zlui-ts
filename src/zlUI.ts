@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.22";
+export const Version="0.1.24";
 
 export var Use_ImTransform=true;
 
@@ -1172,6 +1172,12 @@ export class zlUIWin
         case "droptype":
             this.dropType=Number.parseInt(toks[1]);
             break;
+        case "disable":
+            this.isDisable = ParseBool(toks[1]);
+            break;
+        case "enable":
+            this.isEnable = ParseBool(toks[1]);
+            break;
         default:
             console.log("zlUIWin " + this.Name + " unknow param " + name);
             return false;
@@ -1192,6 +1198,7 @@ export class zlUIWin
         this._csid=obj._csid;
         this.isCalRect=true;
         this.isDisable=obj.isDisable;
+        this.isEnable=obj.isEnable;
         this.isCanNotify=obj.isCanNotify;
         this.isCanDrag=obj.isCanDrag;
         this.isClip=obj.isClip;
@@ -1838,7 +1845,7 @@ export class zlUIWin
 
     Name:string;
     isCalRect:boolean=false;
-    isDisable:boolean=false; //disable: GetUI GetNotify
+    isDisable:boolean=false; //完全停用 disable: GetUI GetNotify
     isVisible:boolean=true;
     isDown:boolean=false;
     isCanNotify:boolean=true;
@@ -1847,6 +1854,7 @@ export class zlUIWin
     isClip:boolean=false;
     isDelete:boolean=false;
     isDragDrop:boolean=false;
+    isEnable:boolean=true;  //是否可作用: Button Check Combo Edit
     pChild:zlUIWin[]=[];
     x:number=0;
     y:number=0;
@@ -2444,6 +2452,7 @@ export {zlUIEdit as UIEdit}
 export class zlUIEdit extends zlUIPanel
 {
     on_edit: ((this: zlUIWin, obj: zlUIEdit) => any) | null; 
+	on_before_edit: ((this: zlUIWin, txt: string) => string) | null;
 
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -2458,7 +2467,7 @@ export class zlUIEdit extends zlUIPanel
 
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
-        switch(name) {
+        switch (name) {
         case "password":
             this.isPassword=true;
             this.password_char=ParseText(toks[1]);
@@ -2475,7 +2484,6 @@ export class zlUIEdit extends zlUIPanel
     {
         super.Copy(obj);
         let o=obj as zlUIEdit;
-        this.isEnable=o.isEnable;
         this.isPassword=o.isPassword;
         this.passwordText=o.passwordText;
         this.password_char=o.password_char;
@@ -2571,6 +2579,10 @@ export class zlUIEdit extends zlUIPanel
         inp._dom_input.style.color=textCol;
         inp._dom_input.oninput=(e)=>{
             let text=inp._dom_input.value;
+			if(this.on_before_edit)	{
+				text=this.on_before_edit(text);
+				inp._dom_input.value=text;
+			}
             if(this.max_text_length&&this.max_text_length>0)    {
                 text=text.slice(0,this.max_text_length);
             }
@@ -2591,7 +2603,6 @@ export class zlUIEdit extends zlUIPanel
         console.log("OnNotify", this);
     }
 
-    isEnable:boolean=true;
     isPassword:boolean=false;
     passwordText:string;
     password_char:string;
@@ -2699,7 +2710,6 @@ export class zlUIButton extends zlUIPanel
         this.imageDown=o.imageDown;
         this.imageUp=o.imageUp;
         this.imageHover=o.imageHover;
-        this.isEnable=o.isEnable;
         this.isPaintButton=o.isPaintButton;
         this.colorDown4=Clone(o.colorDown4);
         this.colorUp4=Clone(o.colorUp4);
@@ -2814,7 +2824,6 @@ export class zlUIButton extends zlUIPanel
     imageDown:TexturePack;
     imageUp:TexturePack;
     imageHover:TexturePack;
-    isEnable:boolean=true;
 
     colorDown4:number[];
     colorUp4:number[];
@@ -3014,6 +3023,9 @@ export class zlUICombo extends zlUIButton
                 drawlist.Transform(this._world, vstart);
             }
         }
+        if(!this._owner.popup && this._owner.combo===this) {
+            this._owner.combo=undefined;
+        }
     }
     CalRect(parent: zlUIWin): void 
     {
@@ -3022,6 +3034,48 @@ export class zlUICombo extends zlUIButton
         this.arrow_xy.x=this._localRect.max.x-18;
         this.arrow_xy.y=(this._localRect.max.y+this._localRect.xy.y)*0.5-8;
     }
+
+    OnNotify():void {
+        if(this._owner.combo===this) {
+            this._owner.ClosePopup();
+            return;
+        }
+        let combo_menu=this._owner.DefaultComboMenu;
+        let combo_item=this._owner.DefaultComboItem;
+        combo_menu.pChild=[];
+        let i=0;
+        for(let item of this.combo_items) {
+            let btn=combo_item.Clone() as zlUIButton;
+            btn.isVisible=true;
+            btn.SetText(item);
+            btn.user_data=i;
+            btn.on_click=(o)=>{
+                combo_menu.isDelete=true;
+                this._owner.ClosePopup();
+                this.combo_value=btn.user_data;
+                this.SetText(this.combo_items[this.combo_value]);
+                if(this.on_combo) {
+                    this.on_combo(this);
+                }
+            }
+            combo_menu.ArrangeChild(btn,ESliderType.eVertical);
+            i++;
+        }
+        if(i==0)
+            return;
+        combo_menu.x=this._screenRect.xy.x;
+        combo_menu.y=this._screenRect.max.y;
+        combo_menu.w=this.w;
+        combo_menu.h=i*combo_item.h;
+        if(combo_menu.y+combo_menu.h>this._owner.h) {
+            combo_menu.h=this._owner.h-combo_menu.y;
+        }
+        combo_menu.SetCalRect();
+        this._owner.AddChild(combo_menu);
+        this._owner.Popup(combo_menu);
+        this._owner.combo=this;
+    }
+
     Combo(value:number, items?:string[], on_combo?:(value:number)=>any)
     {
         if(items) {
@@ -3029,43 +3083,8 @@ export class zlUICombo extends zlUIButton
         }
         this.combo_value=value;
         this.SetText(this.combo_items[value]);
-        this.on_click=(o)=>{
-            let combo_menu=this._owner.DefaultComboMenu;
-            let combo_item=this._owner.DefaultComboItem;
-            combo_menu.pChild=[];
-            let i=0;
-            for(let item of this.combo_items) {
-                let btn=combo_item.Clone() as zlUIButton;
-                btn.isVisible=true;
-                btn.SetText(item);
-                btn.user_data=i;
-                btn.on_click=(o)=>{
-                    combo_menu.isDelete=true;
-                    this._owner.ClosePopup();
-                    this.combo_value=btn.user_data;
-                    this.SetText(this.combo_items[this.combo_value]);
-                    if(on_combo) {
-                        on_combo(this.combo_value);
-                    }
-                    if(this.on_combo) {
-                        this.on_combo(this);
-                    }
-                }
-                combo_menu.ArrangeChild(btn,ESliderType.eVertical);
-                i++;
-            }
-            if(i==0)
-                return;
-            combo_menu.x=this._screenRect.xy.x;
-            combo_menu.y=this._screenRect.max.y;
-            combo_menu.w=this.w;
-            combo_menu.h=i*combo_item.h;
-            if(combo_menu.y+combo_menu.h>this._owner.h) {
-                combo_menu.h=this._owner.h-combo_menu.y;
-            }
-            combo_menu.SetCalRect();
-            this._owner.AddChild(combo_menu);
-            this._owner.Popup(combo_menu);
+        if(on_combo) {
+            this.on_combo=(obj)=>{on_combo(this.combo_value);};
         }
     }
 
@@ -5052,6 +5071,9 @@ export class zlUIMgr extends zlUIWin
         let notify=this.GetNotify(this.mouse_pos);
         let isDown=this.any_pointer_down;
         let firstDown=(!this.prevDown && isDown);
+        if(firstDown) {
+            this.down_index++;
+        }
         this.prevDown=isDown;
         if(notify) {
             if(this.notify!=notify)  {
@@ -5170,7 +5192,7 @@ export class zlUIMgr extends zlUIWin
             }
         }
         if(this.popup) {
-            if(isDown&&!this.popup._screenRect.Inside(this.mouse_pos))    {
+            if(isDown&&this.down_index!=this.popup_down_index&&!this.popup._screenRect.Inside(this.mouse_pos))    {
                 this.ClosePopup();
             }
         }
@@ -5256,6 +5278,7 @@ export class zlUIMgr extends zlUIWin
         ui.isVisible=true;
         this.AddChild(ui);
         this.popup=ui;
+        this.popup_down_index=this.down_index;
     }
     ClosePopup():void
     {
@@ -5267,6 +5290,7 @@ export class zlUIMgr extends zlUIWin
             }
             this.popup=undefined;
         }
+        this.combo=undefined;
     }
     ShowHint(hint:string, pt:Vec2):void
     {
@@ -5385,6 +5409,7 @@ export class zlUIMgr extends zlUIWin
     drag_over:zlUIWin;
 
     popup:zlUIWin;
+    popup_down_index:number;
 
     hover_slider:zlUIWin;
     slider:zlUIWin;
@@ -5397,12 +5422,15 @@ export class zlUIMgr extends zlUIWin
     default_combo_item:zlUIButton;
     default_hint_panel:zlUIPanel;
 
+    combo:zlUICombo;
+
     prevDown:boolean=false;
     any_pointer_down:boolean=false;
     mouse_pos:ImGui.ImVec2;
     mouse_wheel:number=0;
     mouse_wheel_speed:number=20;
     touch_tolerance:number=50;
+    down_index:number=0;
 
     default_panel_color:number=0xffebebeb;
     dom_input:Input;

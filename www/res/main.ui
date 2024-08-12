@@ -56,7 +56,7 @@ Clone Panel
 Object Tree
 {
     Name tree_1
-    RectWH 50 100 400 300
+    RectWH 50 50 400 300
     Color RGBA(35,39,49,255)
     BorderColor RGBA(57,61,70,255)
     TextColor RGBA(250,250,250,255)
@@ -105,7 +105,7 @@ Object Tree
 Clone Panel
 {
 	Name date_picker
-	RectWH 500 100 390 435
+	RectWH 500 50 390 435
     Color RGBA(25,29,39,230)
     Rounding 5
     Drag true
@@ -206,10 +206,20 @@ Clone Panel
 Clone Panel
 {    
     Name dragdrop
-    RectWH 100 500 120 30
+    RectWH 100 400 150 50
     DragDrop true
     DragType 1
+    Font 1
     Text DragMe
+}
+
+Clone Combo
+{
+    Name cbo_test
+    RectWH 100 500 150 30
+
+    ComboItems AAA ABC DEF
+    ComboValue 0
 }
 
 Clone Panel
