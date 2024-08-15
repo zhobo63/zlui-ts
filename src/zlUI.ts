@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.24";
+export const Version="0.1.26";
 
 export var Use_ImTransform=true;
 
@@ -2241,9 +2241,9 @@ export class zlUIPanel extends zlUIImage
             if(Use_ImTransform) {
                 font.RenderText(drawlist, font.FontSize, this._textPos, 
                     color,
-                    this._textClip, text, text.length, wrap, false);    
+                    this._textClip, text, text.length, wrap, true);    
             }else {
-                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap);
+                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap, this._textClip);
             }
         }
 
@@ -2534,9 +2534,9 @@ export class zlUIEdit extends zlUIPanel
             if(Use_ImTransform) {
                 font.RenderText(drawlist, font.FontSize, this._textPos, 
                     color,
-                    this._textClip, text, text.length, wrap, false);    
+                    this._textClip, text, text.length, wrap, true);    
             }else {
-                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap);
+                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap, this._textClip);
             }
         }
     }
@@ -3066,7 +3066,9 @@ export class zlUICombo extends zlUIButton
         combo_menu.x=this._screenRect.xy.x;
         combo_menu.y=this._screenRect.max.y;
         combo_menu.w=this.w;
-        combo_menu.h=i*combo_item.h;
+        combo_menu.h=i*combo_item.h
+			+combo_menu.padding+combo_menu.padding
+			+combo_menu.borderWidth+combo_menu.borderWidth;
         if(combo_menu.y+combo_menu.h>this._owner.h) {
             combo_menu.h=this._owner.h-combo_menu.y;
         }
@@ -3173,7 +3175,7 @@ export class zlUISlider extends zlUIPanel
             let type=this.GetScrollType();
             let scroll_max=0;
             if(type.isScrollH)  {
-                let y=this.padding -this.scroll_value;
+                let y=this.borderWidth+this.padding-this.scroll_value;
                 if(this.pChild) {
                     this.pChild.forEach(ch=>{
                         ch.y=y;
@@ -3186,7 +3188,7 @@ export class zlUISlider extends zlUIPanel
                 scroll_max=(scroll_max>h)?scroll_max-h:0;
             }
             if(type.isScrollW)  {
-                let x=this.padding -this.scroll_value;
+                let x=this.borderWidth+this.padding-this.scroll_value;
                 if(this.pChild) {
                     this.pChild.forEach(ch=>{
                         ch.x=x;
@@ -3232,7 +3234,8 @@ export class zlUISlider extends zlUIPanel
             this._first_value=this.scroll_value;
             this._first_scrollbar=Inside(this._first_pos, this._scrollHxy, this._scrollHxy2);
         }
-        if(own.hover_slider==this&&own.mouse_wheel!=0) {
+		let isWheel=this._owner.popup?this._owner.popup===this:true;
+        if(own.hover_slider==this&&own.mouse_wheel!=0&&isWheel) {
             let val=this.scroll_value-own.mouse_wheel*this.mouse_wheel_speed;
             if(val<0) val=0;
             else if(val>this.scroll_max) val=this.scroll_max;
@@ -3855,7 +3858,11 @@ export class zlUITree extends zlUISlider
             };
             if(!tn.h){
                 let font=this._owner.GetFont(tn.fontIndex);
-                tn.h=font.FontSize+tn.padding+tn.padding;
+                let text_height=font.FontSize;
+                let text=tn.text?tn.text:"A";
+                let textSize=font.CalcTextSizeA(font.FontSize, this.w, 0, text, text.length);
+                text_height=textSize.y;
+                tn.h=text_height+tn.padding+tn.padding;
             }
 
             this.AddChild(tn);
@@ -5275,6 +5282,9 @@ export class zlUIMgr extends zlUIWin
     }
     Popup(ui:zlUIWin):void
     {
+        if (this.popup) {
+            this.ClosePopup();
+        }
         ui.isVisible=true;
         this.AddChild(ui);
         this.popup=ui;
