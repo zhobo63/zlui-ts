@@ -3167,7 +3167,7 @@ export class zlUISlider extends zlUIPanel
     {
         let old_value=this.scroll_value;
         this._is_scrollvalue_change=false;
-        this.scroll_value=val;
+        this.scroll_value=this.is_item_mode?Math.floor(val):val;
         if(this.on_scroll) {
             this.on_scroll(val);
         }
