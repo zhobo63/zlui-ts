@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.26";
+export const Version="0.1.27";
 
 export var Use_ImTransform=true;
 
@@ -1263,7 +1263,7 @@ export class zlUIWin
         }
     }
 
-    Refresh(ti:number, parent?:zlUIWin):void 
+    Refresh(ti:number, parent?:zlUIWin):boolean 
     {        
         this._owner.refresh_count++;
         if(this.autosize!=EAutosize.None)   {
@@ -1282,6 +1282,7 @@ export class zlUIWin
             this.CalRect(parent);
         }
         let to_delete:number[]=[];
+        let ret=this.isCalRect;
 
         for(let i=0;i<this.pChild.length;i++)   {
             let obj=this.pChild[i];
@@ -1291,13 +1292,14 @@ export class zlUIWin
                 continue;
             }
             if(obj.isVisible) {
-                obj.Refresh(ti, this);
+                ret=obj.Refresh(ti, this)||ret;
             }
         }
         while(to_delete&&to_delete.length>0) {
             let i=to_delete.pop() as number;
             this.pChild.splice(i,1);                
         }
+        return ret;
     }
     IsVisible(obj:zlUIWin):boolean
     {
@@ -2390,8 +2392,8 @@ export class zlUIPanel extends zlUIImage
     
             x+=this._localRect.xy.x;
             y+=this._localRect.xy.y;
-            x=Math.round(x);
-            y=Math.round(y);
+            x=Math.floor(x);
+            y=Math.floor(y);
             if(!this._textPos) {
                 this._textPos=new ImGui.Vec2(x,y);
             }else {
@@ -2551,6 +2553,7 @@ export class zlUIEdit extends zlUIPanel
     OnNotify(): void {
         if(!this.isEnable)
             return;
+        super.OnNotify();
         let inp:Input;
         const textCol=this.to_rgb(this.textColor);
         const textBg=this.to_rgb(this.color);
@@ -3036,10 +3039,13 @@ export class zlUICombo extends zlUIButton
     }
 
     OnNotify():void {
+        super.OnNotify();
         if(this._owner.combo===this) {
             this._owner.ClosePopup();
             return;
         }
+        if(!this.combo_items)
+            return;
         let combo_menu=this._owner.DefaultComboMenu;
         let combo_item=this._owner.DefaultComboItem;
         combo_menu.pChild=[];
@@ -3216,7 +3222,7 @@ export class zlUISlider extends zlUIPanel
         
     }
 
-    Refresh(ti:number, parent:zlUIWin=null):void 
+    Refresh(ti:number, parent:zlUIWin=null):boolean 
     {
         for(let i=0;i<this.pChild.length;i++)   {
             let ch=this.pChild[i];
@@ -3234,14 +3240,15 @@ export class zlUISlider extends zlUIPanel
             this._first_value=this.scroll_value;
             this._first_scrollbar=Inside(this._first_pos, this._scrollHxy, this._scrollHxy2);
         }
+        let isChild=this.HasChild(own.hover);
 		let isWheel=this._owner.popup?this._owner.popup===this:true;
-        if(own.hover_slider==this&&own.mouse_wheel!=0&&isWheel) {
+        if(own.hover_slider==this&&own.mouse_wheel!=0&&isWheel&& isChild) {
             let val=this.scroll_value-own.mouse_wheel*this.mouse_wheel_speed;
             if(val<0) val=0;
             else if(val>this.scroll_max) val=this.scroll_max;
             this.OnScrollValueChange(val);
         }
-        if(own.slider==this)    {
+        if(own.slider==this && isChild)    {
             let type=this.GetScrollType();
             if(type.isScrollH)  {
                 let val=this._first_value;
@@ -3284,7 +3291,7 @@ export class zlUISlider extends zlUIPanel
         if(!own.any_pointer_down)   {
             own.slider=null;
         }
-        super.Refresh(ti, parent);
+        return super.Refresh(ti, parent);
     }
     Paint(drawlist:ImGui.ImDrawList):void 
     {
@@ -3334,7 +3341,10 @@ export class zlUISlider extends zlUIPanel
 
     CalRect(parent:zlUIWin):void 
     {
+        let ow=this.w;
+        let oh=this.h;
         super.CalRect(parent);
+        if(ow!=this.w || oh!=this.h) {this._is_scrollvalue_change=true;}
         this.CalScrollRect();
     }
     CalScrollRect():void
@@ -3739,13 +3749,14 @@ export class zlUITreeNode extends zlUICheck
         return obj;
     }
 
-    Refresh(ti:number, parent?:zlUIWin):void 
+    Refresh(ti:number, parent?:zlUIWin):boolean 
     {
-        super.Refresh(ti, parent);
+        let ret=super.Refresh(ti, parent);
         if(this.treenodeOpen.isChecked!=this.open){
             this.open=this.treenodeOpen.isChecked;
             this.tree.expandTreeNode=undefined;
         }
+        return ret;
     }
     Paint(drawlist:ImGui.ImDrawList):void 
     {
@@ -5072,7 +5083,7 @@ export class zlUIMgr extends zlUIWin
             return undefined;
         }
     }
-    Refresh(ti:number, parent?:zlUIWin):void 
+    Refresh(ti:number, parent?:zlUIWin):boolean 
     {
         this.hover_slider=this.GetUISlider(this.mouse_pos);
         let notify=this.GetNotify(this.mouse_pos);
@@ -5207,12 +5218,13 @@ export class zlUIMgr extends zlUIWin
 
         this.refresh_count=0;
         this.calrect_count=0;
-        super.Refresh(ti, undefined);
+        let ret=super.Refresh(ti, undefined);
         if(this.nextEdit) {
             this.NextEdit(this.nextEdit);
             this.nextEdit=undefined;
         }
         this.ClearPaintout(this);
+        return ret;
     }
 
     ClearPaintout(o:zlUIWin)
@@ -5282,7 +5294,7 @@ export class zlUIMgr extends zlUIWin
     }
     Popup(ui:zlUIWin):void
     {
-        if (this.popup) {
+        if(this.popup) {
             this.ClosePopup();
         }
         ui.isVisible=true;
@@ -5453,4 +5465,68 @@ export class zlUIMgr extends zlUIWin
     refresh_count:number=0;
     calrect_count:number=0;
     paint_count:number=0;
+}
+
+export const ImColor_Gray: ImGui.ImVec4 = new ImGui.ImVec4(0.5, 0.5, 0.5, 1)
+
+export function InspectorObj(obj:any, id:number):number
+{
+    ImGui.PushID(id);
+    for (let key in obj) {
+        let value = obj[key];
+
+        if (key.indexOf("color") >= 0 || key.indexOf("Color") >= 0) {            
+            let c = new ImGui.Color(value);
+            if (ImGui.ColorEdit4(key, c.Value)) {
+                obj[key]=c.toImU32();
+            }
+        }
+        else if (value == null) {
+            ImGui.Text(key + ": (null)");
+        }
+        else if (typeof (value) === 'object') {
+            if (ImGui.TreeNode(key)) {
+                id = InspectorObj(value, id + 1);
+                ImGui.TreePop();
+            }
+        }
+        else if (typeof (value) === 'number') {
+            let v = (_: number = value as number): number => obj[key] = _;
+            ImGui.InputFloat(key, v);
+        }
+        else if (typeof (value) === 'boolean') {
+            let v = (_: boolean = value as boolean): boolean => obj[key] = _;
+            ImGui.Checkbox(key, v);
+        }
+        else {
+            ImGui.Text(key + ": " + value);
+        }
+    }
+    ImGui.PopID();
+    return id;
+}
+
+export function InspectorUI(obj:zlUIWin, id:number):number
+{
+    if (ImGui.TreeNode("Param")) {
+        ImGui.Indent();
+        id = InspectorObj(obj as any, id + 1);
+        ImGui.Unindent();
+        ImGui.TreePop();
+    }
+    if(obj.pChild && obj.pChild.length>0) {
+        for(let ch of obj.pChild) {
+            if(!ch.isVisible) {
+                ImGui.PushStyleColor(ImGui.ImGuiCol.Text, ImColor_Gray);
+            }
+            if (ImGui.TreeNodeEx(ch._csid + " " + ch.Name)) {
+                id = InspectorUI(ch, id + 1);
+                ImGui.TreePop();
+            }
+            if(!ch.isVisible) {
+                ImGui.PopStyleColor();
+            }
+        }
+    }
+    return id;
 }

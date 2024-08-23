@@ -10,9 +10,6 @@ export {Bezier} from "./zlUI"
 import * as zlUI from "./zlUI"
 export {zlUI}
 
-
-
-
 import {ImGui, ImGui_Impl} from '@zhobo63/imgui-ts';
 import {ImVec4 } from '@zhobo63/imgui-ts/src/imgui';
 
