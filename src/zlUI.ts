@@ -4922,12 +4922,20 @@ export class zlTrackMgr
     Refresh(ti:number):boolean
     {
         let work=false;
-        for(let i=this.run_track.length-1;i>=0;i--) {
-            let trk=this.run_track[i];
+        let remove=false;
+        for(let trk of this.run_track) {
             trk.Refresh(ti);
             work=true;
             if(!trk.is_play) {
-                this.run_track.splice(i,1);
+                remove=true;
+            }
+        }
+        if(remove) {
+            for(let i=this.run_track.length-1;i>=0;i--) {
+                let trk=this.run_track[i];
+                if(!trk.is_play) {
+                    this.run_track.splice(i,1);
+                }
             }
         }
         this.is_play=work;
