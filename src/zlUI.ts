@@ -1614,6 +1614,8 @@ export class zlUIWin
                     let ch=this.pChild[i];
                     if(!ch.isVisible)
                         continue;
+                    let chx=ch.x;
+                    let chy=ch.y;
                     switch(this.arrange.direction) {
                     case EDirection.Vertical:
                         if(ch.margin.x+ch.w>w) {
@@ -1642,6 +1644,9 @@ export class zlUIWin
                         next=Math.max(next,ch.w+ch.margin.x);
                         break
                     } 
+                    if(chx!=ch.x || chy!=ch.y) {
+                        //ch.SetCalRect();
+                    }
                 }
                 break;
             }
@@ -1658,6 +1663,7 @@ export class zlUIWin
             if(this.h!=maxh) {
                 this.h=maxh;
                 this._autosize_change=true;
+                parent.SetCalRect();
             }
         }
         if(this.autosize&EAutosize.Width)   {
@@ -1672,6 +1678,7 @@ export class zlUIWin
             if(this.w!=maxw) {
                 this.w=maxw;
                 this._autosize_change=true;
+                parent.SetCalRect();
             }
         }        
     }
@@ -2412,12 +2419,14 @@ export class zlUIPanel extends zlUIImage
                 if(size.y>this.h)    {
                     this.h=size.y;
                     this._autosize_change=true;
+                    parent.SetCalRect();
                 }
             }
             if((this.autosize&EAutosize.Width) &&size.x>0) {
                 if(size.x>this.w)    {
                     this.w=size.x;
                     this._autosize_change=true;
+                    parent.SetCalRect();
                 }
             }
         }

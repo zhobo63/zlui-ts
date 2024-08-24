@@ -65,6 +65,22 @@ class App
             this.isDirty=true;
         }
         this.isDirty=true;
+        ImGui.Begin("Inspector");
+        ImGui.Text("Notify:"+(ui.notify?ui.notify.Name:"(null)"));
+        if(ui.notify) {
+            ImGui.SameLine();
+            if(ImGui.Button("CalRect")) {
+                ui.notify.SetCalRect();
+            }
+        }
+        ImGui.Text("refresh:" + ui.refresh_count);
+        ImGui.Text("paint:" + ui.paint_count);
+        if(ImGui.TreeNode("UIMgr")){
+            zlUI.InspectorUI(ui,1);
+            ImGui.TreePop();
+        }
+
+        ImGui.End();
     }
 
     onResize(width:number, height:number)

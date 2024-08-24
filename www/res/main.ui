@@ -233,7 +233,26 @@ Clone Panel
     #Clip true
     Arrange vertical content
     #Arrange vertical item 5 (100,100)
-    Visible false
+    //Visible false
+    //Drag true
+    //Sizable 
+    //Resizable true
+
+    Clone Panel
+    {
+        Name pnl_top
+        RectWH 0 0 100 30
+        Dock left|right 0 0 1 1
+        Autosize height
+        Padding 10
+
+        Clone Button 
+        {
+            Name btn_ok
+            RectWH 10 10 120 30
+            Text OK
+        }
+    }
     
     Clone[5] Button
     {
@@ -278,6 +297,7 @@ Clone Panel
         ComboItems AAA BBB CCC
         ComboValue 0
     }
+    /*
     Clone pnl_imagetext
     {
         Name pnl_imagetext1
@@ -290,6 +310,7 @@ Clone Panel
             Text 63212
         }
     }
+        */
 }
 
 TrackGroup rot
@@ -336,8 +357,8 @@ TrackGroup img_text
     }
 }
 
-PlayTrack rot -1
-PlayTrack rot_pnl1 -1
-PlayTrack img_text -1
+//PlayTrack rot -1
+//PlayTrack rot_pnl1 -1
+//PlayTrack img_text -1
 
 #include sidebar.ui
