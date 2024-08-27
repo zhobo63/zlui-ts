@@ -1267,14 +1267,14 @@ export class zlUIWin
     {        
         this._owner.refresh_count++;
         if(this.autosize!=EAutosize.None)   {
-            this.pChild.forEach(obj=>{            
+            for(let obj of this.pChild) {
                 if(obj.isVisible) {
                     if(obj._autosize_change)    {
                         this.isCalRect=true;
                         obj._autosize_change=false;
                     }
                 }
-            })
+            }
         }
         
         if(this.isCalRect) {
@@ -5533,14 +5533,16 @@ export function InspectorUI(obj:zlUIWin, id:number):number
     }
     if(obj.pChild && obj.pChild.length>0) {
         for(let ch of obj.pChild) {
+            let pushColor=false;
             if(!ch.isVisible) {
                 ImGui.PushStyleColor(ImGui.ImGuiCol.Text, ImColor_Gray);
+                pushColor=true;
             }
             if (ImGui.TreeNodeEx(ch._csid + " " + ch.Name)) {
                 id = InspectorUI(ch, id + 1);
                 ImGui.TreePop();
             }
-            if(!ch.isVisible) {
+            if(pushColor) {
                 ImGui.PopStyleColor();
             }
         }
