@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.27";
+export const Version="0.1.28";
 
 export var Use_ImTransform=true;
 
@@ -818,7 +818,7 @@ export class Parser
 {
     constructor(txt:string)
     {
-        this.lines=txt.split(/\r|\n/g).filter(e=>e);
+        this.lines=txt.replace(/\r/g,'').split(/\n/g);
         this.current=0;
     }
 
@@ -836,7 +836,7 @@ export class Parser
     {
         let line=this.CurrentLine();
         if(!line)   
-            return undefined;
+            return [];
         let l=line.toLowerCase();
         this.toks = l.split(/\s/g).filter(e=>e);
         if(this.toks.length>0) {
@@ -941,6 +941,7 @@ export class zlUIWin
             let num=Number.parseInt(tok);
             let obj=this._owner.Create(toks[1]);
             if(obj) {
+                obj.line=parser.current;
                 this.AddChild(obj);
                 await obj.Parse(parser);
                 let name=obj.Name;
@@ -968,6 +969,7 @@ export class zlUIWin
             }
             if(obj) {
                 let ch=obj.Clone();
+                ch.line=parser.current;
                 await ch.Parse(parser);
                 let name=ch.Name;
                 this.AddChild(ch);
@@ -990,6 +992,7 @@ export class zlUIWin
         case 'object': {
             let obj=this._owner.Create(toks[1]);
             if(obj) {
+                obj.line=parser.current;
                 this.AddChild(obj);
                 await obj.Parse(parser);
             }
@@ -1001,6 +1004,7 @@ export class zlUIWin
             }
             if(obj) {
                 obj=obj.Clone();
+                obj.line=parser.current;
                 this.AddChild(obj);
                 await obj.Parse(parser);
             }else {
@@ -1194,6 +1198,7 @@ export class zlUIWin
         this.y=obj.y;
         this.w=obj.w;
         this.h=obj.h;
+        this.line=obj.line;
         this.align=obj.align;
         this._csid=obj._csid;
         this.isCalRect=true;
@@ -1522,6 +1527,20 @@ export class zlUIWin
                 py=parent._localRect.xy.y+this.offset.y;    //+parent.borderWidth;
             }
         }
+        x1=Math.round(x1);
+        x2=Math.round(x2);
+        y1=Math.round(y1);
+        y2=Math.round(y2);
+        this.x=x1;
+        this.y=y1;
+        let nw=x2-x1;
+        let nh=y2-y1;
+        if(this.w!=nw) {
+            this.w=nw;
+        }
+        if(this.h!=nh) {
+            this.h=nh;
+        }
 
         if(Use_ImTransform) {
             let ox=this.w*this.origin.x;
@@ -1547,10 +1566,7 @@ export class zlUIWin
             x2+=px;
             y2+=py;
         }
-        x1=Math.round(x1);
-        x2=Math.round(x2);
-        y1=Math.round(y1);
-        y2=Math.round(y2);
+
         this._localRect.Set(x1, y1, x2, y2);
         if(Use_ImTransform) {
             this._localRect.TransformTo(this._world, this._screenRect);
@@ -1869,6 +1885,7 @@ export class zlUIWin
     y:number=0;
     w:number;
     h:number;
+    line:number=0;
     align:Align=Align.None;
     add_x:number;
     add_y:number;
@@ -2336,6 +2353,8 @@ export class zlUIPanel extends zlUIImage
             let text=this.CalRectText();
             let isReady: ImGui.ImScalar<boolean> = [false];
             let size=font.CalcTextSizeA(font.FontSize, ImGui.FLT_MAX, wrap, text, null, null, isReady);
+            size.x=Math.ceil(size.x);
+            size.y=Math.ceil(size.y);
             if(!isReady[0]) {
                 this.isCalRect=true;
             }
@@ -2399,8 +2418,8 @@ export class zlUIPanel extends zlUIImage
     
             x+=this._localRect.xy.x;
             y+=this._localRect.xy.y;
-            x=Math.floor(x);
-            y=Math.floor(y);
+            x=x>0?Math.floor(x):Math.ceil(x);
+            y=y>0?Math.floor(y):Math.ceil(y);
             if(!this._textPos) {
                 this._textPos=new ImGui.Vec2(x,y);
             }else {
@@ -3881,7 +3900,7 @@ export class zlUITree extends zlUISlider
                 let text_height=font.FontSize;
                 let text=tn.text?tn.text:"A";
                 let textSize=font.CalcTextSizeA(font.FontSize, this.w, 0, text, text.length);
-                text_height=textSize.y;
+                text_height=Math.ceil(textSize.y);
                 tn.h=text_height+tn.padding+tn.padding;
             }
 
@@ -4970,6 +4989,7 @@ export class zlUIMgr extends zlUIWin
         this.track=new zlTrackMgr(this);
     }
 
+    on_create: ((this: zlUIWin, name: string) => any) | null; 
     on_click: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
@@ -5074,6 +5094,12 @@ export class zlUIMgr extends zlUIWin
 
     Create(name:string):zlUIWin
     {
+        if(this.on_create) {
+            let obj=this.on_create(name);
+            if(obj) {
+                return obj;
+            }
+        }
         switch(name) {
         case 'win':
             return new zlUIWin(this);
@@ -5491,15 +5517,17 @@ export function InspectorObj(obj:any, id:number):number
     ImGui.PushID(id);
     for (let key in obj) {
         let value = obj[key];
-
-        if (key.indexOf("color") >= 0 || key.indexOf("Color") >= 0) {            
+        if(value === undefined) {
+            ImGui.Text(key + ": (undefined)");
+        }
+        else if (value === null) {
+            ImGui.Text(key + ": (null)");
+        }
+        else if (key.indexOf("color") >= 0 || key.indexOf("Color") >= 0) {            
             let c = new ImGui.Color(value);
             if (ImGui.ColorEdit4(key, c.Value)) {
                 obj[key]=c.toImU32();
             }
-        }
-        else if (value == null) {
-            ImGui.Text(key + ": (null)");
         }
         else if (typeof (value) === 'object') {
             if (ImGui.TreeNode(key)) {
@@ -5534,6 +5562,8 @@ export function InspectorUI(obj:zlUIWin, id:number):number
     if(obj.pChild && obj.pChild.length>0) {
         for(let ch of obj.pChild) {
             let pushColor=false;
+            ImGui.PushID(id);
+            id++;
             if(!ch.isVisible) {
                 ImGui.PushStyleColor(ImGui.ImGuiCol.Text, ImColor_Gray);
                 pushColor=true;
@@ -5545,6 +5575,7 @@ export function InspectorUI(obj:zlUIWin, id:number):number
             if(pushColor) {
                 ImGui.PopStyleColor();
             }
+            ImGui.PopID();
         }
     }
     return id;

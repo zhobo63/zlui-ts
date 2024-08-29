@@ -102,106 +102,6 @@ Object Tree
     }
 }
 
-Clone Panel
-{
-	Name date_picker
-	RectWH 500 50 390 435
-    Color RGBA(25,29,39,230)
-    Rounding 5
-    Drag true
-	Clone Panel
-	{
-		Name year_month
-		RectWH 5 5 380 50
-		DrawClient false
-        DrawBorder false
-        Notify false
-		Text 2022-03
-		Clone Button
-		{
-			Name month_left
-			RectWH 5 5 40 40
-			DrawBorder false
-			Text <
-		}
-		Clone month_left
-		{
-			Name month_right
-			RectWH 335 5 40 40
-			Text >
-		}
-	}
-	Clone[7] Panel
-	{
-		Name week
-		RectWH 5 55 50 50
-		DrawClient false
-        DrawBorder false
-        Notify false
-		+X 55
-		Text 日
-	}
-	Param week[1]
-	{
-		Text 一
-	}
-	Param week[2]
-	{
-		Text 二
-	}
-	Param week[3]
-	{
-		Text 三
-	}
-	Param week[4]
-	{
-		Text 四
-	}
-	Param week[5]
-	{
-		Text 五
-	}
-	Param week[6]
-	{
-		Text 六
-	}
-	Object Win
-	{
-		Name date_row_0
-		RectWH 5 100 390 50
-		Clone[7] Button
-		{
-			Name date
-			RectWH 0 0 50 50
-			+X 55
-		}
-	}
-	Clone date_row_0
-	{
-		Name date_row_1
-		Top 155
-	}
-	Clone date_row_0
-	{
-		Name date_row_2
-		Top 210
-	}	
-	Clone date_row_0
-	{
-		Name date_row_3
-		Top 265
-	}	
-	Clone date_row_0
-	{
-		Name date_row_4
-		Top 320
-	}	
-	Clone date_row_0
-	{
-		Name date_row_5
-		Top 375
-	}	
-}
 
 Clone Panel
 {    
@@ -311,6 +211,30 @@ Clone Panel
         }
     }
         */
+    Object Win
+    {
+        Name btn_group
+        RectWH 10 540 600 40
+        Dock left|right 0 0 1 1
+        Anchor y 0 1
+
+        Clone Button
+        {
+            Name btn_ok
+            RectWH 0 0 120 30
+            Align rightDown
+            Offset -130 0
+            Text OK
+        }
+        Clone Button
+        {
+            Name btn_cancel
+            RectWH 0 0 120 30
+            Align rightDown
+            Text Cancel
+        }
+
+    }
 }
 
 TrackGroup rot
