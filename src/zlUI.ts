@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.28";
+export const Version="0.1.29";
 
 export var Use_ImTransform=true;
 
@@ -151,14 +151,14 @@ export function toColorHex(c:Vec4):number
     let g=Math.floor(c.y*255);
     let b=Math.floor(c.z*255);
     let a=Math.floor(c.w*255);
-    return (a<<24)|(b<<16)|(g<<8)|r;
+    return ((a<<24)|(b<<16)|(g<<8)|r)>>>0;
 }
 export function fromColorHex(c:number):Vec4
 {
     let r=(c&0x000000ff)/255;
     let g=((c&0x0000ff00)>>8)/255;
     let b=((c&0x00ff0000)>>16)/255;
-    let a=((c&0xff000000)>>24)/255;
+    let a=((c&0xff000000)>>>24)/255;
     return {x:r,y:g,z:b,w:a};
 }
 
@@ -310,6 +310,9 @@ export enum EAutosize
     Width,
     Height,
     All,
+    TextWidth,
+    TextHeight,
+    TextSize,
 }
 
 function ParseAutosize(tok:string):EAutosize
@@ -321,8 +324,14 @@ function ParseAutosize(tok:string):EAutosize
         return EAutosize.Height;
     case "all":
         return EAutosize.All;
+    case "textwidth":
+        return EAutosize.TextWidth;
+    case "textheight":
+        return EAutosize.TextHeight;
+    case "textsize":
+        return EAutosize.TextSize;
     }
-    return EAutosize.Height;
+    return EAutosize.None;
 }
 
 export interface IAutosize
@@ -1071,6 +1080,26 @@ export class zlUIWin
             break;
         case "autosize":
             this.autosize=ParseAutosize(toks[1]);
+            if(this.dock) {
+                if((this.dock.mode & (EDock.Top|EDock.Down)) && 
+                    (this.autosize == EAutosize.Height ||
+                        this.autosize == EAutosize.All ||
+                        this.autosize == EAutosize.TextHeight ||
+                        this.autosize == EAutosize.TextSize))   
+                {
+                    console.warn(this._csid + ":" + this.Name + " Dock with autosize may conflict");
+                    this.autosize=undefined;
+                }
+                else if((this.dock.mode & (EDock.Left|EDock.Right)) && 
+                    (this.autosize == EAutosize.Width ||
+                        this.autosize == EAutosize.All ||
+                        this.autosize == EAutosize.TextWidth ||
+                        this.autosize == EAutosize.TextSize))   
+                {
+                    console.warn(this._csid + ":" + this.Name + " Dock with autosize may conflict");
+                    this.autosize=undefined;
+                }
+            }
             break;
         case "autoheight":
             this.autosize=EAutosize.Height;
@@ -1288,6 +1317,7 @@ export class zlUIWin
         }
         let to_delete:number[]=[];
         let ret=this.isCalRect;
+        let vis_child=0;
 
         for(let i=0;i<this.pChild.length;i++)   {
             let obj=this.pChild[i];
@@ -1298,7 +1328,13 @@ export class zlUIWin
             }
             if(obj.isVisible) {
                 ret=obj.Refresh(ti, this)||ret;
+                vis_child++;
             }
+        }
+
+        if(this.arrange && this._prevous_visible_child!=vis_child) {
+            this._prevous_visible_child=vis_child;
+            this.SetCalRect();
         }
         while(to_delete&&to_delete.length>0) {
             let i=to_delete.pop() as number;
@@ -1537,9 +1573,11 @@ export class zlUIWin
         let nh=y2-y1;
         if(this.w!=nw) {
             this.w=nw;
+            this._autosize_change=true;
         }
         if(this.h!=nh) {
             this.h=nh;
+            this._autosize_change=true;
         }
 
         if(Use_ImTransform) {
@@ -1661,7 +1699,7 @@ export class zlUIWin
                         break
                     } 
                     if(chx!=ch.x || chy!=ch.y) {
-                        //ch.SetCalRect();
+                        ch.SetCalRect();
                     }
                 }
                 break;
@@ -1828,6 +1866,8 @@ export class zlUIWin
     SetImage(name:string) {}
     set Color(color:Vec4) {}
     get Color():Vec4 {return {x:1,y:1,z:1,w:1}}
+    set TextColor(color:Vec4) {}
+    get TextColor():Vec4 {return {x:1,y:1,z:1,w:1}}
     SetAlpha(alpha:number) {
         this.alpha_set=alpha;
         this.alpha=alpha*this.alpha_local;
@@ -1923,6 +1963,7 @@ export class zlUIWin
     _local:ImGui.ImTransform=new ImGui.ImTransform();
     _world:ImGui.ImTransform=new ImGui.ImTransform();
     _invWorld:ImGui.ImTransform=new ImGui.ImTransform();
+    _prevous_visible_child:number=0;
 
     user_data:any;
 }
@@ -2325,6 +2366,11 @@ export class zlUIPanel extends zlUIImage
 
     SetText(text:string):void
     {
+        if(!((typeof text === 'string') || (text as any instanceof String))) {
+            text=""+text;
+        }
+        if(this.text==text)
+            return;
         this.text=text;
         if(this._textSize)
             this._textSize.x=0;        
@@ -2351,6 +2397,9 @@ export class zlUIPanel extends zlUIImage
             let font=this._owner.GetFont(this.fontIndex);
             let wrap=this.isMultiline?this.w:0;
             let text=this.CalRectText();
+            if(typeof text !== "string") {
+                text=""+text;
+            }
             let isReady: ImGui.ImScalar<boolean> = [false];
             let size=font.CalcTextSizeA(font.FontSize, ImGui.FLT_MAX, wrap, text, null, null, isReady);
             size.x=Math.ceil(size.x);
@@ -2450,6 +2499,10 @@ export class zlUIPanel extends zlUIImage
             }
         }
     }
+
+    set TextColor(color:Vec4) {this.textColor=toColorHex(color);}
+    get TextColor():Vec4 {return fromColorHex(this.textColor);}
+
 
     text:string="";
     textColor:number=0xff000000;
@@ -2618,14 +2671,14 @@ export class zlUIEdit extends zlUIPanel
                 text=text.slice(0,this.max_text_length);
             }
             this.SetText(text);
+        }
+        inp.on_input=(e)=>{
             if(this.on_edit) {
                 this.on_edit(this);
             }
             if(this._owner.on_edit) {
                 this._owner.on_edit(this);
             }
-        }
-        inp.on_input=(e)=>{
             if(inp.isTab) {
                 this._owner.nextEdit=this;
             }
@@ -3020,6 +3073,9 @@ export class zlUICombo extends zlUIButton
         case "combovalue":
             this.combo_value=Number.parseInt(toks[1]);
             break;
+        case "popupwidth":
+            this.popup_w=Number.parseInt(toks[1]);
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -3099,7 +3155,7 @@ export class zlUICombo extends zlUIButton
             return;
         combo_menu.x=this._screenRect.xy.x;
         combo_menu.y=this._screenRect.max.y;
-        combo_menu.w=this.w;
+        combo_menu.w=this.popup_w?this.popup_w:this.w;
         combo_menu.h=i*combo_item.h
 			+combo_menu.padding+combo_menu.padding
 			+combo_menu.borderWidth+combo_menu.borderWidth;
@@ -3127,6 +3183,7 @@ export class zlUICombo extends zlUIButton
     isDrawCombo:boolean=true;
     combo_items:string[];
     combo_value:number;
+    popup_w:number;
 
     arrow_xy:Vec2={x:0,y:0}
 }
@@ -3372,7 +3429,9 @@ export class zlUISlider extends zlUIPanel
         let ow=this.w;
         let oh=this.h;
         super.CalRect(parent);
-        if(ow!=this.w || oh!=this.h) {this._is_scrollvalue_change=true;}
+        if(ow!=this.w || oh!=this.h) {
+            this._is_scrollvalue_change=true;
+        }
         this.CalScrollRect();
     }
     CalScrollRect():void
@@ -4056,6 +4115,9 @@ enum ETrackCmd
     SetColor,
     Color,
     ColorLerp,
+    SetTextColor,
+    TextColor,
+    TextColorLerp,
     Width,
     WidthLerp,
     Height,
@@ -4446,6 +4508,33 @@ export class zlTrack
                 speed:Number.parseFloat(toks[3])
             })
             break;
+        case "settextcolor":
+            this.cmd.push({
+                cmd:ETrackCmd.SetTextColor,
+                time_from:time1,
+                time_to:time1,
+                color:fromColorHex(ParseColor(toks[2]))
+            })
+            break;
+        case "textcolor":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.TextColor,
+                time_from:time1,
+                time_to:time2,
+                color:fromColorHex(ParseColor(toks[2]))
+            })
+            break;
+        case "textcolorlerp":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.TextColorLerp,
+                time_from:time1,
+                time_to:time2,
+                color:fromColorHex(ParseColor(toks[2])),
+                speed:Number.parseFloat(toks[3])
+            })
+            break;
         case "width":
             time2=Number.parseFloat(toks[2])*TimeUint;
             this.cmd.push({
@@ -4726,7 +4815,7 @@ export class zlTrack
             case ETrackCmd.SetColor:
                 obj.Color=cmd.color;
                 break;
-            case ETrackCmd.Color:
+            case ETrackCmd.Color: {
                 let c=obj.Color;
                 if(!cmd.isInit) {
                     cmd.isInit=true;
@@ -4737,7 +4826,7 @@ export class zlTrack
                 c.z=cmd.initData.color.z+(cmd.color.z-cmd.initData.color.z)*t;
                 c.w=cmd.initData.color.w+(cmd.color.w-cmd.initData.color.w)*t;
                 obj.Color=c;
-                break;
+                break; }
             case ETrackCmd.ColorLerp: {
                 let sp=cmd.speed*ti;
                 let c=obj.Color;
@@ -4746,6 +4835,30 @@ export class zlTrack
                 c.z+=(cmd.color.z-c.z)*sp;
                 c.w+=(cmd.color.w-c.w)*sp;
                 obj.Color=c;
+                break; }
+            case ETrackCmd.SetTextColor:
+                obj.TextColor=cmd.color;
+                break;
+            case ETrackCmd.TextColor: {
+                let c=obj.Color;
+                if(!cmd.isInit) {
+                    cmd.isInit=true;
+                    cmd.initData={color:c}
+                }
+                c.x=cmd.initData.color.x+(cmd.color.x-cmd.initData.color.x)*t;
+                c.y=cmd.initData.color.y+(cmd.color.y-cmd.initData.color.y)*t;
+                c.z=cmd.initData.color.z+(cmd.color.z-cmd.initData.color.z)*t;
+                c.w=cmd.initData.color.w+(cmd.color.w-cmd.initData.color.w)*t;
+                obj.TextColor=c;
+                break; }
+            case ETrackCmd.TextColorLerp: {
+                let sp=cmd.speed*ti;
+                let c=obj.Color;
+                c.x+=(cmd.color.x-c.x)*sp;
+                c.y+=(cmd.color.y-c.y)*sp;
+                c.z+=(cmd.color.z-c.z)*sp;
+                c.w+=(cmd.color.w-c.w)*sp;
+                obj.TextColor=c;
                 break; }
             case ETrackCmd.Width:
                 if(!cmd.isInit) {
