@@ -3848,6 +3848,7 @@ export class zlUITreeNode extends zlUICheck
                         await tn.ParseTreeNode(parser);
                         break; }
                     case "offset_x": 
+                    case "offsetx":
                         this.offset_x=Number.parseFloat(toks[1]);
                         break;
                     case "}":
