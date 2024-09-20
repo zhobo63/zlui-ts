@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.29";
+export const Version="0.1.30";
 
 export var Use_ImTransform=true;
 
@@ -96,7 +96,7 @@ export function Edit(win:zlUIWin, text:string, on_change:(txt:string)=>any, chil
     return obj;
 }
 
-export function Button(win:zlUIWin, text:string, on_click:()=>any, child?:string):zlUIButton
+export function Button(win:zlUIWin, text:string, on_click:(obj:zlUIButton)=>any, child?:string):zlUIButton
 {
     let obj:zlUIButton=(child?win.GetUI(child):win) as zlUIButton;
     obj.SetText(text);
@@ -143,6 +143,23 @@ export function stringToColorHex(color:string):number
         c=(c<<4)+s;
     }
     return c;
+}
+
+function to_rgba(c:number):string
+{
+    const r=c&0xff;
+    const g=(c>>8)&0xff;
+    const b=(c>>16)&0xff;
+    const a=(c>>>24)&0xff;        
+    return "rgba("+r+","+g+","+b+","+a+")";
+}
+
+function to_rgb(c:number):string
+{
+    const r=c&0xff;
+    const g=(c>>8)&0xff;
+    const b=(c>>16)&0xff;
+    return "rgba("+r+","+g+","+b+",255)";
 }
 
 export function toColorHex(c:Vec4):number
@@ -665,7 +682,7 @@ export enum EArrange
 {
     Item,
     Content,
-
+    Row,
 }
 export enum EDirection
 {
@@ -680,6 +697,8 @@ function ParseArrange(tok:string):EArrange
         return EArrange.Item;
     case "content":
         return EArrange.Content;
+    case "row":
+        return EArrange.Row;
     }
     return EArrange.Content;
 }
@@ -1297,22 +1316,34 @@ export class zlUIWin
         }
     }
 
-    Refresh(ti:number, parent?:zlUIWin):boolean 
-    {        
-        this._owner.refresh_count++;
-        if(this.autosize!=EAutosize.None)   {
-            for(let obj of this.pChild) {
-                if(obj.isVisible) {
-                    if(obj._autosize_change)    {
-                        this.isCalRect=true;
-                        obj._autosize_change=false;
+    IsChildSizeChange(clearFlag:boolean):boolean
+    {
+        let ret=false;
+        for(let obj of this.pChild) {
+            if(obj.isVisible) {
+                if(obj._is_size_change)    {
+                    ret=true;
+                    if(clearFlag) {
+                        obj._is_size_change=false;
+                    }else {
+                        break;
                     }
                 }
             }
         }
+        return ret;
+    }
+
+    Refresh(ti:number, parent?:zlUIWin):boolean 
+    {        
+        this._owner.refresh_count++;
+        if(this.autosize!=EAutosize.None)   {
+            if(this.IsChildSizeChange(true)) {
+                this.isCalRect=true;
+            }
+        }
         
         if(this.isCalRect) {
-            this._owner.calrect_count++;
             this.CalRect(parent);
         }
         let to_delete:number[]=[];
@@ -1418,6 +1449,9 @@ export class zlUIWin
 
     CalRect(parent:zlUIWin):void 
     {
+        this._owner.calrect_count++;
+        this._owner.calrect_object.push(this.Name);
+
         let x1=this.x;
         let y1=this.y;
         let x2=this.x+this.w;
@@ -1573,11 +1607,11 @@ export class zlUIWin
         let nh=y2-y1;
         if(this.w!=nw) {
             this.w=nw;
-            this._autosize_change=true;
+            this._is_size_change=true;
         }
         if(this.h!=nh) {
             this.h=nh;
-            this._autosize_change=true;
+            this._is_size_change=true;
         }
 
         if(Use_ImTransform) {
@@ -1698,10 +1732,32 @@ export class zlUIWin
                         next=Math.max(next,ch.w+ch.margin.x);
                         break
                     } 
-                    if(chx!=ch.x || chy!=ch.y) {
+                    if(!(ch.dock || ch.anchor) && (chx!=ch.x || chy!=ch.y)) {
                         ch.SetCalRect();
                     }
                 }
+                break;
+            case EArrange.Row:
+                for(let i=0;i<this.pChild.length;i++)   {
+                    let ch=this.pChild[i];
+                    if(!ch.isVisible)
+                        continue;
+                    let chx=ch.x;
+                    let chy=ch.y;
+                    switch(this.arrange.direction) {
+                    case EDirection.Vertical:
+                        ch.x=x+ch.margin.x;
+                        x+=ch.w+ch.margin.x;
+                        break;
+                    case EDirection.Horizontal:
+                        ch.y=y+ch.margin.y;
+                        y+=ch.h+ch.margin.y;
+                        break;
+                    }    
+                    if(!(ch.dock || ch.anchor) && (chx!=ch.x || chy!=ch.y)) {
+                        ch.SetCalRect();
+                    }
+                }                
                 break;
             }
         }
@@ -1716,7 +1772,7 @@ export class zlUIWin
             maxh+=this.padding;
             if(this.h!=maxh) {
                 this.h=maxh;
-                this._autosize_change=true;
+                this._is_size_change=true;
                 parent.SetCalRect();
             }
         }
@@ -1731,7 +1787,7 @@ export class zlUIWin
             maxw+this.padding;
             if(this.w!=maxw) {
                 this.w=maxw;
-                this._autosize_change=true;
+                this._is_size_change=true;
                 parent.SetCalRect();
             }
         }        
@@ -1923,8 +1979,8 @@ export class zlUIWin
     pChild:zlUIWin[]=[];
     x:number=0;
     y:number=0;
-    w:number;
-    h:number;
+    w:number=0;
+    h:number=0;
     line:number=0;
     align:Align=Align.None;
     add_x:number;
@@ -1957,7 +2013,7 @@ export class zlUIWin
     _localRect:Rect=new Rect;
     _screenRect:Rect=new Rect;
     _clipRect:Rect=new Rect;
-    _autosize_change:boolean=false;
+    _is_size_change:boolean=false;
     _isPaintout:boolean=false;
 
     _local:ImGui.ImTransform=new ImGui.ImTransform();
@@ -2486,14 +2542,14 @@ export class zlUIPanel extends zlUIImage
             if((this.autosize&EAutosize.Height) &&size.y>0) {
                 if(size.y>this.h)    {
                     this.h=size.y;
-                    this._autosize_change=true;
+                    this._is_size_change=true;
                     parent.SetCalRect();
                 }
             }
             if((this.autosize&EAutosize.Width) &&size.x>0) {
                 if(size.x>this.w)    {
                     this.w=size.x;
-                    this._autosize_change=true;
+                    this._is_size_change=true;
                     parent.SetCalRect();
                 }
             }
@@ -2579,22 +2635,6 @@ export class zlUIEdit extends zlUIPanel
         return obj;
     }
 
-    to_rgba(c:number):string
-    {
-        const r=c&0xff;
-        const g=(c>>8)&0xff;
-        const b=(c>>16)&0xff;
-        const a=(c>>24)&0xff;        
-        return "rgba("+r+","+g+","+b+","+a+")";
-    }
-    to_rgb(c:number):string
-    {
-        const r=c&0xff;
-        const g=(c>>8)&0xff;
-        const b=(c>>16)&0xff;
-        return "rgba("+r+","+g+","+b+",255)";
-    }
-
     PaintText(drawlist:ImGui.ImDrawList):void 
     {
         if(this.text)   {
@@ -2636,8 +2676,8 @@ export class zlUIEdit extends zlUIPanel
             return;
         super.OnNotify();
         let inp:Input;
-        const textCol=this.to_rgb(this.textColor);
-        const textBg=this.to_rgb(this.color);
+        const textCol=to_rgb(this.textColor);
+        const textBg=to_rgb(this.color);
         if(this.isPassword)   {
             inp=GetInput(EType.ePassword, textCol, textBg);
         }else if(this.isMultiline) {
@@ -3309,11 +3349,10 @@ export class zlUISlider extends zlUIPanel
 
     Refresh(ti:number, parent:zlUIWin=null):boolean 
     {
-        for(let i=0;i<this.pChild.length;i++)   {
-            let ch=this.pChild[i];
-            if(ch._autosize_change) {
-                this._is_scrollvalue_change=true;
-                ch._autosize_change=false;
+        if(this.IsChildSizeChange(true)) {
+            this._is_scrollvalue_change=true;
+            if(this.autosize!=EAutosize.None)   {
+                this.isCalRect=true;
             }
         }
 
@@ -5374,6 +5413,7 @@ export class zlUIMgr extends zlUIWin
 
         this.refresh_count=0;
         this.calrect_count=0;
+        this.calrect_object=[];
         let ret=super.Refresh(ti, undefined);
         if(this.nextEdit) {
             this.NextEdit(this.nextEdit);
@@ -5621,6 +5661,7 @@ export class zlUIMgr extends zlUIWin
     refresh_count:number=0;
     calrect_count:number=0;
     paint_count:number=0;
+    calrect_object:string[];
 }
 
 export const ImColor_Gray: ImGui.ImVec4 = new ImGui.ImVec4(0.5, 0.5, 0.5, 1)
