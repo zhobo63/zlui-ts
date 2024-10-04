@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.30";
+export const Version="0.1.31";
 
 export var Use_ImTransform=true;
 
@@ -211,6 +211,8 @@ export function ParseBool(tok:string):boolean
 
 export function ParseText(s:string):string
 {
+    if(!s)
+        return s;
     let r=/\\u([\d\w]{4})/gi;
     s = s.replace(r, function (match, grp) {
         return String.fromCharCode(parseInt(grp, 16)); } );    
@@ -1583,10 +1585,6 @@ export class zlUIWin
                 if(dock.mode&EDock.Down) {
                     y2=padding+ph*dock.w-1+dockOffset.w;
                 }
-                this.w=x2-x1;
-                this.h=y2-y1;
-                if(this.w<0) this.w=0;
-                if(this.h<0) this.h=0;
             }
 
             if(Use_ImTransform) {
@@ -2799,6 +2797,9 @@ export class zlUIButton extends zlUIPanel
         case "textcolorup":
             this.textColorUp=ParseColor(toks[1]);    
             break;
+        case "textcolordisable":
+            this.textColorDisable=ParseColor(toks[1]);    
+            break;
         case "image":
             this.isDrawClient=false;
             this.imageUp=this.image=this.imageHover=this._owner.GetTexture(toks[1]);
@@ -2831,6 +2832,7 @@ export class zlUIButton extends zlUIPanel
         this.colorDisable=o.colorDisable;
         this.textColorDown=o.textColorDown;
         this.textColorUp=o.textColorUp;
+        this.textColorDisable=o.textColorDisable;
         this.imageDown=o.imageDown;
         this.imageUp=o.imageUp;
         this.imageHover=o.imageHover;
@@ -2891,7 +2893,7 @@ export class zlUIButton extends zlUIPanel
     PaintTextColor():void
     {
         if(!this.isEnable) {
-            
+            this.textColor=this.textColorDisable;
         }
         else if(this.isDown) {
             this.textColor=this.textColorDown;
@@ -2945,6 +2947,7 @@ export class zlUIButton extends zlUIPanel
     colorDisable:number=0xff787878;
     textColorDown:number=0xffffffff;
     textColorUp:number=0xff808080;
+    textColorDisable:number=0xffa0a0a0;
     imageDown:TexturePack;
     imageUp:TexturePack;
     imageHover:TexturePack;
@@ -3025,7 +3028,7 @@ export class zlUICheck extends zlUIButton
     }
     PaintTextColor(): void {
         if(!this.isEnable) {
-            
+            this.textColor=this.textColorDisable;
         }
         else if(this.isChecked) {
             this.textColor=this.textColorDown;
