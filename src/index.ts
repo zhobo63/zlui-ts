@@ -61,10 +61,10 @@ class App
         ui.mouse_wheel=io.MouseWheel;
         ui.Refresh(io.DeltaTime);
         ui.Paint(drawlist);        
-        if(ui.track.is_play) {
+        if(ui.track.is_play || ui.calrect_count>0) {
             this.isDirty=true;
         }
-        this.isDirty=true;
+        //this.isDirty=true;
         ImGui.Begin("Inspector");
         ImGui.Text("Notify:"+(ui.notify?ui.notify.Name:"(null)"));
         if(ui.notify) {
@@ -75,6 +75,7 @@ class App
         }
         ImGui.Text("refresh:" + ui.refresh_count);
         ImGui.Text("paint:" + ui.paint_count);
+        ImGui.Text("calrect:" + ui.calrect_count);
         if(ImGui.TreeNode("UIMgr")){
             zlUI.InspectorUI(ui,1);
             ImGui.TreePop();

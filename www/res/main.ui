@@ -137,6 +137,7 @@ Clone Panel
     //Drag true
     //Sizable 
     //Resizable true
+    ContentMargin 10 10
 
     Clone Panel
     {
@@ -158,22 +159,29 @@ Clone Panel
     {
         Name btn_content
         RectWH 0 0 100 30
-        Margin 10 10
+        //Margin 10 10
         Text Button
     }
+    Object Win
+    {
+        Name BR
+        RectWH 0 0 0 0
+        Dock right 0 0 1 1
+    }
+
     Clone Panel
     {
         Name pnl1
         RectWH 0 0 100 80
         Rounding 5
-        Margin 10 10
+        //Margin 10 10
         Text A\sPanel
     }
     Clone Panel
     {
         Name pnl2
         RectWH 0 0 100 80
-        Margin 10 10
+        //Margin 10 10
         Text B\sPanel
     }
 
@@ -187,13 +195,13 @@ Clone Panel
     {
         Name chk_content
         RectWH 0 0 120 30
-        Margin 10 10
+        //Margin 10 10
     }
     Clone Combo
     {
         Name cmb_content
         RectWH 0 0 120 30
-        Margin 10 10
+        //Margin 10 10
         ComboItems AAA BBB CCC
         ComboValue 0
     }

@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.31";
+export const Version="0.1.32";
 
 export var Use_ImTransform=true;
 
@@ -1189,6 +1189,10 @@ export class zlUIWin
             this.margin.x=Number.parseInt(toks[1]);
             this.margin.y=Number.parseInt(toks[2]);
             break;
+        case "contentmargin":
+            this.content_margin.x=Number.parseInt(toks[1]);
+            this.content_margin.y=Number.parseInt(toks[2]);
+            break;
         case "if":
             if(this._owner.GetUI(toks[1])) {
                 await this.ParseCmd(toks[2], toks.slice(2), parser);
@@ -1270,6 +1274,7 @@ export class zlUIWin
         this.autosize=obj.autosize;
         this.hint=obj.hint;
         this.margin=Clone(obj.margin);
+        this.content_margin=Clone(obj.content_margin);
         this.alpha=obj.alpha;
         this.alpha_local=obj.alpha_local;
         this.alpha_set=obj.alpha_set;
@@ -1339,10 +1344,8 @@ export class zlUIWin
     Refresh(ti:number, parent?:zlUIWin):boolean 
     {        
         this._owner.refresh_count++;
-        if(this.autosize!=EAutosize.None)   {
-            if(this.IsChildSizeChange(true)) {
-                this.isCalRect=true;
-            }
+        if(this.IsChildSizeChange(true)) {
+            this.isCalRect=true;
         }
         
         if(this.isCalRect) {
@@ -1603,15 +1606,14 @@ export class zlUIWin
         this.y=y1;
         let nw=x2-x1;
         let nh=y2-y1;
-        if(this.w!=nw) {
+        if(this.w!=nw || this.h!=nh) {
             this.w=nw;
-            this._is_size_change=true;
-        }
-        if(this.h!=nh) {
             this.h=nh;
             this._is_size_change=true;
+            if(this.on_size) {
+                this.on_size();
+            }    
         }
-
         if(Use_ImTransform) {
             let ox=this.w*this.origin.x;
             let oy=this.h*this.origin.y;
@@ -1652,10 +1654,6 @@ export class zlUIWin
                 x2-this.padding,y2-this.padding);
         }
         this.isCalRect=false;
-
-        if(this.on_size) {
-            this.on_size();
-        }
         
         if(this.arrange) {
             let x=this.padding;
@@ -1702,32 +1700,34 @@ export class zlUIWin
                         continue;
                     let chx=ch.x;
                     let chy=ch.y;
+                    let margin_x=ch.margin.x+this.content_margin.x;
+                    let margin_y=ch.margin.y+this.content_margin.y;
                     switch(this.arrange.direction) {
                     case EDirection.Vertical:
-                        if(ch.margin.x+ch.w>w) {
+                        if(margin_x+ch.w>w) {
                             x=this.padding;
                             y+=next;
                             next=0;
                             w=this.w-this.padding;
-                        }
-                        ch.x=x+ch.margin.x;
-                        ch.y=y+ch.margin.y;
-                        x+=ch.w+ch.margin.x;
+                        }                        
+                        ch.x=x+margin_x;
+                        ch.y=y+margin_y;
+                        x+=ch.w+margin_x;
                         w=this.w-this.padding-x;
-                        next=Math.max(next, ch.h+ch.margin.y);
+                        next=Math.max(next, ch.h+margin_y);
                         break;
                     case EDirection.Horizontal:
-                        if(ch.margin.y+ch.h>h) {
+                        if(margin_y+ch.h>h) {
                             y=this.padding;
                             x+=next;
                             next=0;
                             h=this.h-this.padding;
                         }
-                        ch.x=x+ch.margin.x;
-                        ch.y=y+ch.margin.y;
-                        y+=ch.h+ch.margin.y;
+                        ch.x=x+margin_x;
+                        ch.y=y+margin_y;
+                        y+=ch.h+margin_y;
                         h=this.h-this.padding-y;
-                        next=Math.max(next,ch.w+ch.margin.x);
+                        next=Math.max(next,ch.w+margin_x);
                         break
                     } 
                     if(!(ch.dock || ch.anchor) && (chx!=ch.x || chy!=ch.y)) {
@@ -1771,7 +1771,7 @@ export class zlUIWin
             if(this.h!=maxh) {
                 this.h=maxh;
                 this._is_size_change=true;
-                parent.SetCalRect();
+                //parent.SetCalRect();
             }
         }
         if(this.autosize&EAutosize.Width)   {
@@ -1786,7 +1786,7 @@ export class zlUIWin
             if(this.w!=maxw) {
                 this.w=maxw;
                 this._is_size_change=true;
-                parent.SetCalRect();
+                //parent.SetCalRect();
             }
         }        
     }
@@ -1986,6 +1986,7 @@ export class zlUIWin
     borderWidth:number=0;
     padding:number=0;
     margin:Vec2={x:0,y:0};
+    content_margin:Vec2={x:0,y:0}
     anchor:IAnchor;
     dock:IDock;
     dockOffset:Vec4;
