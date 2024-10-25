@@ -67,6 +67,18 @@ UIParticle
     
 */
 
+export namespace zlUI
+{
+    export function SetEnable(obj:zlUIWin, name:string, enable:boolean)
+    {
+        let o=obj.GetUI(name);
+        if(o) {
+            o.isEnable=enable;
+        }
+    }
+
+}
+
 export interface OnLoadable
 {
     onload:any;
@@ -1190,6 +1202,7 @@ export class zlUIWin
             this.margin.y=Number.parseInt(toks[2]);
             break;
         case "contentmargin":
+        case "content_margin":
             this.content_margin.x=Number.parseInt(toks[1]);
             this.content_margin.y=Number.parseInt(toks[2]);
             break;
@@ -1936,6 +1949,14 @@ export class zlUIWin
             ch.SetAlpha(this.alpha);
         }        
     }
+    SetEnable(enable:boolean, child:boolean) {
+        this.isEnable=enable;
+        if(child) {
+            for(let ch of this.pChild) {
+                ch.SetEnable(enable, child);
+            }
+        }
+    }
     OnDragStart(drag:zlUIWin) {
         if(this.on_dragstart) {
             this.on_dragstart(drag);
@@ -2477,6 +2498,18 @@ export class zlUIPanel extends zlUIImage
                 w=size.x+this.padding+this.padding;
                 h=size.y+this.padding+this.padding;
                 break;
+            }
+            if(this.autosize) {
+                if(this.autosize==EAutosize.TextWidth) {
+                    w=size.x+this.padding+this.padding;
+                }
+                if(this.autosize==EAutosize.TextHeight) {
+                    h=size.y+this.padding+this.padding;
+                }
+                if(this.autosize==EAutosize.TextSize) {
+                    w=size.x+this.padding+this.padding;
+                    h=size.y+this.padding+this.padding;
+                }
             }
             if(!(w==this.w && h==this.h)) {
                 this.w=w;
@@ -3186,6 +3219,8 @@ export class zlUICombo extends zlUIButton
             btn.on_click=(o)=>{
                 combo_menu.isDelete=true;
                 this._owner.ClosePopup();
+                if(this.combo_value==btn.user_data)
+                    return;
                 this.combo_value=btn.user_data;
                 this.SetText(this.combo_items[this.combo_value]);
                 if(this.on_combo) {
@@ -3217,8 +3252,10 @@ export class zlUICombo extends zlUIButton
         if(items) {
             this.combo_items=items;
         }
-        this.combo_value=value;
         this.SetText(this.combo_items[value]);
+        if(this.combo_value==value)
+            return;
+        this.combo_value=value;
         if(on_combo) {
             this.on_combo=(obj)=>{on_combo(this.combo_value);};
         }
