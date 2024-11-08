@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.32";
+export const Version="0.1.33";
 
 export var Use_ImTransform=true;
 
@@ -1713,8 +1713,8 @@ export class zlUIWin
                         continue;
                     let chx=ch.x;
                     let chy=ch.y;
-                    let margin_x=ch.margin.x+this.content_margin.x;
-                    let margin_y=ch.margin.y+this.content_margin.y;
+                    let margin_x=ch.margin.x;
+                    let margin_y=ch.margin.y;
                     switch(this.arrange.direction) {
                     case EDirection.Vertical:
                         if(margin_x+ch.w>w) {
@@ -1725,9 +1725,9 @@ export class zlUIWin
                         }                        
                         ch.x=x+margin_x;
                         ch.y=y+margin_y;
-                        x+=ch.w+margin_x;
+                        x+=ch.w+margin_x+this.content_margin.x;
                         w=this.w-this.padding-x;
-                        next=Math.max(next, ch.h+margin_y);
+                        next=Math.max(next, ch.h+margin_y+this.content_margin.y);
                         break;
                     case EDirection.Horizontal:
                         if(margin_y+ch.h>h) {
@@ -1738,9 +1738,9 @@ export class zlUIWin
                         }
                         ch.x=x+margin_x;
                         ch.y=y+margin_y;
-                        y+=ch.h+margin_y;
+                        y+=ch.h+margin_y+this.content_margin.y;
                         h=this.h-this.padding-y;
-                        next=Math.max(next,ch.w+margin_x);
+                        next=Math.max(next,ch.w+margin_x+this.content_margin.x);
                         break
                     } 
                     if(!(ch.dock || ch.anchor) && (chx!=ch.x || chy!=ch.y)) {
@@ -2571,16 +2571,18 @@ export class zlUIPanel extends zlUIImage
             this._textClip.z=this._localRect.max.x;
             this._textClip.w=this._localRect.max.y;
 
-            if((this.autosize&EAutosize.Height) &&size.y>0) {
-                if(size.y>this.h)    {
-                    this.h=size.y;
+            if((this.autosize&EAutosize.TextHeight) &&size.y>0) {
+                let h=size.y+this.padding+this.padding;
+                if(this.h!=h)    {
+                    this.h=h;
                     this._is_size_change=true;
                     parent.SetCalRect();
                 }
             }
-            if((this.autosize&EAutosize.Width) &&size.x>0) {
-                if(size.x>this.w)    {
-                    this.w=size.x;
+            if((this.autosize&EAutosize.TextWidth) &&size.x>0) {
+                let w=size.x+this.padding+this.padding;
+                if(this.w!=w)    {
+                    this.w=w;
                     this._is_size_change=true;
                     parent.SetCalRect();
                 }
@@ -3252,9 +3254,7 @@ export class zlUICombo extends zlUIButton
         if(items) {
             this.combo_items=items;
         }
-        this.SetText(this.combo_items[value]);
-        if(this.combo_value==value)
-            return;
+        this.SetText((value>=0 && value <this.combo_items.length) ? this.combo_items[value]:"");
         this.combo_value=value;
         if(on_combo) {
             this.on_combo=(obj)=>{on_combo(this.combo_value);};
@@ -3349,12 +3349,16 @@ export class zlUISlider extends zlUIPanel
             if(type.isScrollH)  {
                 let y=this.borderWidth+this.padding-this.scroll_value;
                 if(this.pChild) {
-                    this.pChild.forEach(ch=>{
+                    let margin=(this.content_margin)?this.content_margin.y:0;
+                    for(let ch of this.pChild) {
+                        if(!ch.isVisible)
+                            continue;
                         ch.y=y;
                         ch.SetCalRect();
-                        y+=ch.h;
-                        scroll_max+=ch.h;
-                    })
+                        let h=ch.h+margin;
+                        y+=h;
+                        scroll_max+=h;
+                    }
                 }
                 let h=this.h-this.borderWidth-this.borderWidth;
                 scroll_max=(scroll_max>h)?scroll_max-h:0;
@@ -3362,12 +3366,16 @@ export class zlUISlider extends zlUIPanel
             if(type.isScrollW)  {
                 let x=this.borderWidth+this.padding-this.scroll_value;
                 if(this.pChild) {
-                    this.pChild.forEach(ch=>{
+                    let margin=(this.content_margin)?this.content_margin.x:0;
+                    for(let ch of this.pChild) {
+                        if(!ch.isVisible)
+                            continue;
                         ch.x=x;
                         ch.SetCalRect();
-                        x+=ch.w;
-                        scroll_max+=ch.w;
-                    })
+                        let w=ch.w+margin;
+                        x+=w;
+                        scroll_max+=w;
+                    }
                 }
                 let w=this.w-this.borderWidth-this.borderWidth;
                 scroll_max=(scroll_max>w)?scroll_max-w:0;
