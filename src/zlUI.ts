@@ -1678,8 +1678,16 @@ export class zlUIWin
                     let ch=this.pChild[i];
                     if(!ch.isVisible)
                         continue;
+                    let chx=ch.x;
+                    let chy=ch.y;
+
                     ch.x=x;
                     ch.y=y;
+
+                    if(chx!=ch.x || chy!=ch.y) {
+                        ch.SetCalRect();
+                    }
+
                     next++;
     
                     switch(this.arrange.direction) {
@@ -1739,7 +1747,7 @@ export class zlUIWin
                         next=Math.max(next,ch.w+margin_x+this.content_margin.x);
                         break
                     } 
-                    if(!(ch.dock || ch.anchor) && (chx!=ch.x || chy!=ch.y)) {
+                    if(chx!=ch.x || chy!=ch.y) {
                         ch.SetCalRect();
                     }
                 }
@@ -1761,7 +1769,7 @@ export class zlUIWin
                         y+=ch.h+ch.margin.y;
                         break;
                     }    
-                    if(!(ch.dock || ch.anchor) && (chx!=ch.x || chy!=ch.y)) {
+                    if(chx!=ch.x || chy!=ch.y) {
                         ch.SetCalRect();
                     }
                 }                
