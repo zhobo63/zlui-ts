@@ -123,6 +123,32 @@ Clone Combo
 }
 
 Clone Panel
+{
+    Name pnl_text_arrange
+    RectWH 100 500 300 360
+    Padding 10
+    Arrange vertical content
+
+    Clone Text
+    {
+        Name txt
+        RectWH 0 0 100 30
+        Dock left|right 0 0 1 1 
+        TextAnchor xy 0 0
+        Multiline true
+        Autosize textHeight
+        Text 這是第一行這是第一行這是第一行這是第一行這是第一行這是第一行
+    }
+    Clone Text
+    {
+        Name txt
+        RectWH 0 0 100 30
+        TextAnchor xy 0 0
+        Text 這是第二行
+    }
+}
+
+Clone Panel
 {    
     Name pnl_arrange
     RectWH 100 100 500 360

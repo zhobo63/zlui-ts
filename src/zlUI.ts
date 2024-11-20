@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.33";
+export const Version="0.1.34";
 
 export var Use_ImTransform=true;
 
@@ -337,13 +337,13 @@ function ParseAlign(tok:string):Align
 
 export enum EAutosize
 {
-    None,
-    Width,
-    Height,
-    All,
-    TextWidth,
-    TextHeight,
-    TextSize,
+    None=0,
+    Width=1,
+    Height=2,
+    All=3,
+    TextWidth=4,
+    TextHeight=8,
+    TextSize=12,
 }
 
 function ParseAutosize(tok:string):EAutosize
@@ -1115,19 +1115,15 @@ export class zlUIWin
             this.autosize=ParseAutosize(toks[1]);
             if(this.dock) {
                 if((this.dock.mode & (EDock.Top|EDock.Down)) && 
-                    (this.autosize == EAutosize.Height ||
-                        this.autosize == EAutosize.All ||
-                        this.autosize == EAutosize.TextHeight ||
-                        this.autosize == EAutosize.TextSize))   
+                    ((this.autosize & EAutosize.Height) ||
+                    (this.autosize & EAutosize.TextHeight)))   
                 {
                     console.warn(this._csid + ":" + this.Name + " Dock with autosize may conflict");
                     this.autosize=undefined;
                 }
                 else if((this.dock.mode & (EDock.Left|EDock.Right)) && 
-                    (this.autosize == EAutosize.Width ||
-                        this.autosize == EAutosize.All ||
-                        this.autosize == EAutosize.TextWidth ||
-                        this.autosize == EAutosize.TextSize))   
+                    ((this.autosize & EAutosize.Width) ||
+                    (this.autosize & EAutosize.TextWidth)))   
                 {
                     console.warn(this._csid + ":" + this.Name + " Dock with autosize may conflict");
                     this.autosize=undefined;
@@ -2500,20 +2496,17 @@ export class zlUIPanel extends zlUIImage
                 break;
             }
             if(this.autosize) {
-                if(this.autosize==EAutosize.TextWidth) {
+                if(this.autosize&EAutosize.TextWidth) {
                     w=size.x+this.padding+this.padding;
                 }
-                if(this.autosize==EAutosize.TextHeight) {
-                    h=size.y+this.padding+this.padding;
-                }
-                if(this.autosize==EAutosize.TextSize) {
-                    w=size.x+this.padding+this.padding;
+                if(this.autosize&EAutosize.TextHeight) {
                     h=size.y+this.padding+this.padding;
                 }
             }
             if(!(w==this.w && h==this.h)) {
                 this.w=w;
                 this.h=h;
+                this._is_size_change=true;
                 this.SetCalRect();
             }
 
@@ -2570,23 +2563,6 @@ export class zlUIPanel extends zlUIImage
             this._textClip.y=this._localRect.xy.y;
             this._textClip.z=this._localRect.max.x;
             this._textClip.w=this._localRect.max.y;
-
-            if((this.autosize&EAutosize.TextHeight) &&size.y>0) {
-                let h=size.y+this.padding+this.padding;
-                if(this.h!=h)    {
-                    this.h=h;
-                    this._is_size_change=true;
-                    parent.SetCalRect();
-                }
-            }
-            if((this.autosize&EAutosize.TextWidth) &&size.x>0) {
-                let w=size.x+this.padding+this.padding;
-                if(this.w!=w)    {
-                    this.w=w;
-                    this._is_size_change=true;
-                    parent.SetCalRect();
-                }
-            }
         }
     }
 
@@ -3259,6 +3235,11 @@ export class zlUICombo extends zlUIButton
         if(on_combo) {
             this.on_combo=(obj)=>{on_combo(this.combo_value);};
         }
+    }
+    SetComboValue(value:number)
+    {
+        this.combo_value=value;
+        this.text=value<this.combo_items.length?this.combo_items[value]:"";
     }
 
     isDrawCombo:boolean=true;
