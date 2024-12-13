@@ -137,14 +137,16 @@ Clone Panel
         TextAnchor xy 0 0
         Multiline true
         Autosize textHeight
-        Text 這是第一行這是第一行這是第一行這是第一行這是第一行這是第一行
+        Text 這是第一行\u2026這是第一行這是第一行這是第一行這是第一行這是第一行
     }
     Clone Text
     {
-        Name txt
-        RectWH 0 0 100 30
-        TextAnchor xy 0 0
-        Text 這是第二行
+        Name txt2
+        RectWH 0 0 180 30
+        Dock right 0 0 1 1
+        TextAnchor xy 0 0.5
+        //DrawBorder true
+        Text 這是第二行這是第二行 這是第二行 這是第二行 這是第二行 這是第二行
     }
 }
 
@@ -208,7 +210,8 @@ Clone Panel
         Name pnl2
         RectWH 0 0 100 80
         //Margin 10 10
-        Text B\sPanel
+        TextAnchor x 0.5 0
+        Text B\sPanel Gone
     }
 
     Clone[5] YButton

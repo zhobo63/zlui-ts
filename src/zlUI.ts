@@ -354,6 +354,7 @@ function ParseAutosize(tok:string):EAutosize
     case "height":
         return EAutosize.Height;
     case "all":
+    case "size":
         return EAutosize.All;
     case "textwidth":
         return EAutosize.TextWidth;
@@ -2374,9 +2375,15 @@ export class zlUIPanel extends zlUIImage
     PaintText(drawlist:ImGui.ImDrawList):void 
     {
         if(this.text && this._textPos)   {
+            let textPos=this._textPos;
+            let wrap_width=this.w-this.padding-this.padding;
             let text=(typeof this.text === "string") ? this.text:""+this.text;
+            if(this._textRemaining>0) {
+                text=text.substring(0,this._textRemaining)+"…";
+            }
+
             let font=this._owner.GetFont(this.fontIndex);
-            let wrap=this.isMultiline?this.w:0;
+            let wrap=this.isMultiline?wrap_width:0;
             let color=this.textColor;
             if(this.textColorHover && this._owner.hover==this) {
                 color=this.textColorHover;
@@ -2386,11 +2393,11 @@ export class zlUIPanel extends zlUIImage
                 console.log(this.Name);
             }
             if(Use_ImTransform) {
-                font.RenderText(drawlist, font.FontSize, this._textPos, 
+                font.RenderText(drawlist, font.FontSize, textPos, 
                     color,
                     this._textClip, text, text.length, wrap, true);    
             }else {
-                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap, this._textClip);
+                drawlist.AddText(font, font.FontSize, textPos, color, text, text.length, wrap, this._textClip);
             }
         }
 
@@ -2465,6 +2472,27 @@ export class zlUIPanel extends zlUIImage
         return this.text;
     }
 
+    CalTextRemaining()
+    {
+        let isReady: ImGui.ImScalar<boolean> = [false];
+        let font=this._owner.GetFont(this.fontIndex);
+        let a=0;
+        let c=this.text.length;
+        let b=c>>1;
+        while(b>0 && a!=b) {
+            let text=this.text.substring(0,b)+"…";
+            let text_size=font.CalcTextSizeA(font.FontSize, ImGui.FLT_MAX, 0, text, null, null, isReady);
+            if(this._textPos.x+text_size.x>this._textClip.z) {
+                c=b;
+            }else {
+                a=b;                        
+            }
+            b=(a+c)>>1;
+        }
+        this._textRemaining=a<this.text.length?a:0;
+
+    }
+
     CalRect(parent:zlUIWin):void 
     {
         super.CalRect(parent);
@@ -2474,14 +2502,17 @@ export class zlUIPanel extends zlUIImage
             this.drawBoard=this.board;
         }
         if(this.text)   {
+            let wrap_width=this.w-this.padding-this.padding;
             let font=this._owner.GetFont(this.fontIndex);
-            let wrap=this.isMultiline?this.w:0;
+            let wrap=this.isMultiline?wrap_width:0;
             let text=this.CalRectText();
             if(typeof text !== "string") {
                 text=""+text;
+                this.text=text;
             }
             let isReady: ImGui.ImScalar<boolean> = [false];
             let size=font.CalcTextSizeA(font.FontSize, ImGui.FLT_MAX, wrap, text, null, null, isReady);
+            this._textRemaining=0;
             size.x=Math.ceil(size.x);
             size.y=Math.ceil(size.y);
             if(!isReady[0]) {
@@ -2571,6 +2602,11 @@ export class zlUIPanel extends zlUIImage
             this._textClip.y=this._localRect.xy.y;
             this._textClip.z=this._localRect.max.x;
             this._textClip.w=this._localRect.max.y;
+
+            if(isReady[0] && !this.isMultiline && 
+                this._textPos.x+this._textSize.x>this._textClip.z) {
+                this.CalTextRemaining();
+            }
         }
     }
 
@@ -2602,6 +2638,7 @@ export class zlUIPanel extends zlUIImage
     _textPos:ImGui.Vec2;
     _textSize:ImGui.Vec2;
     _textClip:ImGui.Vec4;
+    _textRemaining:number=0;
 }
 
 export {zlUIEdit as UIEdit}
@@ -3139,6 +3176,9 @@ export class zlUICombo extends zlUIButton
         case "popupwidth":
             this.popup_w=Number.parseInt(toks[1]);
             break;
+        case "maxpopupitems":
+            this.max_popup_items=Number.parseInt(toks[1]);
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -3156,6 +3196,9 @@ export class zlUICombo extends zlUIButton
         this.isDrawCombo=o.isDrawCombo;
         this.combo_items=o.combo_items;
         this.combo_value=o.combo_value;
+        this.popup_w=o.popup_w;
+        this.max_popup_items=o.max_popup_items;
+        this.arrow_xy=Clone(o.arrow_xy);
     }
     Clone(): zlUIWin {
         let obj=new zlUICombo(this._owner);
@@ -3218,6 +3261,8 @@ export class zlUICombo extends zlUIButton
         }
         if(i==0)
             return;
+        if(i>this.max_popup_items)
+            i=this.max_popup_items;
         combo_menu.x=this._screenRect.xy.x;
         combo_menu.y=this._screenRect.max.y;
         combo_menu.w=this.popup_w?this.popup_w:this.w;
@@ -3254,6 +3299,7 @@ export class zlUICombo extends zlUIButton
     combo_items:string[];
     combo_value:number;
     popup_w:number;
+    max_popup_items=12;
 
     arrow_xy:Vec2={x:0,y:0}
 }
@@ -5578,7 +5624,7 @@ export class zlUIMgr extends zlUIWin
             let win=wait.shift();
             if(win) {
                 for(let ch of win.pChild) {
-                    if(!ch.isVisible||!ch._isPaintout)
+                    if(!ch.isVisible||!ch._isPaintout||!ch.isEnable)
                     {
                         continue;
                     }
@@ -5593,7 +5639,7 @@ export class zlUIMgr extends zlUIWin
             return;
         let i=list.indexOf(current)+1;
         if(i>=list.length) {i=0;}
-        //console.log("NextEdit:"+i, list);
+        console.log("NextEdit:", list[i].Name);
         list[i].OnNotify();
     }
 
