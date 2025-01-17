@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.36";
+export const Version="0.1.37";
 
 export var Use_ImTransform=true;
 
@@ -1789,6 +1789,7 @@ export class zlUIWin
             if(this.h!=maxh) {
                 this.h=maxh;
                 this._is_size_change=true;
+                this.SetCalRect();
                 //parent.SetCalRect();
             }
         }
@@ -1804,6 +1805,7 @@ export class zlUIWin
             if(this.w!=maxw) {
                 this.w=maxw;
                 this._is_size_change=true;
+                this.SetCalRect();
                 //parent.SetCalRect();
             }
         }        
@@ -3375,7 +3377,7 @@ export class zlUISlider extends zlUIPanel
         let old_value=this.scroll_value;
         this._is_scrollvalue_change=false;
         this.scroll_value=this.is_item_mode?Math.floor(val):val;
-        if(this.on_scroll) {
+        if(this.on_scroll && old_value!=this.scroll_value) {
             this.on_scroll(val);
         }
         if(!this.is_item_mode) {
@@ -5616,6 +5618,33 @@ export class zlUIMgr extends zlUIWin
         }
     }
 
+    PaintoutList(obj:zlUIWin, list:zlUIWin[])
+    {
+        for(let ch of obj.pChild) {
+            if(!ch.isVisible||!ch._isPaintout||!ch.isEnable) {
+                continue;
+            }
+            list.push(ch);
+            this.PaintoutList(ch, list)
+        }
+    }
+
+    IsOcclusion(obj:zlUIWin):boolean
+    {
+        let paintout:zlUIWin[]=[];
+        this.PaintoutList(this, paintout);
+        let i=paintout.indexOf(obj);
+        if(i<0)
+            return false;
+        i++;
+        for(;i<paintout.length;i++) {
+            let po=paintout[i];
+            if(obj._screenRect.InsideRect(po._screenRect))
+                return true;
+        }
+        return false;
+    }
+
     NextEdit(current:zlUIEdit)
     {
         let wait:zlUIWin[]=[this];
@@ -5630,7 +5659,9 @@ export class zlUIMgr extends zlUIWin
                     }
                     wait.push(ch);
                     if(ch instanceof zlUIEdit) {
-                        list.push(ch);
+                        if(!this.IsOcclusion(ch)) {
+                            list.push(ch);
+                        }
                     }
                 }
             }
@@ -5657,6 +5688,8 @@ export class zlUIMgr extends zlUIWin
     }
     OnResize(w:number, h:number):void
     {
+        if(this.dom_input)
+            this.dom_input.setVisible(false);
         if(this.scale_mode) {
             this.ScaleWH(w, h, this.scale_mode);
         }else {
