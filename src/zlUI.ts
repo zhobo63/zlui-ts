@@ -2,7 +2,7 @@ import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
 import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.37";
+export const Version="0.1.38";
 
 export var Use_ImTransform=true;
 
@@ -3250,8 +3250,10 @@ export class zlUICombo extends zlUIButton
             btn.on_click=(o)=>{
                 combo_menu.isDelete=true;
                 this._owner.ClosePopup();
-                if(this.combo_value==btn.user_data)
+                if(this.combo_value==btn.user_data) {
+                    this.SetText(this.combo_items[this.combo_value]);
                     return;
+                }
                 this.combo_value=btn.user_data;
                 this.SetText(this.combo_items[this.combo_value]);
                 if(this.on_combo) {
@@ -3450,7 +3452,7 @@ export class zlUISlider extends zlUIPanel
             this._first_value=this.scroll_value;
             this._first_scrollbar=Inside(this._first_pos, this._scrollHxy, this._scrollHxy2);
         }
-        let isChild=this.HasChild(own.hover);
+        let isChild=this.HasChild(own.hover) || own.hover===this;
 		let isWheel=this._owner.popup?this._owner.popup===this:true;
         if(own.hover_slider==this&&own.mouse_wheel!=0&&isWheel&& isChild) {
             let val=this.scroll_value-own.mouse_wheel*this.mouse_wheel_speed;
