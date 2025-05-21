@@ -1,8 +1,8 @@
 import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
-import { ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
+import { ImDrawCornerFlags, ImDrawList, ImVec2 } from "@zhobo63/imgui-ts/src/imgui";
 import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
-export const Version="0.1.38";
+export const Version="0.1.39";
 
 export var Use_ImTransform=true;
 
@@ -39,10 +39,6 @@ UICombo:
 DrawCombo 
 
 UISlider:
-scrollbarcolor
-scrollbarcolor4
-scrollbarcolorhover
-scrollbarcolorhover4
 scrollmaxx
 scrollmaxy
 barwidth
@@ -3349,6 +3345,28 @@ export class zlUISlider extends zlUIPanel
         case "mousewheelspeed":
             this.mouse_wheel_speed=Number.parseFloat(toks[1]);
             break;
+        case "scrollbarcolor":
+            this.scrollbarColor=ParseColor(toks[1]);
+            break;
+        case "scrollbarcolor4":
+            this.scrollbarColor4=[
+                ParseColor(toks[1]),
+                ParseColor(toks[2]),
+                ParseColor(toks[3]),
+                ParseColor(toks[4]),
+            ];
+            break;
+        case "scrollbarcolorhover":
+            this.scrollbarColorHover=ParseColor(toks[1]);
+            break;
+        case "scrollbarcolorhover4":
+            this.scrollbarColorHover4=[
+                ParseColor(toks[1]),
+                ParseColor(toks[2]),
+                ParseColor(toks[3]),
+                ParseColor(toks[4]),
+            ];
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -3360,6 +3378,9 @@ export class zlUISlider extends zlUIPanel
         let o=obj as zlUISlider;
         this.scrollType=o.scrollType;
         this.scrollbarColor=o.scrollbarColor;
+        this.scrollbarColor4=o.scrollbarColor4;
+        this.scrollbarColorHover=o.scrollbarColorHover;
+        this.scrollbarColorHover4=o.scrollbarColorHover4;
         this.scroll_value=o.scroll_value;
         this.scroll_max=o.scroll_max;
         this.is_item_mode=o.is_item_mode;
@@ -3443,14 +3464,21 @@ export class zlUISlider extends zlUIPanel
                 this.isCalRect=true;
             }
         }
-
+        let type=this.GetScrollType();
         let own=this._owner;
         let mouse_pos=this._invWorld.Transform(own.mouse_pos);
+        this._is_scrollbar_hover=false;
+        if(type.isScrollH) {
+            this._is_scrollbar_hover=Inside(mouse_pos, this._scrollHxy, this._scrollHxy2);
+        }
+        if(type.isScrollW) {
+            this._is_scrollbar_hover=Inside(mouse_pos, this._scrollWxy, this._scrollWxy2);
+        }
         if(own.hover_slider==this && own.any_pointer_down&&own.slider==null)   {
             own.slider=this;
             this._first_pos=mouse_pos;
             this._first_value=this.scroll_value;
-            this._first_scrollbar=Inside(this._first_pos, this._scrollHxy, this._scrollHxy2);
+            this._first_scrollbar=this._is_scrollbar_hover;
         }
         let isChild=this.HasChild(own.hover) || own.hover===this;
 		let isWheel=this._owner.popup?this._owner.popup===this:true;
@@ -3460,8 +3488,8 @@ export class zlUISlider extends zlUIPanel
             else if(val>this.scroll_max) val=this.scroll_max;
             this.OnScrollValueChange(val);
         }
-        if(own.slider==this && isChild)    {
-            let type=this.GetScrollType();
+        if(own.slider==this) {
+            this._is_scrollbar_hover=this._first_scrollbar;
             if(type.isScrollH)  {
                 let val=this._first_value;
                 let offset=this._first_pos.y-mouse_pos.y;
@@ -3518,13 +3546,42 @@ export class zlUISlider extends zlUIPanel
         if(drawBar) {
             let vstart=(Use_ImTransform)?drawlist.GetVertexSize():0;
             let scroll=this.GetScrollType();
+            let barxy:ImVec2;
+            let barxy2:ImVec2;
             if(scroll.isScrollH)  {
-                drawlist.AddRectFilled(this._scrollHxy, this._scrollHxy2, 
-                    MultiplyAlpha(this.scrollbarColor, this.alpha), 4);
+                barxy=this._scrollHxy;
+                barxy2=this._scrollHxy2;
             }
             if(scroll.isScrollW)  {
-                drawlist.AddRectFilled(this._scrollWxy, this._scrollWxy2, 
-                    MultiplyAlpha(this.scrollbarColor, this.alpha), 4);
+                barxy=this._scrollWxy;
+                barxy2=this._scrollWxy2;
+            }
+            if(this._is_scrollbar_hover) {
+                if(this.scrollbarColorHover4) {
+                    drawlist.AddRectFilledMultiColorRound(
+                        barxy, barxy2, 
+                        MultiplyAlpha(this.scrollbarColorHover4[0],this.alpha), 
+                        MultiplyAlpha(this.scrollbarColorHover4[1],this.alpha), 
+                        MultiplyAlpha(this.scrollbarColorHover4[2],this.alpha), 
+                        MultiplyAlpha(this.scrollbarColorHover4[3],this.alpha),
+                        4, ImDrawCornerFlags.All);
+                }else {
+                    drawlist.AddRectFilled(barxy, barxy2, 
+                        MultiplyAlpha(this.scrollbarColorHover, this.alpha), 4);
+                }
+            }else {
+                if(this.scrollbarColor4) {
+                    drawlist.AddRectFilledMultiColorRound(
+                        barxy, barxy2, 
+                        MultiplyAlpha(this.scrollbarColor4[0],this.alpha), 
+                        MultiplyAlpha(this.scrollbarColor4[1],this.alpha), 
+                        MultiplyAlpha(this.scrollbarColor4[2],this.alpha), 
+                        MultiplyAlpha(this.scrollbarColor4[3],this.alpha),
+                        4, ImDrawCornerFlags.All);
+                }else {
+                    drawlist.AddRectFilled(barxy, barxy2, 
+                        MultiplyAlpha(this.scrollbarColor, this.alpha), 4);
+                }
             }
             if(Use_ImTransform) {
                 drawlist.Transform(this._world, vstart);
@@ -3590,6 +3647,9 @@ export class zlUISlider extends zlUIPanel
 
     scrollType:ESliderType=ESliderType.eVertical;
     scrollbarColor:number=0x40c0c0c0;
+    scrollbarColor4:number[];
+    scrollbarColorHover:number=0x80c0c0c0;
+    scrollbarColorHover4:number[];
     scroll_value:number=0;
     scroll_max:number=0;
     is_item_mode:boolean=false;
@@ -3604,6 +3664,7 @@ export class zlUISlider extends zlUIPanel
     _first_value:number;
     _first_scrollbar:boolean;
     _is_scrollvalue_change:boolean=false;
+    _is_scrollbar_hover:boolean=false;
 }
 
 interface ImageFont
