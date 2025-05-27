@@ -2749,6 +2749,19 @@ export class zlUIEdit extends zlUIPanel
             inp._dom_input.style.textAlign="right";
             break;
         }
+        if(this.textAnchor) {
+            if(this.textAnchor.mode & EAnchor.X) {
+                if(this.textAnchor.x==0) {
+                    inp._dom_input.style.textAlign="left";
+                }
+                else if(this.textAnchor.x==0.5) {
+                    inp._dom_input.style.textAlign="center";
+                }
+                else if(this.textAnchor.x==1) {
+                    inp._dom_input.style.textAlign="right";
+                }
+            }
+        }
         let screenXY=this._screenRect.xy;
         inp.setText(this.text, 0, this._owner.GetFont(this.fontIndex));
         inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
