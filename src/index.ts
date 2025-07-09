@@ -57,7 +57,7 @@ class App
         let io=ImGui.GetIO();
         let ui=this.ui;
         ui.any_pointer_down=(!ImGui.GetHoveredWindow())?ImGui_Impl.any_pointerdown():false;
-        ui.mouse_pos=io.MousePos;
+        ui.mouse_pos={x:io.MousePos.x, y:io.MousePos.y};
         ui.mouse_wheel=io.MouseWheel;
         ui.Refresh(io.DeltaTime);
         ui.Paint(drawlist);        

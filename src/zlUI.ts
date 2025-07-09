@@ -726,8 +726,6 @@ export class Rect
             this.max.x=max.x;
             this.max.y=max.y;
         }
-        this.xy=xy;
-        this.max=max;
     }
     Set(x:number, y:number, right:number, down:number):void
     {

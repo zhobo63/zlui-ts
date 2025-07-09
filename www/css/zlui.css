@@ -1,3 +1,12 @@
+@font-face {
+    font-family: "FontAwesome6Free";
+    font-style: normal;
+    font-display: block;
+    font-weight: 900;
+    src: url("./fa-solid-900.woff2") format("woff2"), url("./fonts/fa-solid-900.ttf") format("truetype"); 
+    unicode-range: U+F000-FFFF;
+}
+  
 .Mgr {
     background-color: black;    
     width: 100%;
@@ -12,8 +21,9 @@
     position: absolute;
     margin: 0px;
     padding: 0px;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: FontAwesome6Free, Arial, sans-serif, Helvetica;
     font-size: medium;
+    font-weight: 100;
     color: white;
 }
 
@@ -74,6 +84,7 @@
     border: none;
     text-align: center;
     line-height: 30px;
+    border-radius: 4px;
 }
 .Check:hover {
     background-color: rgba(57,61,70,1);
