@@ -28,10 +28,10 @@
   "homepage": "https://github.com/zhobo63/zlui-ts#readme",
   "devDependencies": {
     "@webpack-cli/generators": "^3.0.7",
-    "@zhobo63/imgui-ts": "^0.1.46",
+    "@zhobo63/imgui-ts": "^0.1.47",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
-    "webpack": "^5.99.5",
+    "webpack": "^5.99.9",
     "webpack-cli": "^5.1.4"
   }
 }

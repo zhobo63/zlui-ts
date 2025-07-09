@@ -1,0 +1,94 @@
+.Mgr {
+    background-color: black;    
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border-width: 0;
+}
+
+.Win {
+    display: block;
+    position: absolute;
+    margin: 0px;
+    padding: 0px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: medium;
+    color: white;
+}
+
+.Panel {
+    background-color: rgba(35,39,49,1);
+    border-color: rgba(57,61,70,1);
+    color: rgba(255,255,255,1);
+    border-style: solid;
+    border-width: 1px;
+}
+
+.Text {
+    background: none;
+    border-style: none;
+    color: white;
+}
+
+.Button {
+    background-color: rgba(35,39,49,1);
+    border-color: rgba(57,61,70,1);
+    color: rgba(200,200,200,1);
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 4px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+}
+.Button:hover {
+    background-color: rgba(57,61,70,1);
+    color: rgba(255,255,255,1);
+}
+.Button:active {
+    background-color: rgba(35,39,49,1);
+}
+.Button::selection {
+    background: none;
+}
+
+.Frame {
+    background-color: rgba(35,39,49,1);
+    border-color: rgba(57,61,70,1);
+    color: rgba(255,255,255,1);
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 5px;    
+}
+.Edit {
+    background-color: rgba(23,26,29,1);
+    border-color: rgba(57,61,70,1);
+    border-width: 1px;
+    color: white;
+    caret-color:white;
+    height: 30px;
+}
+.Check {
+    height: 30px;
+    border: none;
+    text-align: center;
+    line-height: 30px;
+}
+.Check:hover {
+    background-color: rgba(57,61,70,1);
+    color: rgba(255,255,255,1);
+}
+.Check:active {
+    background-color: rgba(35,39,49,1);
+}
+.Check::selection {
+    background: none;
+}
+.Combo {
+    background-color: rgba(23,26,29,1);
+    border-color: rgba(57,61,70,1);
+    border-width: 1px;
+    border-style: solid;
+    height: 30px;
+}
