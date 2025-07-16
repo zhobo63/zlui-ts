@@ -18,13 +18,15 @@
 
 .Win {
     display: block;
-    position: absolute;
     margin: 0px;
     padding: 0px;
     font-family: FontAwesome6Free, Arial, sans-serif, Helvetica;
     font-size: medium;
     font-weight: 100;
     color: white;
+    box-sizing: border-box;
+    /*overflow: auto;*/
+    float: left;
 }
 
 .Panel {
@@ -39,6 +41,11 @@
     background: none;
     border-style: none;
     color: white;
+    height: 30px;
+    line-height: 30px;
+    margin-top: 3px;
+    margin-left: 10px;
+    margin-right: 10px;
 }
 
 .Button {
@@ -49,6 +56,7 @@
     border-width: 1px;
     border-radius: 4px;
     height: 30px;
+    width: 120px;
     line-height: 30px;
     text-align: center;
 }
@@ -64,6 +72,7 @@
 }
 
 .Frame {
+    position: absolute;
     background-color: rgba(35,39,49,1);
     border-color: rgba(57,61,70,1);
     color: rgba(255,255,255,1);
@@ -78,11 +87,13 @@
     color: white;
     caret-color:white;
     height: 30px;
+    width: 120px;
 }
 .Check {
     height: 30px;
+    width: 120px;
     border: none;
-    text-align: center;
+    text-align: right;
     line-height: 30px;
     border-radius: 4px;
 }
@@ -96,10 +107,51 @@
 .Check::selection {
     background: none;
 }
+
+.CheckBox {
+    position: absolute;
+    margin: 10px;
+    
+}
+
 .Combo {
     background-color: rgba(23,26,29,1);
     border-color: rgba(57,61,70,1);
     border-width: 1px;
     border-style: solid;
     height: 30px;
+    width: 120px;
+}
+
+.icon {
+    height: 30px;
+    width: 30px;
+    border-style: none;
+}
+
+.xy {
+    position: absolute;
+}
+
+.center {
+    margin: auto;
+    padding: 10px;
+}
+
+.center_text {
+    text-align: center;
+}
+.center_img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.right {
+    float: inline-end;
+    position: static;
+}
+
+.arrange {
+    position: relative;
 }

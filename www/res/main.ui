@@ -1,5 +1,5 @@
 ifnot DarkTheme include dark.ui
-#include imagetext.ui
+include imagetext.ui
 #include login.ui
 
 Clone Panel
@@ -161,7 +161,7 @@ Clone Panel
     #Clip true
     Arrange vertical content
     #Arrange vertical item 5 (100,100)
-    //Visible false
+    Visible false
     //Drag true
     //Sizable 
     //Resizable true

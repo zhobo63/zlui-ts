@@ -1,13 +1,14 @@
-import { ImGui, ImGui_Impl } from "@zhobo63/imgui-ts";
-import { ImDrawCornerFlags, ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
-import { EType, GetInput, Input } from "@zhobo63/imgui-ts/src/input";
 
 export const Version="0.1.40";
 
 export var Use_Transform=true;
+var FLT_MAX:number=Number.MAX_VALUE;
 
 export function SetUseTransform(b:boolean){
     Use_Transform=b;
+}
+export function SetFLT_MAX(v:number) {
+    FLT_MAX=v;
 }
 
 //export let Use_Transform=false;
@@ -62,6 +63,48 @@ UIVideo
 UIParticle
     
 */
+
+export interface IBackend
+{
+    CreateTexture:(url:string)=>Promise<ITexture>;
+    CreateFont:(name:string, size:number, style:string)=>IFont;
+    DefaultFont:()=>IFont;
+    PushClipRect:(rect:Rect)=>void;
+    PopClipRect:()=>void;
+
+    PaintUIWin:(obj:zlUIWin)=>void;
+    PaintUIImage:(obj:zlUIImage)=>void;
+    PaintUIPanel:(obj:zlUIPanel)=>void;
+    PaintUIEdit:(obj:zlUIEdit)=>void;
+    PaintUIButton:(obj:zlUIButton)=>void;
+    PaintUICheck:(obj:zlUICheck)=>void;
+    PaintUICombo:(obj:zlUICombo)=>void;
+    PaintUISlider:(obj:zlUISlider)=>void;
+    PaintUIImageText:(obj:zlUIImageText)=>void;
+    PaintUITree:(obj:zlUITree)=>void;
+    PaintUITreeNodeOpen:(obj:zlUITreeNodeOpen)=>void;
+}
+
+export interface IFont
+{
+    name:string;
+    style:string;
+    size:number;
+    userdata?:any;
+
+    AddFontRange:(start:number, end:number)=>void;
+    MergeFont:(font:IFont)=>void;
+    CalTextSize:(size: number, max_width: number, wrap_width: number, text_begin: string, text_end?: number, isready?:boolean[])=>IVec2
+}
+
+export interface ITexture
+{
+    _texture:WebGLTexture;
+    _width:number;
+    _height:number;
+
+    Destroy:()=>void;
+}
 
 export namespace zlUI
 {
@@ -379,31 +422,46 @@ function ParseSliderType(tok:string):ESliderType
     }
     return ESliderType.eVertical;
 }
-function ParseCorner(tok:string):ImGui.ImDrawCornerFlags
+
+export enum ECornerFlags
+{
+    None      = 0,
+    TopLeft   = 1 << 0, // 0x1
+    TopRight  = 1 << 1, // 0x2
+    BotLeft   = 1 << 2, // 0x4
+    BotRight  = 1 << 3, // 0x8
+    Top       = TopLeft | TopRight,   // 0x3
+    Bot       = BotLeft | BotRight,   // 0xC
+    Left      = TopLeft | BotLeft,    // 0x5
+    Right     = TopRight | BotRight,  // 0xA
+    All       = 0xF,     // In your function calls you may use ~0 (= all bits sets) instead of All, as a convenience
+}
+
+function ParseCorner(tok:string):ECornerFlags
 {
     switch (tok) {
     case "none":
-        return ImGui.ImDrawCornerFlags.None;
+        return ECornerFlags.None;
     case "topleft":
-        return ImGui.ImDrawCornerFlags.TopLeft;
+        return ECornerFlags.TopLeft;
     case "topright":
-        return ImGui.ImDrawCornerFlags.TopRight;
+        return ECornerFlags.TopRight;
     case "downleft":
-        return ImGui.ImDrawCornerFlags.BotLeft;
+        return ECornerFlags.BotLeft;
     case "downright":
-        return ImGui.ImDrawCornerFlags.BotRight;
+        return ECornerFlags.BotRight;
     case "top":
-        return ImGui.ImDrawCornerFlags.Top;
+        return ECornerFlags.Top;
     case "down":
-        return ImGui.ImDrawCornerFlags.Bot;
+        return ECornerFlags.Bot;
     case "left":
-        return ImGui.ImDrawCornerFlags.Left;
+        return ECornerFlags.Left;
     case "right":
-        return ImGui.ImDrawCornerFlags.Right;
+        return ECornerFlags.Right;
     case "all":
-        return ImGui.ImDrawCornerFlags.All;
+        return ECornerFlags.All;
     }
-    return ImGui.ImDrawCornerFlags.None;
+    return ECornerFlags.None;
 }
 
 
@@ -431,46 +489,64 @@ export interface TexturePack
     y1:number;
     x2:number;
     y2:number;
-    texture:ImGui_Impl.Texture;
+    texture:ITexture;
     uv1?:Vec2;
     uv2?:Vec2;
 }
 
-function UpdateTexturePack(image:TexturePack):TexturePack
+export function UpdateTexturePack(image:TexturePack):TexturePack
 {
-    image.uv1={
-        x:image.x1/image.texture._width,
-        y:image.y1/image.texture._height
-    };
-    image.uv2={
-        x:image.x2/image.texture._width,
-        y:image.y2/image.texture._height
-    };
+    image.uv1=new Vec2(
+        image.x1/image.texture._width,
+        image.y1/image.texture._height);
+    image.uv2=new Vec2(
+        image.x2/image.texture._width,
+        image.y2/image.texture._height);
     return image;
 }
 
-export interface Vec2
+export interface IVec2
 {
     x:number;
     y:number;
 }
 
-function Vec2Add(a:Vec2, b:Vec2):Vec2
+export class Vec2 implements IVec2
 {
-    return {x:a.x+b.x, y:a.y+b.y}
-}
-function Vec2Scale(v:Vec2, s:number):Vec2
-{
-    return {x:v.x*s, y:v.y*s}
-}
-function Vec2Multiply(a:Vec2, b:Vec2):Vec2
-{
-    return {x:a.x*b.x, y:a.y*b.y}
-}
-function Vec2Set(v:Vec2, x:number, y:number)
-{
-    v.x=x;
-    v.y=y;
+    constructor(x:number=0, y:number=0) 
+    {
+        this.x=x;
+        this.y=y;
+    }
+
+    Set(x:number, y:number) {
+        this.x=x;
+        this.y=y;
+    }
+    Add(v:IVec2):IVec2
+    {
+        return {
+            x:this.x+v.x,
+            y:this.y+v.y
+        };
+    }
+    Scale(s:number):IVec2
+    {
+        return {
+            x:this.x*s,
+            y:this.y*s
+        };
+    }
+    Mul(v:IVec2):IVec2
+    {
+        return {
+            x:this.x*v.x,
+            y:this.y*v.y
+        }
+    }
+
+    x:number = 0;
+    y:number = 0;
 }
 
 export interface Vec4
@@ -531,12 +607,12 @@ export class Mat2
         const m22 = this.m21 * m.m12 + this.m22 * m.m22;
         return new Mat2(m11, m12, m21, m22);
     }
-    Transform(p: Vec2): Vec2
+    Transform(p: IVec2): Vec2
     {
-        return {
-            x:this.m11 * p.x + this.m12 * p.y,
-            y:this.m21 * p.x + this.m22 * p.y
-        };
+        return new Vec2(
+            this.m11 * p.x + this.m12 * p.y,
+            this.m21 * p.x + this.m22 * p.y
+        );
     }    
     TransposeTo(target:Mat2):void
     {
@@ -552,7 +628,7 @@ export class Mat2
         target.m21 = this.m21 * m.m11 + this.m22 * m.m21;
         target.m22 = this.m21 * m.m12 + this.m22 * m.m22;
     }
-    TransformTo(p: Vec2, target: Vec2): void
+    TransformTo(p: IVec2, target: IVec2): void
     {
         let px=p.x;
         let py=p.y;
@@ -574,7 +650,7 @@ export class Transform
     }
     Identity(): void {
         this.rotate.Identity();
-        this.translate={x:0,y:0};
+        this.translate.Set(0, 0);
         this.scale=1;
     }
 
@@ -622,14 +698,14 @@ export class Transform
     InvertTo(target: Transform): void {
         this.rotate.TransposeTo(target.rotate);
         target.scale = 1.0 / this.scale;
-        target.translate={x:-this.translate.x, y:-this.translate.y};
+        target.translate.Set(-this.translate.x, -this.translate.y);
         this.rotate.TransformTo(target.translate, target.translate);
         target.translate.x = target.translate.x * this.scale;
         target.translate.y = target.translate.y * this.scale;
     }
 
     rotate:Mat2=new Mat2;
-    translate:Vec2={x:0,y:0};
+    translate:Vec2=new Vec2;
     scale:number=1;
 }
 
@@ -807,8 +883,8 @@ export class Rect
     set z(n:number) {this.max.x=n;}
     set w(n:number) {this.max.y=n;}
 
-    xy:Vec2={x:0,y:0};
-    max:Vec2={x:0,y:0};
+    xy:Vec2=new Vec2;
+    max:Vec2=new Vec2;
 }
 
 function ParseDock(tok:string):EDock
@@ -882,7 +958,6 @@ export interface IArrange
     item_size?:Vec2;
 }
 
-
 export function Clone(o:any):any
 {
     if(o) {
@@ -891,85 +966,6 @@ export function Clone(o:any):any
     return undefined;
 }
 
-let vec2=new ImGui.Vec2;
-let vec_a=new ImGui.Vec2;
-let vec_b=new ImGui.Vec2;
-let vec_c=new ImGui.Vec2;
-let vec_d=new ImGui.Vec2;
-let mat2_a=new ImGui.Transform;
-//let mat2_b=new ImGui.Transform;
-
-function toImVec2(to:ImGui.Vec2, v:Vec2):ImGui.Vec2
-{
-    to.x=v.x;
-    to.y=v.y;
-    return to;
-}
-
-function toImTransform(to:ImGui.Transform, m:Transform):ImGui.Transform
-{
-    to.rotate.Set(
-        m.rotate.m11,
-        m.rotate.m12,
-        m.rotate.m21,
-        m.rotate.m22
-    )
-    to.translate.Set(m.translate.x, m.translate.y);
-    to.scale=m.scale;
-    return to;
-}
-
-export function RenderCheckMark(drawlist:ImDrawList,x:number,y:number,col:number,sz:number)
-{
-    let thickness = Math.max(sz / 5.0, 1.0);
-    sz -= thickness * 0.5;
-    let px=x+thickness*0.25;
-    let py=y+thickness*0.25;
-    let third = sz / 3.0;
-    let bx = px + third;
-    let by = py + sz - third * 0.5;
-    vec2.Set(bx - third, by - third);
-    drawlist.PathLineTo(vec2);
-    vec2.Set(bx,by);
-    drawlist.PathLineTo(vec2);
-    vec2.Set(bx + third * 2.0, by - third * 2.0)
-    drawlist.PathLineTo(vec2);
-    drawlist.PathStroke(col, false, thickness);
-}
-export function RenderArrow(drawlist:ImDrawList, pos:Vec2, color:number,dir:ImGui.ImGuiDir, size:number, scale:number)
-{
-    let r = size * 0.40 * scale;
-    let center:Vec2 = {
-        x:pos.x+size*0.5,
-        y:pos.y+size*0.5*scale
-    }
-    let a:Vec2;
-    let b:Vec2;
-    let c:Vec2;
-    switch (dir)
-    {
-    case ImGui.ImGuiDir.Up:
-    case ImGui.ImGuiDir.Down:
-        if (dir == ImGui.ImGuiDir.Up) r = -r;
-        a = {x:0, y:0.75};
-        b = {x:-0.866, y:-0.750};
-        c = {x:+0.866, y:-0.750};
-        break;
-    case ImGui.ImGuiDir.Left:
-    case ImGui.ImGuiDir.Right:
-        if (dir == ImGui.ImGuiDir.Left) r = -r;
-        a = {x:+0.750, y:+0.000};
-        b = {x:-0.750, y:+0.866};
-        c = {x:-0.750, y:-0.866};
-        break;
-    default:
-        return;
-    }
-    vec_a.Set(center.x+a.x*r, center.y+a.y*r);
-    vec_b.Set(center.x+b.x*r, center.y+b.y*r);
-    vec_c.Set(center.x+c.x*r, center.y+c.y*r);
-    drawlist.AddTriangleFilled(vec_a, vec_b, vec_c, color);
-}
 
 export class Bezier
 {
@@ -981,7 +977,7 @@ export class Bezier
     GetPoint(t:number):Vec2
     {
         if(!this.controlPoints||this.controlPoints.length==0)
-            return {x:0,y:0};
+            return null;
         if(t>1) t=1;
         const segs=Math.floor(this.controlPoints.length/4);
         t=t*segs;
@@ -1000,7 +996,7 @@ export class Bezier
         const d=f*f*f;
         const x=a*p0.x+b*p1.x+c*p2.x+d*p3.x;
         const y=a*p0.y+b*p1.y+c*p2.y+d*p3.y;
-        return {x:x,y:y};
+        return new Vec2(x,y);
     }
 
     ParseCmd(name:string, toks:string[]):boolean
@@ -1009,14 +1005,14 @@ export class Bezier
         if(toks[0].startsWith("(")) {
             for(let i=0;i<toks.length;i++) {
                 let tok=toks[i].match(/\d*/g).filter(e=>e);
-                this.controlPoints.push({x:parseFloat(tok[0]), y:parseFloat(tok[1])});
+                this.controlPoints.push(new Vec2(parseFloat(tok[0]), parseFloat(tok[1])));
             }
         }else {
             for(let i=0;i<toks.length;i+=2) {
-                this.controlPoints.push({
-                    x:Number.parseFloat(toks[i]),
-                    y:Number.parseFloat(toks[i+1]),
-                })
+                this.controlPoints.push(new Vec2(
+                    Number.parseFloat(toks[i]),
+                    Number.parseFloat(toks[i+1]),
+                ));
             }
         }
         return this.controlPoints.length>=4;
@@ -1346,15 +1342,15 @@ export class zlUIWin
                 this.arrange.item_per_row=Number.parseInt(toks[3]);
                 if(toks[4].match(/\(\d+,\d+\)/)) {
                     let t=toks[4].split(/\(|\)|\,/g).filter(e=>e);
-                    this.arrange.item_size={
-                        x:Number.parseInt(t[0]),
-                        y:Number.parseInt(t[1]),
-                    }
+                    this.arrange.item_size=new Vec2(
+                        Number.parseInt(t[0]),
+                        Number.parseInt(t[1])
+                    );
                 }else {
-                    this.arrange.item_size={
-                        x:Number.parseFloat(toks[4]),
-                        y:Number.parseFloat(toks[5]),
-                    }
+                    this.arrange.item_size=new Vec2(
+                        Number.parseFloat(toks[4]),
+                        Number.parseFloat(toks[5])
+                    );
                 }
                 break;
             }
@@ -1382,16 +1378,13 @@ export class zlUIWin
             }
             break;
         case "origin":
-            this.origin={
-                x:Number.parseFloat(toks[1]),
-                y:Number.parseFloat(toks[2])
-            };
+            this.origin=new Vec2(Number.parseFloat(toks[1]),
+                Number.parseFloat(toks[2]));
             break;
         case "originoffset":
-            this.originOffset={
-                x:Number.parseInt(toks[1]),
-                y:Number.parseInt(toks[2])
-            }
+            this.originOffset=new Vec2(
+                Number.parseInt(toks[1]),
+                Number.parseInt(toks[2]));            
             break;
         case "scale":
             this.scale=Number.parseFloat(toks[1]);
@@ -1583,35 +1576,38 @@ export class zlUIWin
         }
     }
 
-    PaintChild(drawlist:ImGui.ImDrawList):void
-    {
-        if(this.isClip) {
-            drawlist.PushClipRect(
-                toImVec2(vec_a,this._clipRect.xy), 
-                toImVec2(vec_b,this._clipRect.max));
-            this._owner.clip_stack.push(this._clipRect.toVec4())
-            this.SetClipRect(this._clipRect);
-        }
-        for(let i=0;i<this.pChild.length;i++)   {
-            let obj=this.pChild[i];
-            if(!obj.isVisible)   {
-                continue;
-            }
-            if(!this.IsVisible(obj))
-                continue;
-            obj.Paint(drawlist);
-        }
-        if(this.isClip) {
-            this._owner.clip_stack.pop();
-            drawlist.PopClipRect();
-        }
-    }
-
-    Paint(drawlist:ImGui.ImDrawList):void 
+    PaintChild()
     {
         this._owner.paint_count++;
         this._isPaintout=true;
-        this.PaintChild(drawlist);
+
+        let obj:zlUIWin=this;
+        let mgr=obj._owner;
+        if(obj.isClip) {
+            let clipRect=obj._clipRect;
+            mgr.backend.PushClipRect(clipRect);
+            mgr.clip_stack.push(clipRect.toVec4())
+            obj.SetClipRect(clipRect);
+        }
+        for(let i=0;i<obj.pChild.length;i++)   {
+            let ch=obj.pChild[i];
+            if(!ch.isVisible)   {
+                continue;
+            }
+            if(!obj.IsVisible(ch))
+                continue;
+            ch.Paint();
+        }
+        if(obj.isClip) {
+            mgr.clip_stack.pop();
+            mgr.backend.PopClipRect();
+        }
+    }
+
+    Paint():void
+    {
+        this._owner.backend.PaintUIWin(this);
+        this.PaintChild();
     }
 
     SetCalRect():void 
@@ -2184,13 +2180,13 @@ export class zlUIWin
     add_y:number;
     borderWidth:number=0;
     padding:number=0;
-    margin:Vec2={x:0,y:0};
-    content_margin:Vec2={x:0,y:0}
+    margin:Vec2=new Vec2;
+    content_margin:Vec2=new Vec2;
     anchor:IAnchor;
     dock:IDock;
     dockOffset:Vec4;
     arrange:IArrange;
-    offset:Vec2={x:0,y:0}
+    offset:Vec2=new Vec2;
     autosize:EAutosize=EAutosize.None;    
     hint:string;
 
@@ -2200,7 +2196,7 @@ export class zlUIWin
 
     rotate:number=0;
     scale:number=1;
-    origin:Vec2={x:0.5, y:0.5};
+    origin:Vec2=new Vec2(0.5, 0.5);
     originOffset:Vec2;
 
     dragType:number;
@@ -2269,36 +2265,14 @@ export class zlUIImage extends zlUIWin
     SetImage(name: string): void {
         this.image=this._owner.GetTexture(name);
     }
-    PaintImage(drawlist:ImGui.ImDrawList):void 
-    {
-        if(this.image)  {            
-            let im=this.image;
-            if(im.texture._texture) {
-                if(!im.uv1) {
-                    this.image= UpdateTexturePack(im);
-                }
-                drawlist.AddImageRounded(
-                    im.texture._texture, 
-                    toImVec2(vec_a, this._localRect.xy), 
-                    toImVec2(vec_b, this._localRect.max),
-                    toImVec2(vec_c, im.uv1), 
-                    toImVec2(vec_d,im.uv2),
-                    MultiplyAlpha(this.color, this.alpha),
-                    this.rounding, this.roundingCorner);
-            }
-        }
-    }
 
-    Paint(drawlist:ImGui.ImDrawList):void 
+    Paint():void
     {
-        if(Use_Transform) {
-            let vstart=drawlist.GetVertexSize();
-            this.PaintImage(drawlist);
-            drawlist.Transform(toImTransform(mat2_a, this._world), vstart);
-        }else {
-            this.PaintImage(drawlist);
+        if(this.image && this.image.texture._texture && !this.image.uv1) {
+            this.image= UpdateTexturePack(this.image);
         }
-        super.Paint(drawlist);
+        this._owner.backend.PaintUIImage(this);
+        super.Paint();
     }
 
     set Color(c:Vec4) {this.color=toColorHex(c);}
@@ -2307,7 +2281,7 @@ export class zlUIImage extends zlUIWin
     image:TexturePack;
     color:number=0xffffffff;
     rounding:number=0;
-    roundingCorner:ImGui.ImDrawCornerFlags=ImGui.ImDrawCornerFlags.All;
+    roundingCorner:ECornerFlags=ECornerFlags.All;
 }
 
 export {zlUIPanel as UIPanel}
@@ -2370,10 +2344,10 @@ export class zlUIPanel extends zlUIImage
             }
             break;
         case "textoffset":
-            this.textoffset={
-                x:Number.parseInt(toks[1]),
-                y:Number.parseInt(toks[2])
-            };
+            this.textoffset=new Vec2(
+                Number.parseInt(toks[1]),
+                Number.parseInt(toks[2])
+            );
             break;
         case "color4":
             this.color4=[
@@ -2440,211 +2414,10 @@ export class zlUIPanel extends zlUIImage
         return obj;
     }
 
-    PaintBoard(drawlist:ImGui.ImDrawList, board:Board):void 
+    Paint():void
     {
-        if(!board.image.texture._texture)
-            return;
-        if(!board.image.uv1)    {
-            board.image=UpdateTexturePack(board.image);
-        }
-        if(!board.vert)   {
-            const iw=board.image.x2-board.image.x1;
-            const ih=board.image.y2-board.image.y1;
-            const x1=this._localRect.xy.x;
-            const x2=x1+board.x1;
-            const x3=this._localRect.max.x-(iw-board.x2);
-            const x4=this._localRect.max.x;
-            const y1=this._localRect.xy.y;
-            const y2=y1+board.y1;
-            const y3=this._localRect.max.y-(ih-board.y2);
-            const y4=this._localRect.max.y;
-
-            board.vert=[];
-            board.vert.push({x:x1, y:y1});    
-            board.vert.push({x:x2, y:y1});
-            board.vert.push({x:x3, y:y1});
-            board.vert.push({x:x4, y:y1});
-            board.vert.push({x:x1, y:y2});
-            board.vert.push({x:x2, y:y2});
-            board.vert.push({x:x3, y:y2});
-            board.vert.push({x:x4, y:y2});
-            board.vert.push({x:x1, y:y3});
-            board.vert.push({x:x2, y:y3});
-            board.vert.push({x:x3, y:y3});
-            board.vert.push({x:x4, y:y3});
-            board.vert.push({x:x1, y:y4});
-            board.vert.push({x:x2, y:y4});
-            board.vert.push({x:x3, y:y4});
-            board.vert.push({x:x4, y:y4});
-
-            board.visible=[];
-            board.visible.push((x2-x1)>0 && (y2-y1)>0);
-            board.visible.push((x3-x2)>0 && (y2-y1)>0);
-            board.visible.push((x4-x3)>0 && (y2-y1)>0);
-            board.visible.push((x2-x1)>0 && (y3-y2)>0);
-            board.visible.push((x3-x2)>0 && (y3-y2)>0);
-            board.visible.push((x4-x3)>0 && (y3-y2)>0);
-            board.visible.push((x2-x1)>0 && (y4-y3)>0);
-            board.visible.push((x3-x2)>0 && (y4-y3)>0);
-            board.visible.push((x4-x3)>0 && (y4-y3)>0);
-
-            const sw=1.0/board.image.texture._width;
-            const sh=1.0/board.image.texture._height;
-            const u1=board.image.uv1.x;
-            const u2=board.image.uv1.x+board.x1*sw;
-            const u3=board.image.uv1.x+board.x2*sw;
-            const u4=board.image.uv2.x;
-            const v1=board.image.uv1.y;
-            const v2=board.image.uv1.y+board.y1*sh;
-            const v3=board.image.uv1.y+board.y2*sh;
-            const v4=board.image.uv2.y;
-            board.uv=[];
-            board.uv.push(new ImGui.Vec2(u1, v1));
-            board.uv.push(new ImGui.Vec2(u2, v1));
-            board.uv.push(new ImGui.Vec2(u3, v1));
-            board.uv.push(new ImGui.Vec2(u4, v1));
-            board.uv.push(new ImGui.Vec2(u1, v2));
-            board.uv.push(new ImGui.Vec2(u2, v2));
-            board.uv.push(new ImGui.Vec2(u3, v2));
-            board.uv.push(new ImGui.Vec2(u4, v2));
-            board.uv.push(new ImGui.Vec2(u1, v3));
-            board.uv.push(new ImGui.Vec2(u2, v3));
-            board.uv.push(new ImGui.Vec2(u3, v3));
-            board.uv.push(new ImGui.Vec2(u4, v3));
-            board.uv.push(new ImGui.Vec2(u1, v4));
-            board.uv.push(new ImGui.Vec2(u2, v4));
-            board.uv.push(new ImGui.Vec2(u3, v4));
-            board.uv.push(new ImGui.Vec2(u4, v4));
-        }
-        let col=MultiplyAlpha(board.color, this.alpha);
-
-        for(let i=0;i<3;i++)    {
-            if(board.visible[i])    {
-                drawlist.AddImage(board.image.texture._texture,
-                    toImVec2(vec_a, board.vert[i]), 
-                    toImVec2(vec_b, board.vert[i+5]), 
-                    toImVec2(vec_c, board.uv[i]),
-                    toImVec2(vec_d, board.uv[i+5]), col);
-            }
-            if(board.visible[i+3])    {
-                drawlist.AddImage(board.image.texture._texture,
-                    toImVec2(vec_a, board.vert[i+4]),
-                    toImVec2(vec_b, board.vert[i+9]), 
-                    toImVec2(vec_c, board.uv[i+4]), 
-                    toImVec2(vec_d, board.uv[i+9]), col);
-            }
-            if(board.visible[i+6])    {
-                drawlist.AddImage(board.image.texture._texture,
-                    toImVec2(vec_a, board.vert[i+8]), 
-                    toImVec2(vec_b, board.vert[i+13]), 
-                    toImVec2(vec_c, board.uv[i+8]), 
-                    toImVec2(vec_d, board.uv[i+13]), col);
-            }
-        }
-    }
-    PaintClient(drawlist:ImGui.ImDrawList):void 
-    {
-        if(this.isDrawClient)   {
-            if(this.color4) {
-                drawlist.AddRectFilledMultiColorRound(
-                    toImVec2(vec_a, this._localRect.xy), 
-                    toImVec2(vec_b, this._localRect.max), 
-                    MultiplyAlpha(this.color4[0],this.alpha), 
-                    MultiplyAlpha(this.color4[1],this.alpha), 
-                    MultiplyAlpha(this.color4[2],this.alpha), 
-                    MultiplyAlpha(this.color4[3],this.alpha),
-                    this.rounding, this.roundingCorner);
-            }else {
-                drawlist.AddRectFilled(
-                    toImVec2(vec_a, this._localRect.xy),
-                    toImVec2(vec_b, this._localRect.max), 
-                    MultiplyAlpha(this.color, this.alpha),
-                    this.rounding, this.roundingCorner);
-            }
-        }
-    }
-    PaintText(drawlist:ImGui.ImDrawList):void 
-    {
-        if(this.text && this._textPos)   {
-            let textPos=this._textPos;
-            let wrap_width=this.w-this.padding-this.padding;
-            let text=(typeof this.text === "string") ? this.text:""+this.text;
-            if(this._textRemaining>0) {
-                text=text.substring(0,this._textRemaining)+"…";
-            }
-
-            let font=this._owner.GetFont(this.fontIndex);
-            let wrap=this.isMultiline?wrap_width:0;
-            let color=this.textColor;
-            if(this.textColorHover && this._owner.hover==this) {
-                color=this.textColorHover;
-            }
-            color=MultiplyAlpha(color, this.alpha);
-            if(color===undefined) {
-                console.log(this.Name);
-            }
-            if(Use_Transform) {
-                font.RenderText(drawlist, font.FontSize, textPos, 
-                    color,
-                    this._textClip, text, text.length, wrap, true);    
-            }else {
-                drawlist.AddText(font, font.FontSize, textPos, color, text, text.length, wrap, this._textClip);
-            }
-        }
-
-    }
-
-    PaintPanel(drawlist:ImGui.ImDrawList):void 
-    {
-        this.PaintImage(drawlist);
-        this.PaintClient(drawlist);
-        if(this.drawBoard)  {
-            this.drawBoard.color=this.color;
-            this.PaintBoard(drawlist, this.drawBoard);
-        }
-        if(this.isDrawHover && this._owner.hover==this) {
-            if(this.colorHover4) {
-                drawlist.AddRectFilledMultiColorRound(
-                    toImVec2(vec_a, this._localRect.xy), 
-                    toImVec2(vec_b, this._localRect.max), 
-                    MultiplyAlpha(this.colorHover4[0], this.alpha),
-                    MultiplyAlpha(this.colorHover4[1], this.alpha),
-                    MultiplyAlpha(this.colorHover4[2], this.alpha),
-                    MultiplyAlpha(this.colorHover4[3], this.alpha),
-                    this.rounding, this.roundingCorner)                
-            }else {
-                drawlist.AddRectFilled(
-                    toImVec2(vec_a, this._localRect.xy),
-                    toImVec2(vec_b, this._localRect.max),
-                    MultiplyAlpha(this.colorHover, this.alpha),
-                    this.rounding, this.roundingCorner);
-            }
-        }
-        if(this.isDrawBorder)   {
-            drawlist.AddRect(
-                toImVec2(vec_a, this._localRect.xy),
-                toImVec2(vec_b, this._localRect.max), 
-                MultiplyAlpha(this.borderColor, this.alpha),
-                this.rounding, this.roundingCorner, this.borderWidth);
-        }
-        this.PaintText(drawlist);
-    }
-
-    Paint(drawlist:ImGui.ImDrawList):void 
-    {
-        if(Use_Transform) {
-            if(this._world) {
-                let vstart=drawlist.GetVertexSize();    
-                this.PaintPanel(drawlist);
-                drawlist.Transform(toImTransform(mat2_a, this._world), vstart);
-            }
-        }else {
-            this.PaintPanel(drawlist);
-        }
-
-        this._owner.paint_count++;
-        this._isPaintout=true;
-        this.PaintChild(drawlist);
+        this._owner.backend.PaintUIPanel(this);
+        this.PaintChild();
     }
 
     SetText(text:string):void
@@ -2670,14 +2443,14 @@ export class zlUIPanel extends zlUIImage
 
     CalTextRemaining()
     {
-        let isReady: ImGui.ImScalar<boolean> = [false];
+        let isReady = [false];
         let font=this._owner.GetFont(this.fontIndex);
         let a=0;
         let c=this.text.length;
         let b=c>>1;
         while(b>0 && a!=b) {
             let text=this.text.substring(0,b)+"…";
-            let text_size=font.CalcTextSizeA(font.FontSize, ImGui.FLT_MAX, 0, text, null, null, isReady);
+            let text_size=font.CalTextSize(font.size, FLT_MAX, 0, text, null, isReady);
             if(this._textPos.x+text_size.x>this._textClip.z) {
                 c=b;
             }else {
@@ -2706,8 +2479,8 @@ export class zlUIPanel extends zlUIImage
                 text=""+text;
                 this.text=text;
             }
-            let isReady: ImGui.ImScalar<boolean> = [false];
-            let size=font.CalcTextSizeA(font.FontSize, ImGui.FLT_MAX, wrap, text, null, null, isReady);
+            let isReady = [false];
+            let size=font.CalTextSize(font.size, FLT_MAX, wrap, text, null, isReady);
             this._textRemaining=0;
             size.x=Math.ceil(size.x);
             size.y=Math.ceil(size.y);
@@ -2717,7 +2490,10 @@ export class zlUIPanel extends zlUIImage
             let x,y;
             let w=this.w;
             let h=this.h;
-            this._textSize=size;            
+            if(!this._textSize) {
+                this._textSize=new Vec2;
+            }
+            this._textSize.Set(size.x, size.y);
             switch(this.align) {
             case Align.TextWidth:
                 w=size.x+this.padding+this.padding;
@@ -2786,13 +2562,13 @@ export class zlUIPanel extends zlUIImage
             x=x>0?Math.floor(x):Math.ceil(x);
             y=y>0?Math.floor(y):Math.ceil(y);
             if(!this._textPos) {
-                this._textPos=new ImGui.Vec2(x,y);
+                this._textPos=new Vec2(x,y);
             }else {
                 this._textPos.x=x;
                 this._textPos.y=y;
             }
             if(!this._textClip) {
-                this._textClip=new ImGui.Vec4(0,0);
+                this._textClip={x:0,y:0,z:0,w:0};
             }
             this._textClip.x=this._localRect.xy.x;
             this._textClip.y=this._localRect.xy.y;
@@ -2831,13 +2607,134 @@ export class zlUIPanel extends zlUIImage
     colorHover4:number[];
 
     //underline variant no copy needed
-    _textPos:ImGui.Vec2;
-    _textSize:ImGui.Vec2;
-    _textClip:ImGui.Vec4;
+    _textPos:Vec2;
+    _textSize:Vec2;
+    _textClip:Vec4;
     _textRemaining:number=0;
 }
 
 export {zlUIEdit as UIEdit}
+
+enum EInputType
+{
+    eInput,
+    eMultiLine, 
+    ePassword,
+    eMax,
+}
+
+export class Input
+{
+    constructor(type:EInputType, textCol:string, textBg:string)
+    {
+        let input;
+        switch(type)    {
+        case EInputType.eInput:
+            input=document.createElement('input');
+            input.type='text';
+            break;
+        case EInputType.eMultiLine:
+            input=document.createElement('textarea');
+            input.style.resize='none';
+            break;
+        case EInputType.ePassword:
+            input=document.createElement('input');
+            input.type='password';
+            break;
+        }
+        input.style.position='fixed';
+        input.style.top=0 + 'px';
+        input.style.left=0 + 'px';
+        input.style.borderWidth='0';
+        input.style.borderStyle='none';
+        input.style.zIndex='999';
+        input.style.backgroundColor=textBg;
+        input.style.color=textCol;
+        input.value="123";
+
+        input.addEventListener('blur', (e)=>{this.onLostFocus(e)})
+        input.addEventListener('keydown', (e)=>{this.onKeydown(e as KeyboardEvent)})
+
+        document.body.appendChild(input);
+        this._dom_input=input;
+        this.setVisible(false);
+    }
+
+    public on_input: ((this: Input, text: string) => any) | null; 
+    public on_visible: ((this: Input, visible: boolean) => any) | null; 
+
+    private onLostFocus(e:Event)
+    {
+        if(this.on_input)   {
+            this.on_input(this._dom_input.value);
+        }
+        this.setVisible(false);        
+    }
+    onKeydown(e:KeyboardEvent)
+    {
+        if(e.key=="Tab")    {
+            this.isTab=true;
+            e.preventDefault();
+            this.setVisible(false);
+        }
+    }
+
+    public isMe(id:number):boolean {
+        return this.isVisible && this._id==id;
+    }
+
+    public get Text():string {
+        return this._dom_input.value;
+    }
+    public setRect(x:number, y:number, w:number, h:number)
+    {
+        let input=this._dom_input;
+        input.style.left=x + 'px';
+        input.style.top=y + 'px';
+        input.style.width=w -5 + 'px';
+        input.style.height=h -5 + 'px';
+    }
+    public setText(text:string, id:number, font:IFont)
+    {
+        this._id=id;
+        let input=this._dom_input;
+        input.style.font=font.style;
+        input.value=text;
+        this.setVisible(true);
+    }
+    public setVisible(b:boolean)
+    {
+        let input=this._dom_input;
+        if(b) {
+            this.isTab=false;
+            input.style.display='inline-block';
+            input.focus();
+        }else {
+            input.style.display='none';
+        }
+        this.isVisible=b;
+        if(this.on_visible) {
+            this.on_visible(b);
+        }
+    }
+
+    _dom_input:HTMLInputElement|HTMLTextAreaElement;
+    _id:number;
+    isVisible:boolean=false;
+    isTab:boolean=false;
+}
+
+let dom_input:{[key:number]:Input}={}
+
+function GetInput(type:EInputType, textColor:string, textBgColor:string):Input
+{
+    let inp=dom_input[type];
+    if(!inp)    {
+        inp=new Input(type, textColor, textBgColor);
+        dom_input[type]=inp;
+    }
+    return inp;
+}
 
 export class zlUIEdit extends zlUIPanel
 {
@@ -2886,34 +2783,12 @@ export class zlUIEdit extends zlUIPanel
         return obj;
     }
 
-    PaintText(drawlist:ImGui.ImDrawList):void 
-    {
-        if(this.text)   {
-            let text=(typeof this.text === "string") ? this.text:""+this.text;
-            let font=this._owner.GetFont(this.fontIndex);
-            if(this.isPassword) {
-                if(!this.passwordText || this.text.length!=this.passwordText.length)  {
-                    this.passwordText=this.text;
-                    this.passwordText=this.passwordText.replace(/./g, this.password_char)
-                }
-                text=this.passwordText;
-            }else {
-            }
-            let wrap=this.isMultiline?this.w:0;
-            let color=this.textColor;
-            if(this.textColorHover && this._owner.hover==this) {
-                color=this.textColorHover;
-            }
-            color=MultiplyAlpha(color, this.alpha);
-            if(Use_Transform) {
-                font.RenderText(drawlist, font.FontSize, this._textPos, 
-                    color,
-                    this._textClip, text, text.length, wrap, true);    
-            }else {
-                drawlist.AddText(font, font.FontSize, this._textPos, color, text, text.length, wrap, this._textClip);
-            }
-        }
+    Paint()
+    {        
+        this._owner.backend.PaintUIEdit(this);
+        this.PaintChild();
     }
+
     CalRectText(): string {
         let text=this.text;
         if(this.isPassword && this.passwordText) {
@@ -2930,11 +2805,11 @@ export class zlUIEdit extends zlUIPanel
         const textCol=to_rgb(this.textColor);
         const textBg=to_rgb(this.color);
         if(this.isPassword)   {
-            inp=GetInput(EType.ePassword, textCol, textBg);
+            inp=GetInput(EInputType.ePassword, textCol, textBg);
         }else if(this.isMultiline) {
-            inp=GetInput(EType.eMultiLine, textCol, textBg);
+            inp=GetInput(EInputType.eMultiLine, textCol, textBg);
         }else {
-            inp=GetInput(EType.eInput, textCol, textBg);
+            inp=GetInput(EInputType.eInput, textCol, textBg);
         }
         switch(this.textAlignW) {
         case Align.Left:
@@ -3112,74 +2987,57 @@ export class zlUIButton extends zlUIPanel
         obj.Copy(this);
         return obj;
     }
-    PaintClient(drawlist: ImGui.ImDrawList): void {
-        if(this.isDrawClient)   {
-            let color:number=this.color;
-            let color4:number[]=this.color4;
 
-            if(color4) {
-                drawlist.AddRectFilledMultiColorRound(
-                    toImVec2(vec_a, this._localRect.xy),
-                    toImVec2(vec_b, this._localRect.max), 
-                    MultiplyAlpha(color4[0], this.alpha), 
-                    MultiplyAlpha(color4[1], this.alpha), 
-                    MultiplyAlpha(color4[2], this.alpha), 
-                    MultiplyAlpha(color4[3], this.alpha), 
-                    this.rounding, this.roundingCorner);
-            }else {
-                drawlist.AddRectFilled(
-                    toImVec2(vec_a, this._localRect.xy),
-                    toImVec2(vec_b, this._localRect.max),
-                    MultiplyAlpha(color, this.alpha),
-                    this.rounding, this.roundingCorner);
-            }
-        }
-    }
-    PaintButton():void
+    UpdateButton():void
     {
-        if(!this.isEnable)  {
-            this.color=this.colorDisable;
+        let obj=this;
+        if(!obj.isEnable)  {
+            obj.color=obj.colorDisable;
         }
-        else if(this.isDown) {
-            if(this.boardDown)  {
-                this.drawBoard=this.boardDown;
+        else if(obj.isDown) {
+            if(obj.boardDown)  {
+                obj.drawBoard=obj.boardDown;
             }
-            if(this.imageDown)  {
-                this.image=this.imageDown;
+            if(obj.imageDown)  {
+                obj.image=obj.imageDown;
             }
-            this.color=this.colorDown;
-        }else if(this._owner.hover==this) {
-            this.isDrawHover=false;
-            this.drawBoard=this.boardHover;
-            this.image=this.imageHover;
-            this.color=this.colorHover;
+            obj.color=obj.colorDown;
+        }else if(obj._owner.hover==obj) {
+            obj.isDrawHover=false;
+            obj.drawBoard=obj.boardHover;
+            obj.image=obj.imageHover;
+            obj.color=obj.colorHover;
         }else {
-            this.drawBoard=this.boardUp;
-            this.image=this.imageUp;
-            this.color=this.colorUp;
-        }
-    }
-    PaintTextColor():void
-    {
-        if(!this.isEnable) {
-            this.textColor=this.textColorDisable;
-        }
-        else if(this.isDown) {
-            this.textColor=this.textColorDown;
-        }else if(this._owner.hover==this&&this.textColorHover) {
-            this.textColor=this.textColorHover;
-        }else {
-            this.textColor=this.textColorUp;
+            obj.drawBoard=obj.boardUp;
+            obj.image=obj.imageUp;
+            obj.color=obj.colorUp;
         }
     }
 
-    Paint(drawlist:ImGui.ImDrawList):void 
+    UpdateTextColor():void
     {
-        if(this.isPaintButton)  {
-            this.PaintButton();
+        let obj=this;
+        if(!obj.isEnable) {
+            obj.textColor=obj.textColorDisable;
         }
-        this.PaintTextColor();
-        super.Paint(drawlist);
+        else if(obj.isDown) {
+            obj.textColor=obj.textColorDown;
+        }else if(obj._owner.hover==obj&&obj.textColorHover) {
+            obj.textColor=obj.textColorHover;
+        }else {
+            obj.textColor=obj.textColorUp;
+        }
+    }
+
+    Paint():void 
+    {
+        if(this.isPaintButton) {
+            this.UpdateButton();
+        }
+        this.UpdateTextColor();
+
+        this._owner.backend.PaintUIButton(this);
+        this.PaintChild();
     }
     GetNotify(pos:Vec2):zlUIWin
     {
@@ -3273,7 +3131,8 @@ export class zlUICheck extends zlUIButton
         obj.Copy(this);
         return obj;
     }
-    PaintButton(): void {
+
+    UpdateButton(): void {
         if(!this.isEnable)  {
             this.color=this.colorDisable;
         }
@@ -3295,7 +3154,7 @@ export class zlUICheck extends zlUIButton
             this.color=this.colorUp;
         }        
     }
-    PaintTextColor(): void {
+    UpdateTextColor(): void {
         if(!this.isEnable) {
             this.textColor=this.textColorDisable;
         }
@@ -3307,34 +3166,14 @@ export class zlUICheck extends zlUIButton
             this.textColor=this.textColorUp;
         }
     }
-    PaintCheck(drawlist: ImGui.DrawList):void
-    {
-        drawlist.AddRect(
-            toImVec2(vec_a, this.checkmark_xy),
-            toImVec2(vec_b, this.checkmark_max),
-            MultiplyAlpha(this.borderColor, this.alpha), 
-            this.rounding, ImGui.ImDrawCornerFlags.All, 1);
-        if(this.isChecked) {
-            let x=this.checkmark_xy.x+2;
-            let y=this.checkmark_xy.y+2;
-            RenderCheckMark(drawlist, x,y,
-                MultiplyAlpha(this.textColor, this.alpha), 16);
-        }
-    }
 
-    Paint(drawlist:ImGui.ImDrawList):void 
+    Paint():void 
     {
-        if(!this.isEnable) {
-            this.color=this.colorDisable;
-        }        
-        super.Paint(drawlist);
-        if(this.isDrawCheck)    {
-            let vstart=(Use_Transform)?drawlist.GetVertexSize():0;
-            this.PaintCheck(drawlist);
-            if(Use_Transform) {
-                drawlist.Transform(toImTransform(mat2_a, this._world), vstart);
-            }
-        }
+        this.UpdateButton();
+        this.UpdateTextColor();
+        let mgr=this._owner;
+        mgr.backend.PaintUICheck(this);
+        this.PaintChild();
     }
     OnClick():void {
         super.OnClick();
@@ -3351,14 +3190,14 @@ export class zlUICheck extends zlUIButton
 
         let x=this._localRect.xy.x+12;
         let y=(this._localRect.max.y+this._localRect.xy.y)*0.5;
-        Vec2Set(this.checkmark_xy, x-10, y-10);
-        Vec2Set(this.checkmark_max, x+10,y+10);
+        this.checkmark_xy.Set(x-10, y-10);
+        this.checkmark_max.Set(x+10,y+10);
     }
 
     isChecked:boolean=false;
     isDrawCheck:boolean=true;
-    checkmark_xy:Vec2={x:0,y:0};
-    checkmark_max:Vec2={x:0,y:0};
+    checkmark_xy:Vec2=new Vec2;
+    checkmark_max:Vec2=new Vec2;
     check_text:string[];
 }
 
@@ -3419,20 +3258,17 @@ export class zlUICombo extends zlUIButton
         obj.Copy(this);
         return obj;
     }
-    Paint(drawlist: ImGui.ImDrawList): void 
+    Paint(): void 
     {
-        super.Paint(drawlist);
-        if(this.isDrawCombo) {
-            let vstart=(Use_Transform)?drawlist.GetVertexSize():0;
-            RenderArrow(drawlist, this.arrow_xy, 
-                MultiplyAlpha(this.textColor, this.alpha), ImGui.ImGuiDir.Down, 16, 1);
-            if(Use_Transform) {
-                drawlist.Transform(toImTransform(mat2_a, this._world), vstart);
-            }
-        }
+        this.UpdateButton();
+        this.UpdateTextColor();
+
+        this._owner.backend.PaintUICombo(this);
+
         if(!this._owner.popup && this._owner.combo===this) {
             this._owner.combo=undefined;
         }
+        this.PaintChild();
     }
     CalRect(parent: zlUIWin): void 
     {
@@ -3517,7 +3353,7 @@ export class zlUICombo extends zlUIButton
     popup_w:number;
     max_popup_items=12;
 
-    arrow_xy:Vec2={x:0,y:0}
+    arrow_xy:Vec2=new Vec2;
 }
 
 export enum ESliderType
@@ -3749,67 +3585,6 @@ export class zlUISlider extends zlUIPanel
         }
         return super.Refresh(ti, parent);
     }
-    Paint(drawlist:ImGui.ImDrawList):void 
-    {
-        super.Paint(drawlist);
-
-        let drawBar=false;
-        if(this._owner.slider)  {
-            drawBar=this._owner.slider==this;
-        }else {
-            drawBar=this._owner.hover_slider==this;
-        }
-        if(drawBar) {
-            let vstart=(Use_Transform)?drawlist.GetVertexSize():0;
-            let scroll=this.GetScrollType();
-            let barxy:Vec2;
-            let barxy2:Vec2;
-            if(scroll.isScrollH)  {
-                barxy=this._scrollHxy;
-                barxy2=this._scrollHxy2;
-            }
-            if(scroll.isScrollW)  {
-                barxy=this._scrollWxy;
-                barxy2=this._scrollWxy2;
-            }
-            if(this._is_scrollbar_hover) {
-                if(this.scrollbarColorHover4) {
-                    drawlist.AddRectFilledMultiColorRound(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(this.scrollbarColorHover4[0],this.alpha), 
-                        MultiplyAlpha(this.scrollbarColorHover4[1],this.alpha), 
-                        MultiplyAlpha(this.scrollbarColorHover4[2],this.alpha), 
-                        MultiplyAlpha(this.scrollbarColorHover4[3],this.alpha),
-                        4, ImDrawCornerFlags.All);
-                }else {
-                    drawlist.AddRectFilled(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(this.scrollbarColorHover, this.alpha), 4);
-                }
-            }else {
-                if(this.scrollbarColor4) {
-                    drawlist.AddRectFilledMultiColorRound(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(this.scrollbarColor4[0],this.alpha), 
-                        MultiplyAlpha(this.scrollbarColor4[1],this.alpha), 
-                        MultiplyAlpha(this.scrollbarColor4[2],this.alpha), 
-                        MultiplyAlpha(this.scrollbarColor4[3],this.alpha),
-                        4, ImDrawCornerFlags.All);
-                }else {
-                    drawlist.AddRectFilled(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(this.scrollbarColor, this.alpha), 4);
-                }
-            }
-            if(Use_Transform) {
-                drawlist.Transform(toImTransform(mat2_a, this._world), vstart);
-            }
-        }
-    }
 
     GetScrollType():ScrollType
     {
@@ -3829,7 +3604,11 @@ export class zlUISlider extends zlUIPanel
         }
         return {isScrollH:isScrollH, isScrollW:isScrollW};
     }
-
+    Paint():void 
+    {
+        this._owner.backend.PaintUISlider(this);
+        this.PaintChild();
+    }
     CalRect(parent:zlUIWin):void 
     {
         let ow=this.w;
@@ -3847,17 +3626,17 @@ export class zlUISlider extends zlUIPanel
             let h=this.h-this.borderWidth-this.borderWidth;
             let mx=this._localRect.max.x-this.borderWidth;
             let scaleh=h/(h+this.scroll_max);
-            Vec2Set(this._scrollHxy, mx-8, this._localRect.xy.y+this.borderWidth+this.scroll_value*scaleh);
+            this._scrollHxy.Set(mx-8, this._localRect.xy.y+this.borderWidth+this.scroll_value*scaleh);
             let mh=this.scroll_max>0?h*scaleh:h;
-            Vec2Set(this._scrollHxy2, mx, this._scrollHxy.y+mh);
+            this._scrollHxy2.Set(mx, this._scrollHxy.y+mh);
         }
         if(scroll.isScrollW)  {
             let w=this.w-this.borderWidth-this.borderWidth;
             let my=this._localRect.max.y-this.borderWidth;
             let scalew=w/(w+this.scroll_max);
-            Vec2Set(this._scrollWxy, this._localRect.xy.x+this.borderWidth+this.scroll_value*scalew, my-8);
+            this._scrollWxy.Set(this._localRect.xy.x+this.borderWidth+this.scroll_value*scalew, my-8);
             let mw=this.scroll_max>0?w*scalew:w;
-            Vec2Set(this._scrollWxy2, this._scrollWxy.x+mw, my);
+            this._scrollWxy2.Set(this._scrollWxy.x+mw, my);
         }
     }
 
@@ -3877,10 +3656,10 @@ export class zlUISlider extends zlUIPanel
     is_item_mode:boolean=false;
     mouse_wheel_speed:number=20;
 
-    _scrollHxy:Vec2={x:0,y:0};
-    _scrollHxy2:Vec2={x:0,y:0};
-    _scrollWxy:Vec2={x:0,y:0};
-    _scrollWxy2:Vec2={x:0,y:0};
+    _scrollHxy:Vec2=new Vec2;
+    _scrollHxy2:Vec2=new Vec2;
+    _scrollWxy:Vec2=new Vec2;
+    _scrollWxy2:Vec2=new Vec2;
 
     _first_pos:Vec2;
     _first_value:number;
@@ -3956,8 +3735,8 @@ export class zlUIImageText extends zlUIWin
                     offset_x:0,
                     offset_y:0,
                     texure:tex,
-                    uv1:{x:tex.uv1.x+u*i, y:tex.uv1.y},
-                    uv2:{x:tex.uv1.x+u*(i+1), y:tex.uv2.y}
+                    uv1:new Vec2(tex.uv1.x+u*i, tex.uv1.y),
+                    uv2:new Vec2(tex.uv1.x+u*(i+1), tex.uv2.y)
                 })
             }
             break; }
@@ -3977,8 +3756,8 @@ export class zlUIImageText extends zlUIWin
                     offset_x:0,
                     offset_y:0,
                     texure:tex,
-                    uv1:{x:tex.uv1.x, y:tex.uv1.y+v*i},
-                    uv2:{x:tex.uv2.x, y:tex.uv1.y+v*(i+1)}
+                    uv1:new Vec2(tex.uv1.x, tex.uv1.y+v*i),
+                    uv2:new Vec2(tex.uv2.x, tex.uv1.y+v*(i+1))
                 })
             }
             break; }
@@ -4049,33 +3828,10 @@ export class zlUIImageText extends zlUIWin
         return obj;
     }
 
-    PaintImageText(drawlist:ImGui.ImDrawList):void 
+    Paint():void 
     {
-        let col=MultiplyAlpha(this.color, this.alpha);
-        for(let image of this.imageText)
-        {
-            let imgFont=image.imageFont;
-            let tex=imgFont.texure;            
-            drawlist.AddImage(tex.texture._texture,
-                toImVec2(vec_a, image.screenXY),
-                toImVec2(vec_b, image.screenMax), 
-                toImVec2(vec_c, imgFont.uv1),
-                toImVec2(vec_d, imgFont.uv2), col);
-        }
-    }
-
-    Paint(drawlist:ImGui.ImDrawList):void 
-    {
-        if(Use_Transform) {
-            if(this._world) {
-                const vstart=drawlist.GetVertexSize();
-                this.PaintImageText(drawlist);
-                drawlist.Transform(toImTransform(mat2_a, this._world), vstart);
-            }
-        }else {
-            this.PaintImageText(drawlist);
-        }
-        super.Paint(drawlist);
+        this._owner.backend.PaintUIImageText(this);
+        this.PaintChild();
     }
     CalRect(parent: zlUIWin): void {
         super.CalRect(parent);
@@ -4093,8 +3849,8 @@ export class zlUIImageText extends zlUIWin
             th=Math.max(th, imageFont.height);
 
             this.imageText.push({
-                screenXY:{x:0,y:0},
-                screenMax:{x:0,y:0},
+                screenXY:new Vec2,
+                screenMax:new Vec2,
                 imageFont:imageFont,
             })
         }
@@ -4105,8 +3861,8 @@ export class zlUIImageText extends zlUIWin
         for(let im of this.imageText) {
             let tx=x+im.imageFont.offset_x;
             let ty=y+im.imageFont.offset_y;
-            Vec2Set(im.screenXY,tx,ty);
-            Vec2Set(im.screenMax,tx+im.imageFont.width, ty+im.imageFont.height);
+            im.screenXY.Set(tx,ty);
+            im.screenMax.Set(tx+im.imageFont.width, ty+im.imageFont.height);
             x+=im.imageFont.width+this.font_space;
         }
     }
@@ -4123,7 +3879,7 @@ export class zlUIImageText extends zlUIWin
     image_font:ImageFont[]=[];
     ascii:{[key:string]:number}={};
     font_space:number=0;
-    textAnchor:Vec2={x:0.5, y:0.5};
+    textAnchor:Vec2=new Vec2(0.5, 0.5);
     text_width:number;
     text_height:number;
     color:number=0xffffffff;
@@ -4133,7 +3889,7 @@ export class zlUIImageText extends zlUIWin
 export {zlUITreeNode as UITreeNode}
 const TREENODE_OPEN_SIZE=20;
 
-class zlUITreeNodeOpen extends zlUICheck
+export class zlUITreeNodeOpen extends zlUICheck
 {
     constructor(own:zlUIMgr)
     {
@@ -4151,18 +3907,13 @@ class zlUITreeNodeOpen extends zlUICheck
         this.isDrawClient=false;
         this.isDrawCheck=true;
         this._csid="TreeNodeOpen";
-    }
-    
-    PaintCheck(drawlist: ImGui.DrawList):void
-    {
-        let col=MultiplyAlpha(this.textColor, this.alpha);
-        let pos=this._localRect.xy;
+    }    
 
-        if(this.isChecked) {
-            RenderArrow(drawlist, pos, col, ImGui.ImGuiDir.Down, TREENODE_OPEN_SIZE ,0.8);
-        }else {
-            RenderArrow(drawlist, pos, col, ImGui.ImGuiDir.Right, TREENODE_OPEN_SIZE ,0.8);
-        }
+    Paint(): void {
+        this.UpdateButton();
+        this.UpdateTextColor();
+        this._owner.backend.PaintUITreeNodeOpen(this);
+        this.PaintChild();
     }
 }
 
@@ -4258,9 +4009,9 @@ export class zlUITreeNode extends zlUICheck
         }
         return ret;
     }
-    Paint(drawlist:ImGui.ImDrawList):void 
+    Paint():void 
     {
-        super.Paint(drawlist);
+        super.Paint();
     }
     OnClick(): void {
         super.OnClick();
@@ -4327,9 +4078,9 @@ export class zlUITree extends zlUISlider
         return obj;
     }
 
-    Paint(drawlist:ImGui.ImDrawList):void 
+    Paint():void 
     {
-        super.Paint(drawlist);
+        super.Paint();
         if(!this.expandTreeNode) {
             this.CalTreeNode();
          }
@@ -4358,20 +4109,19 @@ export class zlUITree extends zlUISlider
             this.ExpandNodeList(tn);
         }
         let y=this.padding;
-        for(let tn of this.expandTreeNode) {
-            
+        for(let tn of this.expandTreeNode) {            
             tn.y=y;
             tn.treenodeOpen.x=tn.offset_x + tn.depth*TREENODE_OPEN_SIZE;
             tn.treenodeOpen.isVisible=tn.treenode.length>0;
-            tn.textoffset={
-                x:tn.treenodeOpen.x+tn.treenodeOpen.w,
-                y:0
-            };
+            tn.textoffset=new Vec2(
+                tn.treenodeOpen.x+tn.treenodeOpen.w,
+                0
+            );
             if(!tn.h){
                 let font=this._owner.GetFont(tn.fontIndex);
-                let text_height=font.FontSize;
+                let text_height=font.size;
                 let text=tn.text?tn.text:"A";
-                let textSize=font.CalcTextSizeA(font.FontSize, this.w, 0, text, text.length);
+                let textSize=font.CalTextSize(font.size, this.w, 0, text, text.length);
                 text_height=Math.ceil(textSize.y);
                 tn.h=text_height+tn.padding+tn.padding;
             }
@@ -4465,15 +4215,7 @@ export class zlTexturePack
     {
         switch(name) {
         case 'image':
-            this.current=new ImGui_Impl.Texture;
-            var image=new Image;
-            let loadproc=LoadImage(image).then(r=>{
-                this.current.Update(image);
-                console.log("image.onload", this.current);
-            });
-            image.crossOrigin="anonymous";
-            image.src=this.owner.path + toks[1];
-            await loadproc;
+            this.current=await this.owner.backend.CreateTexture(this.owner.path + toks[1]).then(r=>{return r;})
             this.textures.push(this.current);
             break;
         case 'subimage':
@@ -4490,9 +4232,9 @@ export class zlTexturePack
     }
 
     owner:zlUIMgr;
-    current:ImGui_Impl.Texture;
+    current:ITexture;
     cache:{[key:string]:TexturePack}={}
-    textures:ImGui_Impl.Texture[]=[];
+    textures:ITexture[]=[];
 }
 
 enum ETrackCmd
@@ -4634,10 +4376,10 @@ export class zlTrack
                 cmd:ETrackCmd.SetPos,
                 time_from:time1,
                 time_to:time1,
-                pos:{
-                    x:Number.parseFloat(toks[2]),
-                    y:Number.parseFloat(toks[3]),
-                }
+                pos:new Vec2(
+                    Number.parseFloat(toks[2]),
+                    Number.parseFloat(toks[3]),
+                )
             });
             break;
         case "setrect":
@@ -4658,7 +4400,7 @@ export class zlTrack
                 cmd:ETrackCmd.SetWidth,
                 time_from:time1,
                 time_to:time1,
-                wh:{x:Number.parseFloat(toks[2]),y:0}
+                wh:new Vec2(Number.parseFloat(toks[2]),0)
             })
             break;
         case "setheight":
@@ -4666,7 +4408,7 @@ export class zlTrack
                 cmd:ETrackCmd.SetHeight,
                 time_from:time1,
                 time_to:time1,
-                wh:{x:0,y:Number.parseFloat(toks[2])}
+                wh:new Vec2(0,Number.parseFloat(toks[2]))
             })
             break;
         case "move":
@@ -4675,10 +4417,10 @@ export class zlTrack
                 cmd:ETrackCmd.Move,
                 time_from:time1,
                 time_to:time2,
-                pos: {
-                    x:Number.parseFloat(toks[3]),
-                    y:Number.parseFloat(toks[4]),
-                },
+                pos: new Vec2(
+                    Number.parseFloat(toks[3]),
+                    Number.parseFloat(toks[4]),
+                ),
             });            
             break;
         case "movelerp":
@@ -4687,10 +4429,10 @@ export class zlTrack
                 cmd:ETrackCmd.MoveLerp,
                 time_from:time1,
                 time_to:time2,
-                pos: {
-                    x:Number.parseFloat(toks[3]),
-                    y:Number.parseFloat(toks[4]),
-                },
+                pos: new Vec2(
+                    Number.parseFloat(toks[3]),
+                    Number.parseFloat(toks[4]),
+                ),
                 speed:Number.parseFloat(toks[5]),
             });
             break;
@@ -4710,10 +4452,7 @@ export class zlTrack
                 cmd:ETrackCmd.SetX,
                 time_from:time1,
                 time_to:time1,
-                pos:{
-                    x:Number.parseFloat(toks[2]),
-                    y:0,
-                }
+                pos:new Vec2(Number.parseFloat(toks[2]),0)
             });        
             break;
         case "movex":
@@ -4722,10 +4461,7 @@ export class zlTrack
                 cmd:ETrackCmd.MoveX,
                 time_from:time1,
                 time_to:time2,
-                pos: {
-                    x:Number.parseFloat(toks[3]),
-                    y:0,
-                },
+                pos: new Vec2(Number.parseFloat(toks[3]),0),
             });            
             break;
         case "movexlerp":
@@ -4734,10 +4470,7 @@ export class zlTrack
                 cmd:ETrackCmd.MoveXLerp,
                 time_from:time1,
                 time_to:time2,
-                pos: {
-                    x:Number.parseFloat(toks[3]),
-                    y:0
-                },
+                pos: new Vec2(Number.parseFloat(toks[3]),0),
                 speed:Number.parseFloat(toks[4]),
             });
             break;
@@ -4746,10 +4479,7 @@ export class zlTrack
                 cmd:ETrackCmd.SetY,
                 time_from:time1,
                 time_to:time1,
-                pos:{
-                    x:0,
-                    y:Number.parseFloat(toks[2]),
-                }
+                pos:new Vec2(0, Number.parseFloat(toks[2]))
             });        
             break;
         case "movey":
@@ -4758,10 +4488,7 @@ export class zlTrack
                 cmd:ETrackCmd.MoveY,
                 time_from:time1,
                 time_to:time2,
-                pos: {
-                    x:0,
-                    y:Number.parseFloat(toks[3]),
-                },
+                pos:new Vec2(0, Number.parseFloat(toks[3])),
             });            
             break;
         case "moveylerp":
@@ -4770,10 +4497,7 @@ export class zlTrack
                 cmd:ETrackCmd.MoveYLerp,
                 time_from:time1,
                 time_to:time2,
-                pos: {
-                    x:0,
-                    y:Number.parseFloat(toks[3])
-                },
+                pos: new Vec2(0, Number.parseFloat(toks[3])),
                 speed:Number.parseFloat(toks[4]),
             });
             break;
@@ -4954,10 +4678,7 @@ export class zlTrack
                 cmd:ETrackCmd.Width,
                 time_from:time1,
                 time_to:time2,
-                wh: {
-                    x:Number.parseFloat(toks[3]),
-                    y:0,
-                },
+                wh:new Vec2(Number.parseFloat(toks[3]),0),
             });            
             break;
         case "widthlerp":
@@ -4966,10 +4687,7 @@ export class zlTrack
                 cmd:ETrackCmd.WidthLerp,
                 time_from:time1,
                 time_to:time2,
-                wh: {
-                    x:Number.parseFloat(toks[3]),
-                    y:0
-                },
+                wh:new Vec2(Number.parseFloat(toks[3]),0),
                 speed:Number.parseFloat(toks[4]),
             });
             break;
@@ -4979,10 +4697,7 @@ export class zlTrack
                 cmd:ETrackCmd.Height,
                 time_from:time1,
                 time_to:time2,
-                wh: {
-                    x:0,
-                    y:Number.parseFloat(toks[3]),
-                },
+                wh:new Vec2(0,Number.parseFloat(toks[3])),
             });            
             break;
         case "heightlerp":
@@ -4991,10 +4706,7 @@ export class zlTrack
                 cmd:ETrackCmd.HeightLerp,
                 time_from:time1,
                 time_to:time2,
-                wh: {
-                    x:0,
-                    y:Number.parseFloat(toks[3])
-                },
+                wh:new Vec2(0,Number.parseFloat(toks[3])),
                 speed:Number.parseFloat(toks[4]),
             });
             break;
@@ -5118,7 +4830,7 @@ export class zlTrack
             case ETrackCmd.Move:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
-                    cmd.initData={pos:{x:obj.x,y:obj.y}}
+                    cmd.initData={pos:new Vec2(obj.x,obj.y)}
                 }
                 obj.x=cmd.initData.pos.x+(cmd.pos.x-cmd.initData.pos.x)*t;
                 obj.y=cmd.initData.pos.y+(cmd.pos.y-cmd.initData.pos.y)*t;
@@ -5142,7 +4854,7 @@ export class zlTrack
             case ETrackCmd.MoveX:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
-                    cmd.initData={pos:{x:obj.x,y:obj.y}}
+                    cmd.initData={pos:new Vec2(obj.x,obj.y)}
                 }
                 obj.x=cmd.initData.pos.x+(cmd.pos.x-cmd.initData.pos.x)*t;
                 obj.SetCalRect();
@@ -5158,7 +4870,7 @@ export class zlTrack
             case ETrackCmd.MoveY:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
-                    cmd.initData={pos:{x:obj.x,y:obj.y}}
+                    cmd.initData={pos:new Vec2(obj.x,obj.y)}
                 }
                 obj.y=cmd.initData.pos.y+(cmd.pos.y-cmd.initData.pos.y)*t;
                 obj.SetCalRect();
@@ -5276,7 +4988,7 @@ export class zlTrack
             case ETrackCmd.Width:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
-                    cmd.initData={wh:{x:obj.w,y:obj.h}}
+                    cmd.initData={wh:new Vec2(obj.w,obj.h)}
                 }
                 obj.w=cmd.initData.wh.x+(cmd.wh.x-cmd.initData.wh.x)*t;
                 obj.SetCalRect();
@@ -5288,7 +5000,7 @@ export class zlTrack
             case ETrackCmd.Height:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
-                    cmd.initData={wh:{x:obj.w,y:obj.h}}
+                    cmd.initData={wh:new Vec2(obj.w,obj.h)}
                 }
                 obj.h=cmd.initData.wh.y+(cmd.wh.y-cmd.initData.wh.y)*t;
                 obj.SetCalRect();
@@ -5553,12 +5265,12 @@ export class zlUIMgr extends zlUIWin
             break;
         case "font":
             let id=Number.parseInt(toks[1]);
-            let font=ImGui.CreateFont(toks[2].replace(/\\s/g," "), Number.parseInt(toks[3]), toks[4]);
+            let font=this._owner.backend.CreateFont(toks[2].replace(/\\s/g," "), Number.parseInt(toks[3]), toks[4]);
             this.SetFont(id, font);
             break;
         case "mergefont": {
             let id=Number.parseInt(toks[1]);            
-            let font=ImGui.CreateFont(toks[4].replace(/\\s/g," "), Number.parseInt(toks[5]), toks[6]);
+            let font=this._owner.backend.CreateFont(toks[4].replace(/\\s/g," "), Number.parseInt(toks[5]), toks[6]);
             font.AddFontRange(ParseText(toks[2]).charCodeAt(0), ParseText(toks[3]).charCodeAt(0));
             this.fonts[id].MergeFont(font);
             break; }
@@ -5741,7 +5453,7 @@ export class zlUIMgr extends zlUIWin
             this.hover=notify;
 
             if(notify.hint) {
-                this.ShowHint(notify.hint, {x:this.mouse_pos.x+20, y:this.mouse_pos.y});
+                this.ShowHint(notify.hint, new Vec2(this.mouse_pos.x+20, this.mouse_pos.y));
             }else {
                 this.HideHint();
             }
@@ -5807,11 +5519,11 @@ export class zlUIMgr extends zlUIWin
         }
     }
 
-    Paint(drawlist: ImGui.ImDrawList): void {
+    Paint(): void {
         this.paint_count=0;
-        super.Paint(drawlist);
+        super.Paint();
         if(this.drag_drop) {
-            this.drag_drop.Paint(drawlist);
+            this.drag_drop.Paint();
         }
     }
 
@@ -5841,14 +5553,14 @@ export class zlUIMgr extends zlUIWin
         }
         this.SetCalRect();
     }
-    GetFont(id:number):ImGui.Font
+    GetFont(id:number):IFont
     {
         if(id<this.fonts.length&&this.fonts[id])    {
             return this.fonts[id];
         }
-        return ImGui.GetFont();
+        return this.backend.DefaultFont();
     }
-    SetFont(id:number, font:ImGui.Font) {
+    SetFont(id:number, font:IFont) {
         this.fonts[id]=font;
     }
     GetTexture(name:string):TexturePack
@@ -6018,7 +5730,7 @@ export class zlUIMgr extends zlUIWin
 
     path:string;
     texture:zlTexturePack;
-    fonts:ImGui.Font[]=[];
+    fonts:IFont[]=[];
     notify:zlUIWin;
     hover:zlUIWin;
     drag:zlUIWin;
@@ -6049,7 +5761,7 @@ export class zlUIMgr extends zlUIWin
 
     prevDown:boolean=false;
     any_pointer_down:boolean=false;
-    mouse_pos:Vec2;
+    mouse_pos:Vec2=new Vec2;
     mouse_wheel:number=0;
     mouse_wheel_speed:number=20;
     touch_tolerance:number=50;
@@ -6067,75 +5779,7 @@ export class zlUIMgr extends zlUIWin
     calrect_count:number=0;
     paint_count:number=0;
     calrect_object:string[];
+
+    backend:IBackend;
 }
 
-export const ImColor_Gray: ImGui.ImVec4 = new ImGui.ImVec4(0.5, 0.5, 0.5, 1)
-
-export function InspectorObj(obj:any, id:number):number
-{
-    ImGui.PushID(id);
-    for (let key in obj) {
-        let value = obj[key];
-        if(value === undefined) {
-            ImGui.Text(key + ": (undefined)");
-        }
-        else if (value === null) {
-            ImGui.Text(key + ": (null)");
-        }
-        else if (key.indexOf("color") >= 0 || key.indexOf("Color") >= 0) {            
-            let c = new ImGui.Color(value);
-            if (ImGui.ColorEdit4(key, c.Value)) {
-                obj[key]=c.toImU32();
-            }
-        }
-        else if (typeof (value) === 'object') {
-            if (ImGui.TreeNode(key)) {
-                id = InspectorObj(value, id + 1);
-                ImGui.TreePop();
-            }
-        }
-        else if (typeof (value) === 'number') {
-            let v = (_: number = value as number): number => obj[key] = _;
-            ImGui.InputFloat(key, v);
-        }
-        else if (typeof (value) === 'boolean') {
-            let v = (_: boolean = value as boolean): boolean => obj[key] = _;
-            ImGui.Checkbox(key, v);
-        }
-        else {
-            ImGui.Text(key + ": " + value);
-        }
-    }
-    ImGui.PopID();
-    return id;
-}
-
-export function InspectorUI(obj:zlUIWin, id:number):number
-{
-    if (ImGui.TreeNode("Param")) {
-        ImGui.Indent();
-        id = InspectorObj(obj as any, id + 1);
-        ImGui.Unindent();
-        ImGui.TreePop();
-    }
-    if(obj.pChild && obj.pChild.length>0) {
-        for(let ch of obj.pChild) {
-            let pushColor=false;
-            ImGui.PushID(id);
-            id++;
-            if(!ch.isVisible) {
-                ImGui.PushStyleColor(ImGui.ImGuiCol.Text, ImColor_Gray);
-                pushColor=true;
-            }
-            if (ImGui.TreeNodeEx(ch._csid + " " + ch.Name)) {
-                id = InspectorUI(ch, id + 1);
-                ImGui.TreePop();
-            }
-            if(pushColor) {
-                ImGui.PopStyleColor();
-            }
-            ImGui.PopID();
-        }
-    }
-    return id;
-}

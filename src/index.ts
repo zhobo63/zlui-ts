@@ -1,8 +1,9 @@
+import { BackendImGui, InspectorUI } from './BackendImGui';
 import {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText} from './zlUI';
 export {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText}
 
 export {LoadImage, Panel, Edit, Button, Check, Combo, Inside, ParseBool, ParseText, ParseColor} from "./zlUI"
-export {stringToColorHex, toColorHex, fromColorHex, RenderCheckMark, RenderArrow} from "./zlUI"
+export {stringToColorHex, toColorHex, fromColorHex} from "./zlUI"
 export {OnLoadable, Align, EAutosize, IAutosize, ESliderType, ScaleMode, TexturePack, Board, EAnchor, IAnchor, EDock, IDock, Vec2, Vec4, EArrange, EDirection, IArrange} from "./zlUI"
 
 export {Bezier} from "./zlUI"
@@ -27,6 +28,7 @@ class App
     async initialize()
     {
         this.ui=new zlUIMgr;
+        this.ui.backend=new BackendImGui(ImGui.GetBackgroundDrawList());
         await this.ui.Load("main.ui", "res/");
         this.ui.on_click=(obj:zlUIWin)=>{
             console.log("click", obj);
@@ -57,10 +59,10 @@ class App
         let io=ImGui.GetIO();
         let ui=this.ui;
         ui.any_pointer_down=(!ImGui.GetHoveredWindow())?ImGui_Impl.any_pointerdown():false;
-        ui.mouse_pos={x:io.MousePos.x, y:io.MousePos.y};
+        ui.mouse_pos.Set(io.MousePos.x, io.MousePos.y);
         ui.mouse_wheel=io.MouseWheel;
         ui.Refresh(io.DeltaTime);
-        ui.Paint(drawlist);        
+        ui.Paint();        
         if(ui.track.is_play || ui.calrect_count>0) {
             this.isDirty=true;
         }
@@ -77,7 +79,7 @@ class App
         ImGui.Text("paint:" + ui.paint_count);
         ImGui.Text("calrect:" + ui.calrect_count);
         if(ImGui.TreeNode("UIMgr")){
-            zlUI.InspectorUI(ui,1);
+            InspectorUI(ui,1);
             ImGui.TreePop();
         }
 
@@ -97,6 +99,8 @@ class App
 
     isDirty: boolean = false;
     ui:zlUIMgr;
+
+    default_font:ImGui.Font;
 }
 
 let app:App;
@@ -154,6 +158,7 @@ window.addEventListener('DOMContentLoaded', async () =>{
     console.log("CanvasScale", ImGui_Impl.canvas_scale);
 
     app=new App;
+    app.default_font=font;
     await app.initialize();
     if(app) {
         app.onResize(canvas.scrollWidth, canvas.scrollHeight);
