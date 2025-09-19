@@ -679,6 +679,7 @@ export class BackendImGui implements IBackend
 {
     constructor(drawlist:ImDrawList)
     {
+        this.has_astc=ImGui_Impl.gl.getExtension("WEBGL_compressed_texture_astc")?true:false;
         this.drawlist=drawlist;
         SetFLT_MAX(ImGui.FLT_MAX);
 
@@ -696,8 +697,13 @@ export class BackendImGui implements IBackend
 
     async CreateTexture(url:string):Promise<ITexture>
     {
+        let filepart=url.split(".");
+        let ext=filepart[1];
+        if(this.has_astc && this.enable_astc) {
+            ext="astc";
+            url=`${filepart[0]}.astc`;
+        }
         let tex=new ImGui_Impl.Texture;
-        let ext=url.split(".").pop();
         switch(ext) {
         case "jpg":
         case "png":
@@ -807,6 +813,9 @@ export class BackendImGui implements IBackend
         this.Paint(this.paintTreeNodeOpen, obj);
     }
     
+    has_astc:boolean;
+    enable_astc:boolean=false;
+
     font:ImFont;
     drawlist:ImGui.ImDrawList;
     paintWin:PaintWin;

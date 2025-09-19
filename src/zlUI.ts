@@ -1407,6 +1407,17 @@ export class zlUIWin
         case "enable":
             this.isEnable = ParseBool(toks[1]);
             break;
+        case "include":
+            let path=this._owner.path;
+            let file=toks[1];
+            let t=await fetch( path + file).then(r=>{           
+                return r.text();
+            }).catch(r=>{
+                console.log("Load " + path + file + " failed");
+                return "";
+            });        
+            await this.Parse(new Parser(t));
+            break;
         default:
             console.log("zlUIWin " + this.Name + " unknow param " + name);
             return false;
