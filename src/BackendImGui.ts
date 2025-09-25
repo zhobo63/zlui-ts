@@ -1,5 +1,5 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, ECornerFlags, IBackend, IFont, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, Transform, UIImage, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIPanel, zlUISlider, zlUITree, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { Board, ECornerFlags, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, Transform, UIImage, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
 
 let vec_a=new ImGui.Vec2;
@@ -121,7 +121,7 @@ class ImFont implements IFont
     font:ImGui.Font;
 }
 
-class PaintWin
+export class PaintWin implements IPaint
 {
     constructor(backend:BackendImGui)
     {
@@ -140,7 +140,7 @@ class PaintWin
     obj:zlUIWin;
 }
 
-class PaintImage extends PaintWin
+export class PaintImage extends PaintWin
 {
     constructor(backend:BackendImGui)
     {
@@ -179,7 +179,7 @@ class PaintImage extends PaintWin
     }
 }
 
-class PaintPanel extends PaintImage
+export class PaintPanel extends PaintImage
 {
     constructor(backend:BackendImGui)
     {
@@ -406,7 +406,7 @@ class PaintPanel extends PaintImage
     }
 }
 
-class PaintEdit extends PaintPanel
+export class PaintEdit extends PaintPanel
 {
     constructor(backend:BackendImGui)
     {
@@ -447,7 +447,7 @@ class PaintEdit extends PaintPanel
     }
 
 }
-class PaintButton extends PaintPanel
+export class PaintButton extends PaintPanel
 {
     constructor(backend:BackendImGui)
     {
@@ -480,7 +480,7 @@ class PaintButton extends PaintPanel
     }
 }
 
-class PaintCheck extends PaintButton
+export class PaintCheck extends PaintButton
 {
     constructor(backend:BackendImGui)
     {
@@ -519,7 +519,7 @@ class PaintCheck extends PaintButton
 
 }
 
-class PaintCombo extends PaintButton
+export class PaintCombo extends PaintButton
 {
     constructor(backend:BackendImGui)
     {
@@ -542,7 +542,7 @@ class PaintCombo extends PaintButton
     }
 }
 
-class PaintSlider extends PaintPanel
+export class PaintSlider extends PaintPanel
 {
     constructor(backend:BackendImGui)
     {
@@ -613,7 +613,7 @@ class PaintSlider extends PaintPanel
     }
 }
 
-class PaintImageText extends PaintWin
+export class PaintImageText extends PaintWin
 {
     constructor(backend:BackendImGui)
     {
@@ -653,7 +653,7 @@ class PaintImageText extends PaintWin
     }
 }
 
-class PaintTreeNodeOpen extends PaintCheck
+export class PaintTreeNodeOpen extends PaintCheck
 {
     constructor(backend:BackendImGui)
     {
@@ -675,6 +675,62 @@ class PaintTreeNodeOpen extends PaintCheck
     }    
 }
 
+export class PaintParticle extends PaintWin
+{
+    constructor(backend:BackendImGui)
+    {
+        super(backend);
+    }
+
+    Paint()
+    {
+        let obj:zlUIParticle=this.obj as zlUIParticle;
+        let drawlist=this.drawlist;
+        if(Use_Transform) {
+            let vstart=drawlist.GetVertexSize();
+            this.PaintParticle();
+            drawlist.Transform(toImTransform(mat2_a, obj._world), vstart);
+        }else {
+            this.PaintParticle();
+        }        
+    }
+
+    PaintParticle()
+    {
+        let obj:zlUIParticle=this.obj as zlUIParticle;
+        let drawlist=this.drawlist;
+        this.blend.src=obj.blend.src;
+        this.blend.dst=obj.blend.dst;
+        drawlist.SetBlend(this.blend);
+        
+        let xy=obj._localRect.xy;
+        for(let pt of obj.particle) {
+            if(pt.life<0)
+                continue;
+            let hsize=pt.size*0.5;
+            let px=pt.pos.x+xy.x;
+            let py=pt.pos.y+xy.y;
+            vec_a.Set(px-hsize, py-hsize);
+            vec_b.Set(px+hsize, py+hsize);
+            let col=MultiplyAlpha(pt.color.toColorHex(), obj.alpha);
+            if(obj.image) {
+                drawlist.AddImage(obj.image.texture._texture,
+                    vec_a,vec_b,
+                    toImVec2(vec_c, obj.image.uv1),
+                    toImVec2(vec_d, obj.image.uv2), col
+                )            
+            }else {
+                drawlist.AddRectFilled(
+                    vec_a, vec_b, col
+                )
+            }
+        }
+        drawlist.SetBlend(ImGui.Blend.ALPHA);
+    }
+
+    blend:ImGui.Blend=new ImGui.Blend;
+}
+
 export class BackendImGui implements IBackend
 {
     constructor(drawlist:ImDrawList)
@@ -683,16 +739,20 @@ export class BackendImGui implements IBackend
         this.drawlist=drawlist;
         SetFLT_MAX(ImGui.FLT_MAX);
 
-        this.paintWin=new PaintWin(this);
-        this.paintImage=new PaintImage(this);
-        this.paintPanel=new PaintPanel(this);
-        this.paintEdit=new PaintEdit(this);
-        this.paintButton=new PaintButton(this);
-        this.paintCheck=new PaintCheck(this);
-        this.paintCombo=new PaintCombo(this);
-        this.paintSlider=new PaintSlider(this);
-        this.paintImageText=new PaintImageText(this);
-        this.paintTreeNodeOpen=new PaintTreeNodeOpen(this);
+        this.paint={};
+        this.paint[zlUIWin.CSID]=new PaintWin(this);
+        this.paint[zlUIImage.CSID]=new PaintImage(this);
+        this.paint[zlUIPanel.CSID]=new PaintPanel(this);
+        this.paint[zlUIEdit.CSID]=new PaintEdit(this);
+        this.paint[zlUIButton.CSID]=new PaintButton(this);
+        this.paint[zlUICheck.CSID]=new PaintCheck(this);
+        this.paint[zlUICombo.CSID]=new PaintCombo(this);
+        this.paint[zlUISlider.CSID]=new PaintSlider(this);
+        this.paint[zlUITreeNode.CSID]=new PaintCheck(this);
+        this.paint[zlUITree.CSID]=new PaintSlider(this);
+        this.paint[zlUIImageText.CSID]=new PaintImageText(this);
+        this.paint[zlUITreeNodeOpen.CSID]=new PaintTreeNodeOpen(this);
+        this.paint[zlUIParticle.CSID]=new PaintParticle(this);
     }
 
     async CreateTexture(url:string):Promise<ITexture>
@@ -761,73 +821,24 @@ export class BackendImGui implements IBackend
         this.drawlist.PopClipRect();
     }
 
-    Paint(paint:PaintWin, obj:zlUIWin)
+    Paint(obj:zlUIWin)
     {
+        let paint=this.paint[obj._csid];
+        if(!paint) {
+            console.error("BackendImGui::Paint", obj._csid);
+        }
         paint.obj=obj;
         paint.Paint();
         paint.obj=null;
     }
 
-    PaintUIWin(obj:zlUIWin)
-    {
-        this.Paint(this.paintWin, obj);
-    }
-    PaintUIImage(obj:zlUIImage)
-    {
-        this.Paint(this.paintImage, obj);
-    }
-    PaintUIPanel(obj:zlUIPanel)
-    {
-        this.Paint(this.paintPanel, obj);
-    }
-    PaintUIEdit(obj:zlUIEdit)
-    {
-        this.Paint(this.paintEdit, obj);
-    }
-    PaintUIButton(obj:zlUIButton)
-    {
-        this.Paint(this.paintButton, obj);
-    }
-    PaintUICheck(obj:zlUICheck)
-    {
-        this.Paint(this.paintCheck, obj);
-    }
-    PaintUICombo(obj:zlUICombo)
-    {
-        this.Paint(this.paintCombo, obj);
-    }
-    PaintUISlider(obj:zlUISlider)
-    {
-        this.Paint(this.paintSlider, obj);
-    }
-    PaintUIImageText(obj:zlUIImageText)
-    {
-        this.Paint(this.paintImageText, obj);
-    }
-    PaintUITree(obj:zlUITree)
-    {
-
-    }
-    PaintUITreeNodeOpen(obj:zlUITreeNodeOpen)
-    {
-        this.Paint(this.paintTreeNodeOpen, obj);
-    }
+    paint:{[key:string]:IPaint};
     
     has_astc:boolean;
     enable_astc:boolean=false;
 
     font:ImFont;
     drawlist:ImGui.ImDrawList;
-    paintWin:PaintWin;
-    paintImage:PaintImage;
-    paintPanel:PaintPanel;
-    paintEdit:PaintEdit;
-    paintButton:PaintButton;
-    paintCheck:PaintCheck;
-    paintCombo:PaintCombo;
-    paintSlider:PaintSlider;
-    paintImageText:PaintImageText;
-    paintTreeNodeOpen:PaintTreeNodeOpen;
 }
 
 export const ImColor_Gray: ImGui.ImVec4 = new ImGui.ImVec4(0.5, 0.5, 0.5, 1)

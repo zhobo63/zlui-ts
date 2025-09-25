@@ -2,6 +2,13 @@ ifnot DarkTheme include dark.ui
 include imagetext.ui
 #include login.ui
 
+Object Particle
+{
+    Name prt_
+    RectWH 100 100 50 50
+    
+}
+
 Clone Panel
 {
     Name pnl_padding
