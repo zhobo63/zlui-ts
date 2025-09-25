@@ -6,6 +6,13 @@ class zlAudioSource
         this.audio_ctx=ctx;
     }
 
+    gainValue():number {
+        return (this.is_music?gAudio.volumnMusic:gAudio.volumnSound)*this.volumn;
+    }
+    updateGain() {
+        this.gain.gain.value=this.gainValue();
+    }
+
     async load(url:string):Promise<boolean> {
         const arrayBuffer:ArrayBuffer = await fetch(url).then(response=>{
             return response.arrayBuffer();
@@ -13,33 +20,49 @@ class zlAudioSource
         if(!arrayBuffer)
             return false;
         const audioBuffer = await this.audio_ctx.decodeAudioData(arrayBuffer);
-        const source = this.audio_ctx.createBufferSource();
         const gain=this.audio_ctx.createGain();
-        source.buffer = audioBuffer;
-        source.connect(gain);        
-        gain.connect(this.audio_ctx.destination);
-        this.source=source;
-        this.gain=gain;
+        this.audio_buffer=audioBuffer;
+        this.gain=gain;        
         return true;
     }
 
     play():boolean {
-        if(!this.source)
-            return false;
-        this.source.start(0);
+        if(!this.source) {
+            let source=this.audio_ctx.createBufferSource();
+            source.buffer=this.audio_buffer;
+            source.connect(this.gain);
+            this.gain.connect(this.audio_ctx.destination);
+            this.source=source;
+            this.gain.gain.value=this.gainValue();
+            this.source.onended=()=>{this.source=null;}
+            this.source.loop=this.is_music;
+            this.source.start(0);
+        }        
         return true;
     }
     stop() {
         if(this.source) {
             this.source.stop();
+            this.source=null;
         }
     }
 
     audio_ctx:AudioContext;
+    audio_buffer:AudioBuffer;
     source:AudioBufferSourceNode;
     gain:GainNode;
     is_music:boolean;
     volumn:number=1.0;
+}
+
+interface IFading
+{
+    name:string
+    curtime?:number
+    duration:number
+    volumn_start:number
+    volumn_end:number
+    callback?:(name:string)=>void
 }
 
 class zlAudio
@@ -68,7 +91,6 @@ class zlAudio
         let ret=await source.load(url);
         if(ret) {
             source.is_music=is_music;
-            source.gain.gain.value=(is_music?this.volumnMusic:this.volumnSound)*source.volumn;
             this.sources[name]=source;
             return source;
         }
@@ -85,14 +107,14 @@ class zlAudio
     setVolumn(name:string, volumn:number) {
         let source=this.sources[name];
         source.volumn=volumn;
-        source.gain.gain.value=(source.is_music?this.volumnMusic:this.volumnSound)*volumn;
+        source.updateGain();
     }
     setVolumnMusic(volumn:number) {
         this.volumnMusic=volumn;
         for(let name in this.sources) {
             let source=this.sources[name];
             if(source.is_music) {
-                source.gain.gain.value=(source.is_music?this.volumnMusic:this.volumnSound)*source.volumn;
+                source.updateGain();
             }
         }
     }
@@ -101,7 +123,7 @@ class zlAudio
         for(let name in this.sources) {
             let source=this.sources[name];
             if(!source.is_music) {
-                source.gain.gain.value=(source.is_music?this.volumnMusic:this.volumnSound)*source.volumn;
+                source.updateGain();
             }
         }
     }
@@ -138,6 +160,34 @@ class zlAudio
         let source=this.sources[name];
         if (source) source.stop();
     }
+
+    update(ti:number) {
+        let has_done=false;
+        for(let fade of this.fadings) {
+            let source=this.sources[fade.name];
+            if(!source) {
+                fade.curtime=fade.duration;
+                has_done=true;
+                continue;
+            }
+            fade.curtime+=ti;
+            let volumn=Math.min(fade.curtime/fade.duration, 1)*(fade.volumn_end-fade.volumn_start) + fade.volumn_start;
+            source.volumn=volumn;
+            source.updateGain();
+            if(fade.curtime>=fade.duration) {
+                has_done=true;
+                if(fade.callback) fade.callback(fade.name);
+            }
+        }
+        if(has_done) {
+            this.fadings=this.fadings.filter(v=>v.curtime<v.duration);
+        }
+    }
+
+    fading(fade:IFading) {
+        fade.curtime=0;
+        this.fadings.push(fade);
+    }
     
 
     audio_ctx:AudioContext
@@ -146,7 +196,8 @@ class zlAudio
     mute:boolean = false;
     pause:boolean = false;
 
-    sources:{[key:string]:zlAudioSource}={}
+    sources:{[key:string]:zlAudioSource}={};
+    fadings:IFading[]=[];
 }
 
 export const gAudio=new zlAudio;

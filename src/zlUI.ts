@@ -11,7 +11,9 @@ export function SetFLT_MAX(v:number) {
     FLT_MAX=v;
 }
 
-//export let Use_Transform=false;
+const DEGTORAD = 1.74532925199433E-02;
+
+//export let Use_ImTransform=false;
 
 /*
 TODO
@@ -59,10 +61,15 @@ UIDocker
 UISpine
 UIModel
 UIMovie
-UIVideo
-UIParticle
-    
+UIVideo   
 */
+
+export interface IPaint
+{
+    Paint:()=>void;
+
+    obj:zlUIWin;
+}
 
 export interface IBackend
 {
@@ -71,18 +78,9 @@ export interface IBackend
     DefaultFont:()=>IFont;
     PushClipRect:(rect:Rect)=>void;
     PopClipRect:()=>void;
+    Paint:(obj:zlUIWin)=>void;
 
-    PaintUIWin:(obj:zlUIWin)=>void;
-    PaintUIImage:(obj:zlUIImage)=>void;
-    PaintUIPanel:(obj:zlUIPanel)=>void;
-    PaintUIEdit:(obj:zlUIEdit)=>void;
-    PaintUIButton:(obj:zlUIButton)=>void;
-    PaintUICheck:(obj:zlUICheck)=>void;
-    PaintUICombo:(obj:zlUICombo)=>void;
-    PaintUISlider:(obj:zlUISlider)=>void;
-    PaintUIImageText:(obj:zlUIImageText)=>void;
-    PaintUITree:(obj:zlUITree)=>void;
-    PaintUITreeNodeOpen:(obj:zlUITreeNodeOpen)=>void;
+    paint:{[key:string]:IPaint};
 }
 
 export interface IFont
@@ -227,7 +225,7 @@ export function fromColorHex(c:number):Vec4
     let g=((c&0x0000ff00)>>8)/255;
     let b=((c&0x00ff0000)>>16)/255;
     let a=((c&0xff000000)>>>24)/255;
-    return {x:r,y:g,z:b,w:a};
+    return new Vec4(r,g,b,a);
 }
 
 export function MultiplyAlpha(c:number, alpha:number):number
@@ -544,17 +542,80 @@ export class Vec2 implements IVec2
             y:this.y*v.y
         }
     }
+    LengthSq():number {
+        return this.x*this.x+this.y*this.y;
+    }
+    Legnth():number {
+        return Math.sqrt(this.LengthSq());
+    }
+    Normalize() {
+        let l=this.Legnth();
+        if(l!=0) {
+            let inv=1.0/l;
+            this.x*=inv;
+            this.y*=inv;
+        }
+    }
 
     x:number = 0;
     y:number = 0;
+
+    static ZERO=new Vec2(0,0);
+    static ONE=new Vec2(1,1);
 }
 
-export interface Vec4
+export interface IVec4
 {
     x:number;
     y:number;
     z:number;
     w:number;
+}
+
+export class Vec4 implements IVec4
+{
+    constructor(x:number=0, y:number=0, z:number=0, w:number=0) {
+        this.x=x;
+        this.y=y;
+        this.z=z;
+        this.w=w;
+    }
+
+    Lerp(v1:Vec4, v2:Vec4, f:number) {
+        this.x=v1.x+(v2.x-v1.x)*f;
+        this.y=v1.y+(v2.y-v1.y)*f;
+        this.z=v1.z+(v2.z-v1.z)*f;
+        this.w=v1.w+(v2.w-v1.w)*f;        
+    }
+
+    toColorHex(): number
+    {
+        let r=Math.floor(this.x*255);
+        let g=Math.floor(this.y*255);
+        let b=Math.floor(this.z*255);
+        let a=Math.floor(this.w*255);
+        return ((a<<24)|(b<<16)|(g<<8)|r)>>>0;
+    }
+    fromColorHex(c:number)
+    {
+        this.x=(c&0x000000ff)/255;
+        this.y=((c&0x0000ff00)>>8)/255;
+        this.z=((c&0x00ff0000)>>16)/255;
+        this.w=((c&0xff000000)>>>24)/255;
+    }
+    MultiplyAlpha() {
+        this.x*=this.w;
+        this.y*=this.w;
+        this.z*=this.w;
+    }
+
+    x:number = 0;
+    y:number = 0;
+    z:number = 0;
+    w:number = 0;
+
+    static ONE:Vec4=new Vec4(1,1,1,1);
+    static ZERO:Vec4=new Vec4(0,0,0,0);
 }
 
 export class Mat2
@@ -829,7 +890,7 @@ export class Rect
         let max=this.max;
         return (pt.x>=xy.x&&pt.x<=max.x&&pt.y>=xy.y&&pt.y<=max.y)?true:false;
     }
-    InsideRect(rc:Vec4):boolean
+    InsideRect(rc:IVec4):boolean
     {
         if(this.max.x<rc.x||this.xy.x>rc.z||this.max.y<rc.y||this.xy.y>rc.w) {
             return false;
@@ -859,12 +920,7 @@ export class Rect
     }
     toVec4():Vec4
     {
-        return {
-            x:this.xy.x,
-            y:this.xy.y,
-            z:this.max.x,
-            w:this.max.y
-        }
+        return new Vec4(this.xy.x,this.xy.y,this.max.x,this.max.y);
     }
     CopyTo(v:Vec4):void
     {
@@ -872,6 +928,12 @@ export class Rect
         v.y=this.xy.y;
         v.z=this.max.x;
         v.w=this.max.y;
+    }
+    Width():number {
+        return this.max.x-this.xy.x;
+    }
+    Height():number {
+        return this.max.y-this.xy.y;
     }
 
     get x():number {return this.xy.x;}
@@ -956,6 +1018,62 @@ export interface IArrange
     mode:EArrange;
     item_per_row?:number;
     item_size?:Vec2;
+}
+
+export enum EBlend
+{
+    NONE,
+    ZERO,
+    ONE,
+	SRC_COLOR               ,
+	INV_SRC_COLOR		    ,
+	SRC_ALPHA               ,
+	INV_SRC_ALPHA		    ,
+	DST_ALPHA               ,
+	INV_DST_ALPHA		    ,
+	DST_COLOR               ,
+	INV_DST_COLOR		    ,
+	SRC_ALPHA_SATURATE      ,
+}
+
+export interface IBlend
+{
+    src:number
+    dst:number
+}
+
+export const BLEND_ADD:IBlend = {src:EBlend.ONE, dst:EBlend.ONE};
+export const BLEND_ALPHA:IBlend = {src:EBlend.SRC_ALPHA, dst:EBlend.INV_SRC_ALPHA};
+
+export function ParseBlend(name:string):number
+{
+    switch(name) {
+    case 'zero':
+        return EBlend.ZERO;
+    case 'one':
+        return EBlend.ONE;
+    case 'srccolor':
+        return EBlend.SRC_COLOR;
+    case 'invsrccolor':
+        return EBlend.INV_SRC_COLOR;
+    case 'srcalpha':
+        return EBlend.SRC_ALPHA;
+    case 'invsrcalpha':
+        return EBlend.INV_SRC_ALPHA;
+    case 'dstalpha':
+        return EBlend.DST_ALPHA;
+    case 'invdstalpha':
+        return EBlend.INV_DST_ALPHA;
+    case 'dstcolor':
+        return EBlend.DST_COLOR;
+    case 'invdstcolor':
+        return EBlend.INV_DST_COLOR;
+    case 'srcalphasaturate':
+        return EBlend.SRC_ALPHA_SATURATE;
+    default:
+        console.error("ParseBlend", name);
+        return EBlend.ZERO;
+    }
 }
 
 export function Clone(o:any):any
@@ -1075,7 +1193,11 @@ export class zlUIWin
         if(own) {
             this._owner=own;
         }
-        this._csid="Win";
+        this._csid=zlUIWin.CSID;
+    }
+    static CSID="Win";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIWin(own);
     }
 
     on_size: ((this:zlUIWin) => any)|null;
@@ -1318,12 +1440,12 @@ export class zlUIWin
             }
             break;
         case "dockoffset":
-            this.dockOffset={
-                x:Number.parseFloat(toks[1]),
-                y:Number.parseFloat(toks[2]),
-                z:Number.parseFloat(toks[3]),
-                w:Number.parseFloat(toks[4]),
-            }
+            this.dockOffset=new Vec4(
+                Number.parseFloat(toks[1]),
+                Number.parseFloat(toks[2]),
+                Number.parseFloat(toks[3]),
+                Number.parseFloat(toks[4]),
+            );
             break;
         case "offset":
             this.offset.x=Number.parseFloat(toks[1])
@@ -1617,7 +1739,7 @@ export class zlUIWin
 
     Paint():void
     {
-        this._owner.backend.PaintUIWin(this);
+        this._owner.backend.Paint(this);
         this.PaintChild();
     }
 
@@ -1810,8 +1932,7 @@ export class zlUIWin
             }
             let x=Math.round(-px+ox+x1+this.offset.x);
             let y=Math.round(-py+oy+y1+this.offset.y);
-            this._local.translate.x=x;
-            this._local.translate.y=y;
+            this._local.translate.Set(x,y);
             x1=-ox;
             y1=-oy;
             x2=x1+this.w;
@@ -2117,9 +2238,9 @@ export class zlUIWin
     SetText(text:string) {}
     SetImage(name:string) {}
     set Color(color:Vec4) {}
-    get Color():Vec4 {return {x:1,y:1,z:1,w:1}}
+    get Color():Vec4 {return Vec4.ONE;}
     set TextColor(color:Vec4) {}
-    get TextColor():Vec4 {return {x:1,y:1,z:1,w:1}}
+    get TextColor():Vec4 {return Vec4.ONE;}
     SetAlpha(alpha:number) {
         this.alpha_set=alpha;
         this.alpha=alpha*this.alpha_local;
@@ -2236,8 +2357,13 @@ export class zlUIImage extends zlUIWin
     constructor(own:zlUIMgr)
     {
         super(own)
-        this._csid="Image";
+        this._csid=zlUIImage.CSID;
     }
+    static CSID="Image";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIImage(own);
+    }
+
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch(name) {
@@ -2282,7 +2408,7 @@ export class zlUIImage extends zlUIWin
         if(this.image && this.image.texture._texture && !this.image.uv1) {
             this.image= UpdateTexturePack(this.image);
         }
-        this._owner.backend.PaintUIImage(this);
+        this._owner.backend.Paint(this);
         super.Paint();
     }
 
@@ -2302,8 +2428,13 @@ export class zlUIPanel extends zlUIImage
     constructor(own:zlUIMgr)
     {
         super(own)
-        this._csid="Panel";
+        this._csid=zlUIPanel.CSID;
     }
+    static CSID="Panel";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIPanel(own);
+    }
+
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
@@ -2427,7 +2558,7 @@ export class zlUIPanel extends zlUIImage
 
     Paint():void
     {
-        this._owner.backend.PaintUIPanel(this);
+        this._owner.backend.Paint(this);
         this.PaintChild();
     }
 
@@ -2579,7 +2710,7 @@ export class zlUIPanel extends zlUIImage
                 this._textPos.y=y;
             }
             if(!this._textClip) {
-                this._textClip={x:0,y:0,z:0,w:0};
+                this._textClip=new Vec4;
             }
             this._textClip.x=this._localRect.xy.x;
             this._textClip.y=this._localRect.xy.y;
@@ -2760,7 +2891,11 @@ export class zlUIEdit extends zlUIPanel
     constructor(own:zlUIMgr)
     {
         super(own)
-        this._csid="Edit";
+        this._csid=zlUIEdit.CSID;
+    }
+    static CSID="Edit";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIEdit(own);
     }
 
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
@@ -2796,7 +2931,7 @@ export class zlUIEdit extends zlUIPanel
 
     Paint()
     {        
-        this._owner.backend.PaintUIEdit(this);
+        this._owner.backend.Paint(this);
         this.PaintChild();
     }
 
@@ -2897,8 +3032,13 @@ export class zlUIButton extends zlUIPanel
     constructor(own:zlUIMgr)
     {
         super(own)
-        this._csid="Button";
+        this._csid=zlUIButton.CSID;
     }
+    static CSID="Button";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIButton(own);
+    }
+
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
@@ -3047,7 +3187,7 @@ export class zlUIButton extends zlUIPanel
         }
         this.UpdateTextColor();
 
-        this._owner.backend.PaintUIButton(this);
+        this._owner.backend.Paint(this);
         this.PaintChild();
     }
     GetNotify(pos:Vec2):zlUIWin
@@ -3109,8 +3249,13 @@ export class zlUICheck extends zlUIButton
     {
         super(own)
         //this.isPaintButton=false;
-        this._csid="Check";
+        this._csid=zlUICheck.CSID;
     }
+    static CSID="Check";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUICheck(own);
+    }
+
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch (name) {
@@ -3183,7 +3328,7 @@ export class zlUICheck extends zlUIButton
         this.UpdateButton();
         this.UpdateTextColor();
         let mgr=this._owner;
-        mgr.backend.PaintUICheck(this);
+        mgr.backend.Paint(this);
         this.PaintChild();
     }
     OnClick():void {
@@ -3226,8 +3371,13 @@ export class zlUICombo extends zlUIButton
     constructor(own:zlUIMgr)
     {
         super(own);
-        this._csid="Combo"
+        this._csid=zlUICombo.CSID;
     }
+    static CSID="Combo";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUICombo(own);
+    }
+
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
         switch(name) {
@@ -3274,7 +3424,7 @@ export class zlUICombo extends zlUIButton
         this.UpdateButton();
         this.UpdateTextColor();
 
-        this._owner.backend.PaintUICombo(this);
+        this._owner.backend.Paint(this);
 
         if(!this._owner.popup && this._owner.combo===this) {
             this._owner.combo=undefined;
@@ -3393,8 +3543,12 @@ export class zlUISlider extends zlUIPanel
     constructor(own:zlUIMgr)
     {
         super(own)
-        this._csid="Slider";
+        this._csid=zlUISlider.CSID;
         this.isClip=true;
+    }
+    static CSID="Slider";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUISlider(own);
     }
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
@@ -3617,7 +3771,7 @@ export class zlUISlider extends zlUIPanel
     }
     Paint():void 
     {
-        this._owner.backend.PaintUISlider(this);
+        this._owner.backend.Paint(this);
         this.PaintChild();
     }
     CalRect(parent:zlUIWin):void 
@@ -3721,7 +3875,11 @@ export class zlUIImageText extends zlUIWin
     constructor(own:zlUIMgr)
     {
         super(own);
-        this._csid="ImageText";
+        this._csid=zlUIImageText.CSID;
+    }
+    static CSID="ImageText";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIImageText(own);
     }
 
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
@@ -3841,7 +3999,7 @@ export class zlUIImageText extends zlUIWin
 
     Paint():void 
     {
-        this._owner.backend.PaintUIImageText(this);
+        this._owner.backend.Paint(this);
         this.PaintChild();
     }
     CalRect(parent: zlUIWin): void {
@@ -3917,13 +4075,14 @@ export class zlUITreeNodeOpen extends zlUICheck
         this.isDrawBorder=false;
         this.isDrawClient=false;
         this.isDrawCheck=true;
-        this._csid="TreeNodeOpen";
+        this._csid=zlUITreeNodeOpen.CSID;
     }    
+    static CSID="TreeNodeOpen";
 
     Paint(): void {
         this.UpdateButton();
         this.UpdateTextColor();
-        this._owner.backend.PaintUITreeNodeOpen(this);
+        this._owner.backend.Paint(this);
         this.PaintChild();
     }
 }
@@ -3933,7 +4092,7 @@ export class zlUITreeNode extends zlUICheck
     constructor(own:zlUIMgr)
     {
         super(own);
-        this._csid="TreeNode";
+        this._csid=zlUITreeNode.CSID;
         this.dock={
             mode:EDock.Left|EDock.Right,
             x:0,y:0,z:1,w:1
@@ -3954,6 +4113,7 @@ export class zlUITreeNode extends zlUICheck
         this.treenodeOpen.isChecked=this.open;
         this.AddChild(this.treenodeOpen);
     }
+    static CSID="TreeNode";
 
     async ParseTreeNode(parser:Parser):Promise<void>
     {
@@ -4054,7 +4214,11 @@ export class zlUITree extends zlUISlider
     constructor(own:zlUIMgr)
     {
         super(own);
-        this._csid="Tree";
+        this._csid=zlUITree.CSID;
+    }
+    static CSID="Tree";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUITree(own);
     }
 
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
@@ -4197,6 +4361,408 @@ export class zlUITree extends zlUISlider
     defaultTreeNode:zlUITreeNode=null;
 }
 
+enum EEmitter
+{
+    ePoint,
+    eRect,
+    eCircle,
+}
+
+enum EForce
+{
+    eAcceler,
+    ePush,
+    eGravity,
+    eTwirl,
+    eRotate,
+    eWave,
+    eFriction,
+    eSpin,
+    eResize,
+    eMax,
+}
+
+function ParseForce(name:string):EForce
+{
+    switch(name) {
+    case 'acceler':
+        return EForce.eAcceler;
+    case 'push':
+        return EForce.ePush;
+    case 'gravity':
+        return EForce.eGravity;
+    case 'twirl':
+        return EForce.eTwirl;
+    case 'rotate':
+        return EForce.eRotate;
+    case 'wave':
+        return EForce.eWave;
+    case 'friction':
+        return EForce.eFriction;
+    case 'spin':
+        return EForce.eSpin;
+    case 'resize':
+        return EForce.eResize;
+    default:
+        return EForce.eMax;
+    }
+}
+
+class Emitter
+{
+    constructor() {}
+
+    emitter:EEmitter=EEmitter.ePoint;
+}
+
+/*
+Force
+    Type        value
+    Acceler     acc[2]
+    Push        acc[2]
+                force
+    Gravity     pos[2]
+                GM
+    Twirl       pos[2]
+                force
+    Rotate      pos[2]
+                force
+    Wave        vec[2]
+                amplify
+                frequency
+    Friction    friction
+    Spin        speed
+                force
+    Resize      speed
+*/
+
+interface IForce
+{
+    force:EForce;
+    value:number[];
+}
+
+interface IParticle
+{
+    pos?:Vec2
+    vec?:Vec2
+    color?:Vec4
+    life?:number
+    lifeEnd?:number
+    size?:number
+    rotate?:number
+    mass?:number
+    object?:zlUIWin
+}
+
+interface IController
+{
+    particleCount:number
+    timeStart:number
+    timeEnd:number
+    speed:number
+    speedVar:number
+    life:number
+    lifeVar:number
+    dir:number
+    dirVar:number
+    size:number
+    sizeVar:number
+    rotate:number
+    rotateVar:number
+    mass:number
+    massVar:number
+    color:Vec4[]
+}
+
+export class zlUIParticle extends zlUIWin
+{
+    constructor(own:zlUIMgr)
+    {
+        super(own);
+        this._csid=zlUIParticle.CSID;
+        this.controller={
+            particleCount:30,
+            timeStart:0,
+            timeEnd:1,
+            speed:100,
+            speedVar:100,
+            life:1,
+            lifeVar:1,
+            dir:0,
+            dirVar:6,
+            size:10,
+            sizeVar:10,
+            rotate:0,
+            rotateVar:0,
+            mass:1,
+            massVar:5,
+            color:[]
+        }
+    }
+    static CSID="Particle";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIParticle(own);
+    }
+
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
+    {
+        switch(name) {
+        case "image":
+            this.image=this._owner.GetTexture(toks[1]);
+            break;
+        case "particlecount":
+            this.controller.particleCount=Number.parseInt(toks[1]);
+            break;
+        case "timestart":
+            this.controller.timeStart=Number.parseFloat(toks[1]);
+            break;
+        case "timeend":
+            this.controller.timeEnd=Number.parseFloat(toks[1]);
+            break;
+        case "speed":
+            this.controller.speed=Number.parseFloat(toks[1]);
+            break;
+        case "speedvar":
+            this.controller.speedVar=Number.parseFloat(toks[1]);
+            break;
+        case "life":
+            this.controller.life=Number.parseFloat(toks[1]);
+            break;
+        case "lifevar":
+            this.controller.lifeVar=Number.parseFloat(toks[1]);
+            break;
+        case "dir":
+            this.controller.dir=Number.parseFloat(toks[1])*DEGTORAD;
+            break;
+        case "dirvar":
+            this.controller.dirVar=Number.parseFloat(toks[1])*DEGTORAD;
+            break;
+        case "size":
+            this.controller.size=Number.parseFloat(toks[1]);
+            break;
+        case "sizevar":
+            this.controller.sizeVar=Number.parseFloat(toks[1]);
+            break;
+        case "rot":
+            this.controller.rotate=Number.parseFloat(toks[1])*DEGTORAD;
+            break;
+        case "rotvar":
+            this.controller.rotateVar=Number.parseFloat(toks[1])*DEGTORAD;
+            break;
+        case "mass":
+            this.controller.mass=Number.parseFloat(toks[1]);
+            break;
+        case "massvar":
+            this.controller.massVar=Number.parseFloat(toks[1]);
+            break;
+        case "color":
+            for(let i=1;i<toks.length-1;i++) {
+                this.controller.color.push(fromColorHex(ParseColor(toks[i])));
+            }
+            break;
+        case "source":
+            this.source=this._owner.GetUI(toks[1]);
+            break;
+        case "force":
+            let force:IForce={
+                force:ParseForce(toks[1]),
+                value:[]
+            };
+            for(let i=2;i<toks.length-1;i++) {
+                force.value.push(Number.parseFloat(toks[i]));
+            }
+            this.force.push(force);
+            break;
+        case "emitter":
+            break;
+        case "blend":
+            this.blend.src=ParseBlend(toks[1]);
+            this.blend.dst=ParseBlend(toks[2]);
+            break;
+        default:
+            return await super.ParseCmd(name, toks, parser);
+        }
+        return true;
+    }
+
+    InitParticle(pt:IParticle) {
+        let ctl=this.controller;
+        pt.pos=new Vec2(this.w * Math.random(), this.h * Math.random());
+        pt.size=ctl.size+ctl.sizeVar*Math.random();
+        pt.rotate=ctl.rotate+ctl.rotateVar*Math.random();
+        pt.mass=ctl.mass+ctl.massVar*Math.random();
+        let rot=ctl.dir+ctl.dirVar*(Math.random()-0.5);
+        pt.vec=new Vec2(Math.cos(rot), Math.sin(rot));
+        let speed=ctl.speed+ctl.speedVar*Math.random();
+        pt.vec.x*=speed;
+        pt.vec.y*=speed;
+        pt.life=this.loop<0? -ctl.lifeVar*Math.random():0;
+        pt.lifeEnd=ctl.life+ctl.lifeVar*Math.random();
+        pt.color=new Vec4(1,1,1,1);
+        if(ctl.timeStart<0) {
+            pt.pos.x+=pt.vec.x*ctl.timeStart;
+            pt.pos.y+=pt.vec.y*ctl.timeStart;
+        }
+        if(this.source && !pt.object) {
+            pt.object=this.source.Clone();
+            pt.object.isVisible=false;
+            this.AddChild(pt.object);
+        }
+    }
+
+    Refresh(ti:number, parent?:zlUIWin):boolean 
+    {        
+        this.time+=ti;
+        if(this.time>=this.controller.timeStart) {
+            while(this.particle.length<this.controller.particleCount) {
+                let pt:IParticle={};
+                this.InitParticle(pt);
+                this.particle.push(pt);
+            }
+            for(let pt of this.particle) {
+                pt.life+=ti;
+                if(pt.object) {
+                    let obj=pt.object;
+                    let hsize=pt.size*0.5;
+                    obj.isVisible=pt.life>=0 && pt.life<pt.lifeEnd;
+                    obj.x=pt.pos.x-hsize;
+                    obj.y=pt.pos.y-hsize;
+                    obj.rotate=pt.rotate;
+                    obj.scale=pt.size;
+                    obj.SetCalRect();
+                    obj.Color=pt.color;
+                }
+                if(pt.life<0)
+                    continue;
+                pt.pos.x+=pt.vec.x*ti;
+                pt.pos.y+=pt.vec.y*ti;
+
+                if(pt.life<pt.lifeEnd) {
+
+                    for(let force of this.force) {
+                        switch(force.force) {
+                        case EForce.eAcceler:
+                            pt.vec.x+=force.value[0]*ti;
+                            pt.vec.y+=force.value[1]*ti;
+                            break;
+                        case EForce.ePush:
+                            if(pt.mass!=0) {
+                                let f=force.value[2]/pt.mass*ti;
+                                pt.vec.x+=force.value[0]*f;
+                                pt.vec.y+=force.value[1]*f;
+                            }
+                            break;
+                        case EForce.eGravity:
+                            if(pt.mass!=0) {
+                                let vx=force.value[0]-pt.pos.x;
+                                let vy=force.value[1]-pt.pos.y;
+                                let r=vx*vx+vy*vy;
+                                let rv=Math.sqrt(r);
+                                let f=force.value[2]/r*ti/rv;
+                                pt.vec.x+=vx*f;
+                                pt.vec.y+=vy*f;
+                            }
+                            break;
+                        case EForce.eTwirl:
+                            if(pt.mass!=0) {
+                                let vx=pt.pos.x-force.value[0];
+                                let vy=pt.pos.y-force.value[1];
+                                let r=vx*vx+vy*vy;
+                                if(r!=0) {
+                                    let f=force.value[2]/r*ti;
+                                    pt.vec.x+=vy*f;
+                                    pt.vec.y-=vx*f;
+                                }
+                            }
+                            break;
+                        case EForce.eRotate:
+                        {
+                            let vx=pt.pos.x-force.value[0];
+                            let vy=pt.pos.y-force.value[1];
+                            let r=Math.sqrt(vx*vx+vy*vy);
+                            if(r!=0) {
+                                let f=force.value[2]*ti/r;
+                                pt.pos.x+=vy*f;
+                                pt.pos.y-=vx*f;
+                            }
+                        }
+                            break;
+                        case EForce.eWave:
+                        {
+                            let r=force.value[2]*Math.sin(pt.life*force.value[3]);
+                            pt.pos.x+=force.value[0]*r;
+                            pt.pos.y+=force.value[1]*r;
+                        }
+                            break;
+                        case EForce.eFriction:
+                        {
+                            let f=force.value[0]*ti;
+                            pt.vec.x-=pt.vec.x*f;
+                            pt.vec.y-=pt.vec.y*f;
+                        }
+                            break;
+                        case EForce.eSpin:
+                            pt.rotate+=force.value[0]*ti;
+                            if(pt.mass!=0) {
+                                pt.rotate+=force.value[1]/pt.mass*ti;
+                            }
+                            break;
+                        case EForce.eResize:
+                            pt.size+=force.value[0]*ti;
+                            break;                            
+                        }
+                    }
+                    if(this.controller.color.length>0) {
+                        let fr=pt.life*(this.controller.color.length-1)/pt.lifeEnd;
+                        let inx=Math.floor(fr);
+                        if(inx>=this.controller.color.length-1) {
+                            pt.color=this.controller.color[this.controller.color.length-1];
+                        }else {
+                            fr=fr-inx;
+                            pt.color.Lerp(this.controller.color[inx],this.controller.color[inx+1], fr);
+                            if(this.blend==BLEND_ADD) {
+                                pt.color.MultiplyAlpha();
+                            }
+                        }
+                    }
+
+                }else if(this.loop!=0) {
+                    this.InitParticle(pt);
+                }
+            }
+
+            if(this.time>=this.controller.timeEnd) {
+                if(this.loop>0) {
+                    this.time=this.controller.timeStart;
+                    this.loop--;
+                }else {
+                    this.time=this.controller.timeStart;
+                }
+            }
+        }
+
+        return super.Refresh(ti, parent);
+    }
+
+    Paint():void 
+    {
+        this._owner.backend.Paint(this);
+        super.Paint();
+    }
+
+    emitter:Emitter;
+    controller:IController;
+    force:IForce[]=[];
+    particle:IParticle[]=[];
+    blend:IBlend=BLEND_ADD;
+
+    image:TexturePack;
+    source:zlUIWin;
+    time:number = 0;
+    loop:number = -1;
+}
+
 export class zlTexturePack
 {
     constructor(own:zlUIMgr)
@@ -4240,6 +4806,20 @@ export class zlTexturePack
             }
             break;
         }
+    }
+    async LoadImage(file:string) {
+        this.current=await this.owner.backend.CreateTexture(this.owner.path + file).then(r=>{return r;});
+        this.textures.push(this.current);
+        let k=file.toLowerCase();
+        this.cache[k]={
+            x1:0,
+            y1:0,
+            x2:this.current._width,
+            y2:this.current._height,
+            uv1:Vec2.ZERO,
+            uv2:Vec2.ONE,
+            texture:this.current
+        };
     }
 
     owner:zlUIMgr;
@@ -4398,12 +4978,12 @@ export class zlTrack
                 cmd:ETrackCmd.SetRect,
                 time_from:time1,
                 time_to:time1,
-                rect:{
-                    x:Number.parseFloat(toks[2]),
-                    y:Number.parseFloat(toks[3]),
-                    z:Number.parseFloat(toks[4]),
-                    w:Number.parseFloat(toks[5]),
-                }
+                rect:new Vec4(
+                    Number.parseFloat(toks[2]),
+                    Number.parseFloat(toks[3]),
+                    Number.parseFloat(toks[4]),
+                    Number.parseFloat(toks[5]),
+                )
             })
             break;
         case "setwidth":
@@ -5236,6 +5816,19 @@ export class zlUIMgr extends zlUIWin
         this.offset.x=0;
         this.offset.y=0;
         this.track=new zlTrackMgr(this);
+
+        this.create_func={};
+        this.create_func['win']=zlUIWin.Create;
+        this.create_func['image']=zlUIImage.Create;
+        this.create_func['panel']=zlUIPanel.Create;
+        this.create_func['edit']=zlUIEdit.Create;
+        this.create_func['button']=zlUIButton.Create;
+        this.create_func['check']=zlUICheck.Create;
+        this.create_func['combo']=zlUICombo.Create;
+        this.create_func['slider']=zlUISlider.Create;
+        this.create_func['imagetext']=zlUIImageText.Create;
+        this.create_func['tree']=zlUITree.Create;
+        this.create_func['particle']=zlUIParticle.Create;
     }
 
     on_create: ((this: zlUIWin, name: string) => any) | null; 
@@ -5260,6 +5853,9 @@ export class zlUIMgr extends zlUIWin
             break;
         case "loadpackimage":
             await this.LoadTexturePack(toks[1], this.path);
+            break;
+        case "loadimage":
+            await this.LoadImage(toks[1], this.path);
             break;
         case "include":
             await this.Load(toks[1], this.path);
@@ -5340,6 +5936,12 @@ export class zlUIMgr extends zlUIWin
         });
         return await this.texture.Parse(new Parser(t));
     }
+    async LoadImage(file:string, path:string) {
+        if(!this.texture)   {
+            this.texture=new zlTexturePack(this);
+        }
+        await this.texture.LoadImage(file);
+    }
 
     Create(name:string):zlUIWin
     {
@@ -5349,31 +5951,14 @@ export class zlUIMgr extends zlUIWin
                 return obj;
             }
         }
-        switch(name) {
-        case 'win':
-            return new zlUIWin(this);
-        case 'panel':
-            return new zlUIPanel(this);
-        case 'image':
-            return new zlUIImage(this);
-        case 'button':
-            return new zlUIButton(this);
-        case 'check':
-            return new zlUICheck(this);
-        case 'combo':
-            return new zlUICombo(this);
-        case 'edit':
-            return new zlUIEdit(this);
-        case 'slider':
-            return new zlUISlider(this);
-        case 'imagetext':
-            return new zlUIImageText(this);
-        case 'tree':
-            return new zlUITree(this);
-        default:
-            console.log("zlUIMgr unknow object " + name);
-            return undefined;
+        let create_func=this.create_func[name];
+        if(create_func) {
+            return create_func(this);
         }
+        else {
+            console.log("zlUIMgr unknow object " + name);
+        }
+        return undefined;
     }
     Refresh(ti:number, parent?:zlUIWin):boolean 
     {
@@ -5540,8 +6125,8 @@ export class zlUIMgr extends zlUIWin
 
     ScaleWH(w:number, h:number, mode:ScaleMode):void 
     {
-        var sx=w/this.w;
-        var sy=h/this.h;
+        var sx=w/this.default_w;
+        var sy=h/this.default_h;
         switch(mode) {
         case ScaleMode.AspectRatio:
             var scale=1;
@@ -5554,7 +6139,8 @@ export class zlUIMgr extends zlUIWin
                 this.x=0;
                 this.y=(h-this.h*scale)*0.5;
             }
-            super.Scale(scale);
+            this.scale=scale;
+            //super.Scale(scale);
             break;
         case ScaleMode.Stretch:
             this.x=0;
@@ -5792,5 +6378,7 @@ export class zlUIMgr extends zlUIWin
     calrect_object:string[];
 
     backend:IBackend;
+
+    create_func:{[key:string]:(own:zlUIMgr)=>zlUIWin};
 }
 

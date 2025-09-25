@@ -15,7 +15,7 @@ import {ImGui, ImGui_Impl} from '@zhobo63/imgui-ts';
 import {ImVec4 } from '@zhobo63/imgui-ts/src/imgui';
 
 let lockTime=0;
-let lockFps=1/5;
+let lockFps=1/30;
 let prevTime=0;
 
 class App

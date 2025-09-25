@@ -1,4 +1,4 @@
-import { IBackend, IFont, ITexture, IVec2, Rect, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIPanel, zlUISlider, zlUITree, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { IBackend, IFont, IPaint, ITexture, IVec2, Rect, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
 
 class DOMTexture implements ITexture
 {
@@ -58,18 +58,8 @@ export class BackendDOM implements IBackend
     }
     PushClipRect(rect:Rect) {}
     PopClipRect() {}
+    Paint(obj:zlUIWin) {}
 
-    PaintUIWin(obj:zlUIWin) {}
-    PaintUIImage(obj:zlUIImage) {}
-    PaintUIPanel(obj:zlUIPanel) {}
-    PaintUIEdit(obj:zlUIEdit) {}
-    PaintUIButton(obj:zlUIButton) {}
-    PaintUICheck(obj:zlUICheck) {}
-    PaintUICombo(obj:zlUICombo) {}
-    PaintUISlider(obj:zlUISlider) {}
-    PaintUIImageText(obj:zlUIImageText) {}
-    PaintUITree(obj:zlUITree) {}
-    PaintUITreeNodeOpen(obj:zlUITreeNodeOpen) {}
-
+    paint:{[key:string]:IPaint};
     font:DOMFont;
 }
