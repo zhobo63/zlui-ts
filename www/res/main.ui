@@ -281,6 +281,14 @@ Clone Panel
     }
 }
 
+Clone EditItem
+{
+    Name ed_item
+    RectWH 600 200 400 30
+    TextAlignW right
+    Value 123 555
+}
+
 TrackGroup rot
 {
     Track pnl_arrange

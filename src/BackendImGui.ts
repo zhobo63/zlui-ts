@@ -1,32 +1,37 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, ECornerFlags, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, Transform, UIImage, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { Board, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
 
-let vec_a=new ImGui.Vec2;
-let vec_b=new ImGui.Vec2;
-let vec_c=new ImGui.Vec2;
-let vec_d=new ImGui.Vec2;
-let vec4_a=new ImGui.Vec4;
-let mat2_a=new ImGui.Transform;
+export let vec_a=new ImGui.Vec2;
+export let vec_b=new ImGui.Vec2;
+export let vec_c=new ImGui.Vec2;
+export let vec_d=new ImGui.Vec2;
+export let vec_1=new ImGui.Vec2;
+export let vec_2=new ImGui.Vec2;
+export let vec_3=new ImGui.Vec2;
+export let vec_4=new ImGui.Vec2;
 
-function toImDrawCornerFlags(f:ECornerFlags):ImGui.ImDrawCornerFlags
+export let vec4_a=new ImGui.Vec4;
+export let mat2_a=new ImGui.Transform;
+
+export function toImDrawCornerFlags(f:ECornerFlags):ImGui.ImDrawCornerFlags
 {
     let n=f as number;
     return n as ImGui.ImDrawCornerFlags;
 }
 
-function toImVec2(to:ImGui.Vec2, v:Vec2):ImGui.Vec2
+export function toImVec2(to:ImGui.Vec2, v:Vec2):ImGui.Vec2
 {
     to.Set(v.x, v.y);
     return to;
 }
-function toImVec4(to:ImGui.Vec4, v:Vec4):ImGui.Vec4
+export function toImVec4(to:ImGui.Vec4, v:Vec4):ImGui.Vec4
 {
     to.Set(v.x, v.y, v.z, v.w);
     return to;
 }
 
-function toImTransform(to:ImGui.Transform, m:Transform):ImGui.Transform
+export function toImTransform(to:ImGui.Transform, m:Transform):ImGui.Transform
 {
     to.rotate.Set(
         m.rotate.m11,
@@ -87,6 +92,183 @@ export function RenderArrow(drawlist:ImDrawList, pos:Vec2, color:number,dir:ImGu
     drawlist.AddTriangleFilled(vec_a, vec_b, vec_c, color);
 }
 
+export function RenderImage(drawlist:ImDrawList, image: TexturePack, 
+    r:Rect, col:number, rounding:number, corner:ECornerFlags)
+{
+    drawlist.AddImageRounded(
+        image.texture._texture, 
+        toImVec2(vec_a, r.xy), 
+        toImVec2(vec_b, r.max),
+        toImVec2(vec_c, image.uv1), 
+        toImVec2(vec_d, image.uv2),
+        col,
+        rounding, toImDrawCornerFlags(corner));
+}
+
+export function RenderBoard(drawlist:ImDrawList, board:Board, r:Rect, col:number)
+{
+    if(!board.vert)   {
+        const iw=board.image.x2-board.image.x1;
+        const ih=board.image.y2-board.image.y1;
+        const x1=r.xy.x;
+        const x2=x1+board.x1;
+        const x3=r.max.x-(iw-board.x2);
+        const x4=r.max.x;
+        const y1=r.xy.y;
+        const y2=y1+board.y1;
+        const y3=r.max.y-(ih-board.y2);
+        const y4=r.max.y;
+
+        board.vert=[];
+        board.vert.push(new Vec2(x1, y1));
+        board.vert.push(new Vec2(x2, y1));
+        board.vert.push(new Vec2(x3, y1));
+        board.vert.push(new Vec2(x4, y1));
+        board.vert.push(new Vec2(x1, y2));
+        board.vert.push(new Vec2(x2, y2));
+        board.vert.push(new Vec2(x3, y2));
+        board.vert.push(new Vec2(x4, y2));
+        board.vert.push(new Vec2(x1, y3));
+        board.vert.push(new Vec2(x2, y3));
+        board.vert.push(new Vec2(x3, y3));
+        board.vert.push(new Vec2(x4, y3));
+        board.vert.push(new Vec2(x1, y4));
+        board.vert.push(new Vec2(x2, y4));
+        board.vert.push(new Vec2(x3, y4));
+        board.vert.push(new Vec2(x4, y4));
+
+        board.visible=[];
+        board.visible.push((x2-x1)>0 && (y2-y1)>0);
+        board.visible.push((x3-x2)>0 && (y2-y1)>0);
+        board.visible.push((x4-x3)>0 && (y2-y1)>0);
+        board.visible.push((x2-x1)>0 && (y3-y2)>0);
+        board.visible.push((x3-x2)>0 && (y3-y2)>0);
+        board.visible.push((x4-x3)>0 && (y3-y2)>0);
+        board.visible.push((x2-x1)>0 && (y4-y3)>0);
+        board.visible.push((x3-x2)>0 && (y4-y3)>0);
+        board.visible.push((x4-x3)>0 && (y4-y3)>0);
+
+        const sw=1.0/board.image.texture._width;
+        const sh=1.0/board.image.texture._height;
+        const u1=board.image.uv1.x;
+        const u2=board.image.uv1.x+board.x1*sw;
+        const u3=board.image.uv1.x+board.x2*sw;
+        const u4=board.image.uv2.x;
+        const v1=board.image.uv1.y;
+        const v2=board.image.uv1.y+board.y1*sh;
+        const v3=board.image.uv1.y+board.y2*sh;
+        const v4=board.image.uv2.y;
+        board.uv=[];
+        board.uv.push(new Vec2(u1, v1));
+        board.uv.push(new Vec2(u2, v1));
+        board.uv.push(new Vec2(u3, v1));
+        board.uv.push(new Vec2(u4, v1));
+        board.uv.push(new Vec2(u1, v2));
+        board.uv.push(new Vec2(u2, v2));
+        board.uv.push(new Vec2(u3, v2));
+        board.uv.push(new Vec2(u4, v2));
+        board.uv.push(new Vec2(u1, v3));
+        board.uv.push(new Vec2(u2, v3));
+        board.uv.push(new Vec2(u3, v3));
+        board.uv.push(new Vec2(u4, v3));
+        board.uv.push(new Vec2(u1, v4));
+        board.uv.push(new Vec2(u2, v4));
+        board.uv.push(new Vec2(u3, v4));
+        board.uv.push(new Vec2(u4, v4));
+    }
+
+    for(let i=0;i<3;i++)    {
+        if(board.visible[i])    {
+            drawlist.AddImage(board.image.texture._texture,
+                toImVec2(vec_a, board.vert[i]), 
+                toImVec2(vec_b, board.vert[i+5]), 
+                toImVec2(vec_c, board.uv[i]),
+                toImVec2(vec_d, board.uv[i+5]), col);
+        }
+        if(board.visible[i+3])    {
+            drawlist.AddImage(board.image.texture._texture,
+                toImVec2(vec_a, board.vert[i+4]),
+                toImVec2(vec_b, board.vert[i+9]), 
+                toImVec2(vec_c, board.uv[i+4]), 
+                toImVec2(vec_d, board.uv[i+9]), col);
+        }
+        if(board.visible[i+6])    {
+            drawlist.AddImage(board.image.texture._texture,
+                toImVec2(vec_a, board.vert[i+8]), 
+                toImVec2(vec_b, board.vert[i+13]), 
+                toImVec2(vec_c, board.uv[i+8]), 
+                toImVec2(vec_d, board.uv[i+13]), col);
+        }
+    }
+}
+
+export function RenderClient(drawlist:ImDrawList, xy:Vec2, xy2:Vec2, 
+    col4:number[], col:number, alpha:number,
+    rounding:number, corner:ECornerFlags)
+{
+    if(col4) {
+        drawlist.AddRectFilledMultiColorRound(
+            toImVec2(vec_a, xy), 
+            toImVec2(vec_b, xy2), 
+            MultiplyAlpha(col4[0],alpha), 
+            MultiplyAlpha(col4[1],alpha), 
+            MultiplyAlpha(col4[2],alpha), 
+            MultiplyAlpha(col4[3],alpha), 
+            rounding, toImDrawCornerFlags(corner));
+    }else {
+        drawlist.AddRectFilled(
+            toImVec2(vec_a, xy),
+            toImVec2(vec_b, xy2), 
+            MultiplyAlpha(col,alpha), 
+            rounding, toImDrawCornerFlags(corner));
+    }
+}
+
+export function RenderCheck(drawlist:ImDrawList, xy:Vec2, max:Vec2, 
+    borderColor:number, textColor:number, alpha:number, rounding:number, checked:boolean)
+{
+    drawlist.AddRect(
+        toImVec2(vec_a, xy),
+        toImVec2(vec_b, max),
+        MultiplyAlpha(borderColor, alpha), 
+        rounding, ImGui.ImDrawCornerFlags.All, 1);
+    if(checked) {
+        let x=xy.x+2;
+        let y=xy.y+2;
+        RenderCheckMark(drawlist, x,y,
+            MultiplyAlpha(textColor, alpha), 16);
+    }
+}
+
+export function RenderText(drawlist:ImDrawList, font:IFont, text:string,
+    pos:Vec2, wrap_width:number, color:number, clip:Vec4)
+{
+    let textPos=toImVec2(vec_a, pos);
+    let imfont=(font as ImFont).font;
+    let textClip=toImVec4(vec4_a, clip);
+    if(Use_Transform) {
+        imfont.RenderText(drawlist, font.size, textPos, 
+            color,
+            textClip, text, text.length, wrap_width, true);    
+    }else {
+        drawlist.AddText(imfont, font.size,
+            textPos, color, text, text.length, wrap_width,
+            textClip);
+    }
+}
+
+export function RenderBorder(drawlist:ImDrawList, xy:Vec2, xy2:Vec2, 
+    col:number, alpha:number,
+    rounding:number, corner:ECornerFlags, borderWidth:number)
+{
+    drawlist.AddRect(
+        toImVec2(vec_a, xy),
+        toImVec2(vec_b, xy2), 
+        MultiplyAlpha(col, alpha),
+        rounding, toImDrawCornerFlags(corner),
+        borderWidth);
+}
+
 class ImFont implements IFont
 {
     constructor()
@@ -114,7 +296,9 @@ class ImFont implements IFont
             y:fz.y
         };
     }    
-
+    CSS():string {
+        return `${this.style} ${this.size}px ${this.name}`;
+    }
     name:string;
     style:string;
     size:number;
@@ -130,6 +314,10 @@ export class PaintWin implements IPaint
 
     Paint()
     {
+    }
+    PaintEnd() 
+    {
+
     }
 
     get drawlist() {
@@ -163,18 +351,9 @@ export class PaintImage extends PaintWin
     PaintImage() 
     {
         let obj:zlUIImage=this.obj as zlUIImage;
-        if(obj.image)  {            
-            let im=obj.image;
-            if(im.texture._texture) {
-                this.drawlist.AddImageRounded(
-                    im.texture._texture, 
-                    toImVec2(vec_a, obj._localRect.xy), 
-                    toImVec2(vec_b, obj._localRect.max),
-                    toImVec2(vec_c, im.uv1), 
-                    toImVec2(vec_d,im.uv2),
-                    MultiplyAlpha(obj.color, obj.alpha),
-                    obj.rounding, toImDrawCornerFlags(obj.roundingCorner));
-            }
+        if(obj.image && obj.image.texture._texture)  {            
+            RenderImage(this.drawlist, obj.image, obj._localRect, 
+                MultiplyAlpha(obj.color, obj.alpha), obj.rounding, obj.roundingCorner);
         }        
     }
 }
@@ -194,124 +373,16 @@ export class PaintPanel extends PaintImage
             board.image=UpdateTexturePack(board.image);
         }
         let obj=this.obj as zlUIPanel;
-        if(!board.vert)   {
-            const iw=board.image.x2-board.image.x1;
-            const ih=board.image.y2-board.image.y1;
-            const x1=obj._localRect.xy.x;
-            const x2=x1+board.x1;
-            const x3=obj._localRect.max.x-(iw-board.x2);
-            const x4=obj._localRect.max.x;
-            const y1=obj._localRect.xy.y;
-            const y2=y1+board.y1;
-            const y3=obj._localRect.max.y-(ih-board.y2);
-            const y4=obj._localRect.max.y;
-
-            board.vert=[];
-            board.vert.push(new Vec2(x1, y1));
-            board.vert.push(new Vec2(x2, y1));
-            board.vert.push(new Vec2(x3, y1));
-            board.vert.push(new Vec2(x4, y1));
-            board.vert.push(new Vec2(x1, y2));
-            board.vert.push(new Vec2(x2, y2));
-            board.vert.push(new Vec2(x3, y2));
-            board.vert.push(new Vec2(x4, y2));
-            board.vert.push(new Vec2(x1, y3));
-            board.vert.push(new Vec2(x2, y3));
-            board.vert.push(new Vec2(x3, y3));
-            board.vert.push(new Vec2(x4, y3));
-            board.vert.push(new Vec2(x1, y4));
-            board.vert.push(new Vec2(x2, y4));
-            board.vert.push(new Vec2(x3, y4));
-            board.vert.push(new Vec2(x4, y4));
-
-            board.visible=[];
-            board.visible.push((x2-x1)>0 && (y2-y1)>0);
-            board.visible.push((x3-x2)>0 && (y2-y1)>0);
-            board.visible.push((x4-x3)>0 && (y2-y1)>0);
-            board.visible.push((x2-x1)>0 && (y3-y2)>0);
-            board.visible.push((x3-x2)>0 && (y3-y2)>0);
-            board.visible.push((x4-x3)>0 && (y3-y2)>0);
-            board.visible.push((x2-x1)>0 && (y4-y3)>0);
-            board.visible.push((x3-x2)>0 && (y4-y3)>0);
-            board.visible.push((x4-x3)>0 && (y4-y3)>0);
-
-            const sw=1.0/board.image.texture._width;
-            const sh=1.0/board.image.texture._height;
-            const u1=board.image.uv1.x;
-            const u2=board.image.uv1.x+board.x1*sw;
-            const u3=board.image.uv1.x+board.x2*sw;
-            const u4=board.image.uv2.x;
-            const v1=board.image.uv1.y;
-            const v2=board.image.uv1.y+board.y1*sh;
-            const v3=board.image.uv1.y+board.y2*sh;
-            const v4=board.image.uv2.y;
-            board.uv=[];
-            board.uv.push(new Vec2(u1, v1));
-            board.uv.push(new Vec2(u2, v1));
-            board.uv.push(new Vec2(u3, v1));
-            board.uv.push(new Vec2(u4, v1));
-            board.uv.push(new Vec2(u1, v2));
-            board.uv.push(new Vec2(u2, v2));
-            board.uv.push(new Vec2(u3, v2));
-            board.uv.push(new Vec2(u4, v2));
-            board.uv.push(new Vec2(u1, v3));
-            board.uv.push(new Vec2(u2, v3));
-            board.uv.push(new Vec2(u3, v3));
-            board.uv.push(new Vec2(u4, v3));
-            board.uv.push(new Vec2(u1, v4));
-            board.uv.push(new Vec2(u2, v4));
-            board.uv.push(new Vec2(u3, v4));
-            board.uv.push(new Vec2(u4, v4));
-        }
-        let col=MultiplyAlpha(board.color, obj.alpha);
-        let drawlist=this.drawlist;
-
-        for(let i=0;i<3;i++)    {
-            if(board.visible[i])    {
-                drawlist.AddImage(board.image.texture._texture,
-                    toImVec2(vec_a, board.vert[i]), 
-                    toImVec2(vec_b, board.vert[i+5]), 
-                    toImVec2(vec_c, board.uv[i]),
-                    toImVec2(vec_d, board.uv[i+5]), col);
-            }
-            if(board.visible[i+3])    {
-                drawlist.AddImage(board.image.texture._texture,
-                    toImVec2(vec_a, board.vert[i+4]),
-                    toImVec2(vec_b, board.vert[i+9]), 
-                    toImVec2(vec_c, board.uv[i+4]), 
-                    toImVec2(vec_d, board.uv[i+9]), col);
-            }
-            if(board.visible[i+6])    {
-                drawlist.AddImage(board.image.texture._texture,
-                    toImVec2(vec_a, board.vert[i+8]), 
-                    toImVec2(vec_b, board.vert[i+13]), 
-                    toImVec2(vec_c, board.uv[i+8]), 
-                    toImVec2(vec_d, board.uv[i+13]), col);
-            }
-        }
+        RenderBoard(this.drawlist, board, obj._localRect, MultiplyAlpha(board.color, obj.alpha));
     }
 
     PaintClient()
     {
         let obj=this.obj as zlUIPanel;
         if(obj.isDrawClient)   {
-            let drawlist=this.drawlist;
-            if(obj.color4) {
-                drawlist.AddRectFilledMultiColorRound(
-                    toImVec2(vec_a, obj._localRect.xy), 
-                    toImVec2(vec_b, obj._localRect.max), 
-                    MultiplyAlpha(obj.color4[0],obj.alpha), 
-                    MultiplyAlpha(obj.color4[1],obj.alpha), 
-                    MultiplyAlpha(obj.color4[2],obj.alpha), 
-                    MultiplyAlpha(obj.color4[3],obj.alpha),
-                    obj.rounding, toImDrawCornerFlags(obj.roundingCorner));
-            }else {
-                drawlist.AddRectFilled(
-                    toImVec2(vec_a, obj._localRect.xy),
-                    toImVec2(vec_b, obj._localRect.max), 
-                    MultiplyAlpha(obj.color, obj.alpha),
-                    obj.rounding, toImDrawCornerFlags(obj.roundingCorner));
-            }
+            RenderClient(this.drawlist, obj._localRect.xy, obj._localRect.max,
+                obj.color4, obj.color, obj.alpha, 
+                obj.rounding, obj.roundingCorner);
         }        
     }
 
@@ -319,13 +390,11 @@ export class PaintPanel extends PaintImage
     {
         let obj=this.obj as zlUIPanel;
         if(obj.text && obj._textPos)   {
-            let textPos=toImVec2(vec_a, obj._textPos);
             let wrap_width=obj.w-obj.padding-obj.padding;
             let text=(typeof obj.text === "string") ? obj.text:""+obj.text;
             if(obj._textRemaining>0) {
                 text=text.substring(0,obj._textRemaining)+"…";
             }
-
             let font=obj._owner.GetFont(obj.fontIndex);
             let wrap=obj.isMultiline?wrap_width:0;
             let color=obj.textColor;
@@ -333,21 +402,7 @@ export class PaintPanel extends PaintImage
                 color=obj.textColorHover;
             }
             color=MultiplyAlpha(color, obj.alpha);
-            if(color===undefined) {
-                console.log(obj.Name);
-            }
-            let imfont=(font as ImFont).font;
-            let drawlist=this.drawlist;
-            let textClip=toImVec4(vec4_a, obj._textClip);
-            if(Use_Transform) {
-                imfont.RenderText(drawlist, font.size, textPos, 
-                    color,
-                    textClip, text, text.length, wrap, true);    
-            }else {
-                drawlist.AddText(imfont, font.size,
-                    textPos, color, text, text.length, wrap,
-                    textClip);
-            }
+            RenderText(this.drawlist, font, text, obj._textPos, wrap, color, obj._textClip);
         }
     }
 
@@ -362,30 +417,14 @@ export class PaintPanel extends PaintImage
         }
         let drawlist=this.drawlist;
         if(obj.isDrawHover && obj._owner.hover==obj) {
-            if(obj.colorHover4) {
-                drawlist.AddRectFilledMultiColorRound(
-                    toImVec2(vec_a, obj._localRect.xy), 
-                    toImVec2(vec_b, obj._localRect.max), 
-                    MultiplyAlpha(obj.colorHover4[0], obj.alpha),
-                    MultiplyAlpha(obj.colorHover4[1], obj.alpha),
-                    MultiplyAlpha(obj.colorHover4[2], obj.alpha),
-                    MultiplyAlpha(obj.colorHover4[3], obj.alpha),
-                    obj.rounding, toImDrawCornerFlags(obj.roundingCorner))
-            }else {
-                drawlist.AddRectFilled(
-                    toImVec2(vec_a, obj._localRect.xy),
-                    toImVec2(vec_b, obj._localRect.max),
-                    MultiplyAlpha(obj.colorHover, obj.alpha),
-                    obj.rounding, toImDrawCornerFlags(obj.roundingCorner));
-            }
+            RenderClient(drawlist, obj._localRect.xy, obj._localRect.max,
+                obj.colorHover4, obj.colorHover, obj.alpha,
+                obj.rounding, obj.roundingCorner);
         }
         if(obj.isDrawBorder)   {
-            drawlist.AddRect(
-                toImVec2(vec_a, obj._localRect.xy),
-                toImVec2(vec_b, obj._localRect.max), 
-                MultiplyAlpha(obj.borderColor, obj.alpha),
-                obj.rounding, toImDrawCornerFlags(obj.roundingCorner),
-                obj.borderWidth);
+            RenderBorder(drawlist, obj._localRect.xy, obj._localRect.max,
+                obj.borderColor, obj.alpha,
+                obj.rounding, obj.roundingCorner, obj.borderWidth);
         }
         this.PaintText();
     }
@@ -433,16 +472,7 @@ export class PaintEdit extends PaintPanel
                 color=obj.textColorHover;
             }
             color=MultiplyAlpha(color, obj.alpha);
-            let imfont=(font as ImFont).font;
-            let drawlist=this.drawlist;
-            let textClip=toImVec4(vec4_a, obj._textClip);
-            let textPos=toImVec2(vec_a, obj._textPos);
-            if(Use_Transform) {
-                imfont.RenderText(drawlist, font.size, textPos, color,
-                    textClip, text, text.length, wrap, true);    
-            }else {
-                drawlist.AddText(imfont, font.size, textPos, color, text, text.length, wrap, textClip);
-            }
+            RenderText(this.drawlist, font, text, obj._textPos, wrap, color, obj._textClip);
         }
     }
 
@@ -457,25 +487,9 @@ export class PaintButton extends PaintPanel
     PaintClient(): void {
         let obj=this.obj as zlUIButton;
         if(obj.isDrawClient)   {
-            let color:number=obj.color;
-            let color4:number[]=obj.color4;
-            let drawlist=this.drawlist;
-            if(color4) {
-                drawlist.AddRectFilledMultiColorRound(
-                    toImVec2(vec_a, obj._localRect.xy),
-                    toImVec2(vec_b, obj._localRect.max), 
-                    MultiplyAlpha(color4[0], obj.alpha), 
-                    MultiplyAlpha(color4[1], obj.alpha), 
-                    MultiplyAlpha(color4[2], obj.alpha), 
-                    MultiplyAlpha(color4[3], obj.alpha), 
-                    obj.rounding, toImDrawCornerFlags(obj.roundingCorner));
-            }else {
-                drawlist.AddRectFilled(
-                    toImVec2(vec_a, obj._localRect.xy),
-                    toImVec2(vec_b, obj._localRect.max),
-                    MultiplyAlpha(color, obj.alpha),
-                    obj.rounding, toImDrawCornerFlags(obj.roundingCorner));
-            }
+            RenderClient(this.drawlist, obj._localRect.xy, obj._localRect.max,
+                obj.color4, obj.color, obj.alpha, 
+                obj.rounding, obj.roundingCorner);
         }
     }
 }
@@ -490,18 +504,8 @@ export class PaintCheck extends PaintButton
     PaintCheck():void
     {
         let obj=this.obj as zlUICheck;
-        let drawlist=this.drawlist;
-        drawlist.AddRect(
-            toImVec2(vec_a, obj.checkmark_xy),
-            toImVec2(vec_b, obj.checkmark_max),
-            MultiplyAlpha(obj.borderColor, obj.alpha), 
-            obj.rounding, ImGui.ImDrawCornerFlags.All, 1);
-        if(obj.isChecked) {
-            let x=obj.checkmark_xy.x+2;
-            let y=obj.checkmark_xy.y+2;
-            RenderCheckMark(drawlist, x,y,
-                MultiplyAlpha(obj.textColor, obj.alpha), 16);
-        }
+        RenderCheck(this.drawlist, obj.checkmark_xy, obj.checkmark_max, 
+            obj.borderColor, obj.textColor, obj.alpha, obj.rounding, obj.isChecked);
     }
     Paint():void 
     {
@@ -574,37 +578,9 @@ export class PaintSlider extends PaintPanel
                 barxy2=obj._scrollWxy2;
             }
             if(obj._is_scrollbar_hover) {
-                if(obj.scrollbarColorHover4) {
-                    drawlist.AddRectFilledMultiColorRound(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(obj.scrollbarColorHover4[0],obj.alpha), 
-                        MultiplyAlpha(obj.scrollbarColorHover4[1],obj.alpha), 
-                        MultiplyAlpha(obj.scrollbarColorHover4[2],obj.alpha), 
-                        MultiplyAlpha(obj.scrollbarColorHover4[3],obj.alpha),
-                        4, ImGui.ImDrawCornerFlags.All);
-                }else {
-                    drawlist.AddRectFilled(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(obj.scrollbarColorHover, obj.alpha), 4);
-                }
+                RenderClient(drawlist, barxy, barxy2, obj.scrollbarColorHover4, obj.scrollbarColorHover, obj.alpha, 4, ECornerFlags.All);
             }else {
-                if(obj.scrollbarColor4) {
-                    drawlist.AddRectFilledMultiColorRound(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(obj.scrollbarColor4[0],obj.alpha), 
-                        MultiplyAlpha(obj.scrollbarColor4[1],obj.alpha), 
-                        MultiplyAlpha(obj.scrollbarColor4[2],obj.alpha), 
-                        MultiplyAlpha(obj.scrollbarColor4[3],obj.alpha),
-                        4, ImGui.ImDrawCornerFlags.All);
-                }else {
-                    drawlist.AddRectFilled(
-                        toImVec2(vec_a, barxy),
-                        toImVec2(vec_b, barxy2), 
-                        MultiplyAlpha(obj.scrollbarColor, obj.alpha), 4);
-                }
+                RenderClient(drawlist, barxy, barxy2, obj.scrollbarColor4, obj.scrollbarColor, obj.alpha, 4, ECornerFlags.All);
             }
             if(Use_Transform) {
                 drawlist.Transform(toImTransform(mat2_a, obj._world), vstart);
@@ -675,6 +651,73 @@ export class PaintTreeNodeOpen extends PaintCheck
     }    
 }
 
+export class PaintEditItem extends PaintPanel
+{
+    constructor(backend:BackendImGui)
+    {
+        super(backend);
+    }
+
+    PaintEditItem() {
+        this.PaintText();
+        let obj=this.obj as zlUIEditItem;
+        let font=obj._owner.GetFont(obj.fontIndex);
+        let th=(obj.h-obj._textSize.y)*0.5;
+        
+        if(obj.value !== undefined) {
+            let value_w=obj.w-obj.label_width;
+            let vw=value_w/obj.value.length;
+            let xy=Clone(obj._localRect.xy);
+            let xy2=Clone(obj._localRect.max);
+            
+            for(let value of obj.value) {
+                this.xy.Set(xy.x+obj.label_width, xy.y);
+                this.xy2.Set(this.xy.x+vw-1, xy2.y);
+
+                RenderClient(this.drawlist, this.xy, this.xy2, obj.color4, obj.color, obj.alpha,
+                    obj.rounding, obj.roundingCorner);
+
+                if(obj.isDrawBorder) {
+                    RenderBorder(this.drawlist, this.xy, this.xy2, obj.borderColor, obj.alpha,
+                        obj.rounding, obj.roundingCorner, obj.borderWidth);
+                }
+
+                this.xy.x+=4;
+                this.xy.y+=th;
+
+                this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
+                RenderText(this.drawlist, font, value, this.xy, 0, obj.textColor, this.clip);
+
+                xy.x+=vw;
+            }
+
+            switch(obj.type) {
+            case 'text':
+                break;
+            }
+        }
+    }
+
+    Paint()
+    {
+        if(Use_Transform) {
+            let obj=this.obj as zlUIEditItem;
+            if(obj._world) {
+                let drawlist=this.drawlist;
+                let vstart=drawlist.GetVertexSize();    
+                this.PaintEditItem();
+                drawlist.Transform(toImTransform(mat2_a, obj._world), vstart);
+            }
+        }else {
+            this.PaintEditItem();
+        }
+    }
+
+    xy:Vec2=new Vec2;
+    xy2:Vec2=new Vec2;
+    clip:Vec4=new Vec4;
+}
+
 export class PaintParticle extends PaintWin
 {
     constructor(backend:BackendImGui)
@@ -708,11 +751,44 @@ export class PaintParticle extends PaintWin
             if(pt.life<0)
                 continue;
             let hsize=pt.size*0.5;
+            let col=MultiplyAlpha(pt.color.toColorHex(), obj.alpha);
+
+            if(obj.controller.shape==EParticleShape.eQuad) {
+                let len=pt.vec.Legnth();
+                if(len > Math.max(pt.size, 1)) {
+                    let inv=1/len;
+                    let nvec_x=pt.vec.x*inv;
+                    let nvec_y=pt.vec.y*inv;                    
+                    let p2_x=pt.pos.x-pt.vec.x;
+                    let p2_y=pt.pos.y-pt.vec.y;                    
+                    let cvec_x=nvec_y*hsize;
+                    let cvec_y=-nvec_x*hsize;
+                    
+                    vec_a.Set(pt.pos.x+cvec_x, pt.pos.y+cvec_y);
+                    vec_b.Set(pt.pos.x-cvec_x, pt.pos.y-cvec_y);
+                    vec_c.Set(p2_x-cvec_x,p2_y-cvec_y);
+                    vec_d.Set(p2_x+cvec_x,p2_y+cvec_y);
+                    if(obj.image) {
+                        vec_1.Set(obj.image.uv1.x, obj.image.uv1.y);
+                        vec_2.Set(obj.image.uv2.x, obj.image.uv1.y);
+                        vec_3.Set(obj.image.uv2.x, obj.image.uv2.y);
+                        vec_4.Set(obj.image.uv1.x, obj.image.uv2.y);
+                        drawlist.AddImageQuad(obj.image.texture._texture,
+                            vec_a, vec_b, vec_c, vec_d,
+                            vec_1, vec_2, vec_3, vec_4, col
+                        );
+                    }else {
+                        drawlist.AddQuadFilled(vec_a, vec_b, vec_c, vec_d, col);
+                    }
+
+                    continue;
+                }
+            }
             let px=pt.pos.x+xy.x;
             let py=pt.pos.y+xy.y;
             vec_a.Set(px-hsize, py-hsize);
             vec_b.Set(px+hsize, py+hsize);
-            let col=MultiplyAlpha(pt.color.toColorHex(), obj.alpha);
+
             if(obj.image) {
                 drawlist.AddImage(obj.image.texture._texture,
                     vec_a,vec_b,
@@ -722,7 +798,7 @@ export class PaintParticle extends PaintWin
             }else {
                 drawlist.AddRectFilled(
                     vec_a, vec_b, col
-                )
+                )                
             }
         }
         drawlist.SetBlend(ImGui.Blend.ALPHA);
@@ -752,7 +828,9 @@ export class BackendImGui implements IBackend
         this.paint[zlUITree.CSID]=new PaintSlider(this);
         this.paint[zlUIImageText.CSID]=new PaintImageText(this);
         this.paint[zlUITreeNodeOpen.CSID]=new PaintTreeNodeOpen(this);
+        this.paint[zlUIEditItem.CSID]=new PaintEditItem(this);
         this.paint[zlUIParticle.CSID]=new PaintParticle(this);
+        this.paint[zlUIMgr.CSID]=new PaintWin(this);
     }
 
     async CreateTexture(url:string):Promise<ITexture>
@@ -826,10 +904,19 @@ export class BackendImGui implements IBackend
         let paint=this.paint[obj._csid];
         if(!paint) {
             console.error("BackendImGui::Paint", obj._csid);
+            return;
         }
         paint.obj=obj;
         paint.Paint();
         paint.obj=null;
+    }
+    PaintEnd(obj: zlUIWin) 
+    {
+
+    }
+    SetParent(obj: zlUIWin) 
+    {
+
     }
 
     paint:{[key:string]:IPaint};

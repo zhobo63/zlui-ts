@@ -64,6 +64,9 @@ ImTransform when rotate or scale
 
 - 0.1.40
     zlUIParticle
+        [TODO] Emitter
+        Controller
+        Force
 
 - 0.1.22
 

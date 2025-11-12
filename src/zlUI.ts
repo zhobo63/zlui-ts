@@ -1,5 +1,5 @@
 
-export const Version="0.1.40";
+export const Version="0.1.41";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -67,6 +67,7 @@ UIVideo
 export interface IPaint
 {
     Paint:()=>void;
+    PaintEnd:()=>void;
 
     obj:zlUIWin;
 }
@@ -79,6 +80,8 @@ export interface IBackend
     PushClipRect:(rect:Rect)=>void;
     PopClipRect:()=>void;
     Paint:(obj:zlUIWin)=>void;
+    PaintEnd:(obj:zlUIWin)=>void;
+    SetParent:(obj:zlUIWin)=>void;
 
     paint:{[key:string]:IPaint};
 }
@@ -93,6 +96,7 @@ export interface IFont
     AddFontRange:(start:number, end:number)=>void;
     MergeFont:(font:IFont)=>void;
     CalTextSize:(size: number, max_width: number, wrap_width: number, text_begin: string, text_end?: number, isready?:boolean[])=>IVec2
+    CSS:()=>string;
 }
 
 export interface ITexture
@@ -200,7 +204,7 @@ function to_rgba(c:number):string
     const g=(c>>8)&0xff;
     const b=(c>>16)&0xff;
     const a=(c>>>24)&0xff;        
-    return "rgba("+r+","+g+","+b+","+a+")";
+    return `rgba(${r},${g},${b},${a})`;
 }
 
 function to_rgb(c:number):string
@@ -208,7 +212,7 @@ function to_rgb(c:number):string
     const r=c&0xff;
     const g=(c>>8)&0xff;
     const b=(c>>16)&0xff;
-    return "rgba("+r+","+g+","+b+",255)";
+    return `rgba(${r},${g},${b},255)`;
 }
 
 export function toColorHex(c:Vec4):number
@@ -557,6 +561,17 @@ export class Vec2 implements IVec2
         }
     }
 
+    Dot(v:IVec2): number {
+        return this.x*v.x+this.y*v.y;
+    }
+
+    Cross(): IVec2 {
+        return {
+            x:this.y,
+            y:-this.x
+        }
+    }
+
     x:number = 0;
     y:number = 0;
 
@@ -575,6 +590,13 @@ export interface IVec4
 export class Vec4 implements IVec4
 {
     constructor(x:number=0, y:number=0, z:number=0, w:number=0) {
+        this.x=x;
+        this.y=y;
+        this.z=z;
+        this.w=w;
+    }
+
+    Set(x:number, y:number, z:number, w:number) {
         this.x=x;
         this.y=y;
         this.z=z;
@@ -1192,6 +1214,7 @@ export class zlUIWin
     constructor(own:zlUIMgr) {
         if(own) {
             this._owner=own;
+            this._uid=own.GetUId();
         }
         this._csid=zlUIWin.CSID;
     }
@@ -1207,6 +1230,7 @@ export class zlUIWin
     on_dragstart: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_dragover: ((this: zlUIWin, obj: zlUIWin, drag: zlUIWin) => boolean) | null; 
     on_drop: ((this: zlUIWin, obj: zlUIWin, drop: zlUIWin) => boolean) | null; 
+    on_calrect: ()=>any|null;
 
     ClearCallback(child:boolean):void {
         this.on_size=undefined;
@@ -1686,7 +1710,7 @@ export class zlUIWin
     {
         let clip=this._owner.LastClipRect;
         if(clip) {
-            if(!obj._screenRect.InsideRect(clip)) {
+            if(!obj._screenRect?.InsideRect(clip)) {
                 return false
             }   
         }
@@ -1698,6 +1722,8 @@ export class zlUIWin
         return true;
     }
     IsSlider(): boolean { return false; }
+    IsEditable(): boolean { return false; }
+    IsNextEdit():boolean {return true;}
     SetClipRect(rc:Rect)
     {
         if(this.isClip) {
@@ -1729,6 +1755,7 @@ export class zlUIWin
             }
             if(!obj.IsVisible(ch))
                 continue;
+            mgr.backend.SetParent(this);
             ch.Paint();
         }
         if(obj.isClip) {
@@ -1950,6 +1977,9 @@ export class zlUIWin
 
         this._localRect.Set(x1, y1, x2, y2);
         if(Use_Transform) {
+            if(!this._screenRect) {
+                this._screenRect=new Rect;
+            }
             this._localRect.TransformTo(this._world, this._screenRect);
             let screenXY=this._screenRect.xy;
             let screenMax=this._screenRect.max;
@@ -1961,6 +1991,9 @@ export class zlUIWin
             this._clipRect.Set(
                 x1+this.padding,y1+this.padding,
                 x2-this.padding,y2-this.padding);
+        }
+        if(this.on_calrect) {
+            this.on_calrect();
         }
         this.isCalRect=false;
         
@@ -2335,9 +2368,10 @@ export class zlUIWin
     dropType:number;
 
     _csid:string;
+    _uid:number;
     _owner:zlUIMgr;
     _localRect:Rect=new Rect;
-    _screenRect:Rect=new Rect;
+    _screenRect:Rect=undefined;
     _clipRect:Rect=new Rect;
     _is_size_change:boolean=false;
     _isPaintout:boolean=false;
@@ -2408,7 +2442,6 @@ export class zlUIImage extends zlUIWin
         if(this.image && this.image.texture._texture && !this.image.uv1) {
             this.image= UpdateTexturePack(this.image);
         }
-        this._owner.backend.Paint(this);
         super.Paint();
     }
 
@@ -2556,12 +2589,6 @@ export class zlUIPanel extends zlUIImage
         return obj;
     }
 
-    Paint():void
-    {
-        this._owner.backend.Paint(this);
-        this.PaintChild();
-    }
-
     SetText(text:string):void
     {
         if(!((typeof text === 'string') || (text as any instanceof String))) {
@@ -2580,6 +2607,12 @@ export class zlUIPanel extends zlUIImage
 
     CalRectText():string
     {
+        this._textRect={
+            x:this.padding,
+            y:this.padding,
+            z:this.w,
+            w:this.h
+        }
         return this.text;
     }
 
@@ -2635,25 +2668,26 @@ export class zlUIPanel extends zlUIImage
             if(!this._textSize) {
                 this._textSize=new Vec2;
             }
+            let padding2=this.padding+this.padding;
             this._textSize.Set(size.x, size.y);
             switch(this.align) {
             case Align.TextWidth:
-                w=size.x+this.padding+this.padding;
+                w=size.x+padding2;
                 break;
             case Align.TextHeight:
-                h=size.y+this.padding+this.padding;
+                h=size.y+padding2;
                 break;
             case Align.TextSize:
-                w=size.x+this.padding+this.padding;
-                h=size.y+this.padding+this.padding;
+                w=size.x+padding2;
+                h=size.y+padding2;
                 break;
             }
             if(this.autosize) {
                 if(this.autosize&EAutosize.TextWidth) {
-                    w=size.x+this.padding+this.padding;
+                    w=size.x+padding2;
                 }
                 if(this.autosize&EAutosize.TextHeight) {
-                    h=size.y+this.padding+this.padding;
+                    h=size.y+padding2;
                 }
             }
             if(!(w==this.w && h==this.h)) {
@@ -2665,33 +2699,33 @@ export class zlUIPanel extends zlUIImage
 
             switch(this.textAlignW)  {
             case Align.Left:
-                x=this.padding;
+                x=this._textRect.x;
                 break;
             case Align.Center:
-                x=(this.w-size.x)*0.5;
+                x=(this._textRect.z-size.x)*0.5;
                 break;
             case Align.Right:
-                x=this.w-size.x-this.padding;
+                x=this._textRect.z-size.x-this.padding;
                 break
             }
             switch(this.textAlignH)  {
             case Align.Top:
-                y=this.padding;
+                y=this._textRect.y;
                 break;
             case Align.Center:
-                y=(this.h-size.y)*0.5;
+                y=(this._textRect.w-size.y)*0.5;
                 break;
             case Align.Down:
-                y=this.h-size.y-this.padding;
+                y=this._textRect.w-size.y-this.padding;
                 break;
             }
             if(this.textAnchor) {
                 let anchor=this.textAnchor;
                 if(anchor.mode&EAnchor.X) {
-                    x=this.padding+(this.w-size.x-this.padding-this.padding)*anchor.x;
+                    x=this._textRect.x+(this._textRect.z-size.x-padding2)*anchor.x;
                 }
                 if(anchor.mode&EAnchor.Y) {
-                    y=this.padding+(this.h-size.y-this.padding-this.padding)*anchor.y;
+                    y=this._textRect.y+(this._textRect.w-size.y-padding2)*anchor.y;
                 }
             }
             if(this.textoffset) {
@@ -2749,6 +2783,7 @@ export class zlUIPanel extends zlUIImage
     colorHover4:number[];
 
     //underline variant no copy needed
+    _textRect:IVec4;
     _textPos:Vec2;
     _textSize:Vec2;
     _textClip:Vec4;
@@ -2774,14 +2809,17 @@ export class Input
         case EInputType.eInput:
             input=document.createElement('input');
             input.type='text';
+            input.id='ginput_text';
             break;
         case EInputType.eMultiLine:
             input=document.createElement('textarea');
             input.style.resize='none';
+            input.id='ginput_textarea';
             break;
         case EInputType.ePassword:
             input=document.createElement('input');
             input.type='password';
+            input.id='ginput_password';
             break;
         }
         input.style.position='fixed';
@@ -2878,7 +2916,14 @@ function GetInput(type:EInputType, textColor:string, textBgColor:string):Input
     return inp;
 }
 
-export class zlUIEdit extends zlUIPanel
+interface IEditable
+{
+    OnNotify:()=>void;
+    IsEditable:()=>boolean;
+    IsNextEdit:()=>boolean;
+}
+
+export class zlUIEdit extends zlUIPanel implements IEditable
 {
     on_edit: ((this: zlUIWin, obj: zlUIEdit) => any) | null; 
 	on_before_edit: ((this: zlUIWin, txt: string) => string) | null;
@@ -2929,11 +2974,7 @@ export class zlUIEdit extends zlUIPanel
         return obj;
     }
 
-    Paint()
-    {        
-        this._owner.backend.Paint(this);
-        this.PaintChild();
-    }
+    IsEditable():boolean {return true;}
 
     CalRectText(): string {
         let text=this.text;
@@ -2981,9 +3022,17 @@ export class zlUIEdit extends zlUIPanel
                 }
             }
         }
-        let screenXY=this._screenRect.xy;
         inp.setText(this.text, 0, this._owner.GetFont(this.fontIndex));
-        inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
+        if(this._screenRect) {
+            let screenXY=this._screenRect.xy;
+            inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
+        }
+        this.on_calrect=()=>{
+            let screenXY=this._screenRect.xy;
+            inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
+        }
+        let font=this._owner.GetFont(this.fontIndex);
+        inp._dom_input.style.font=font.CSS();
         inp._dom_input.style.backgroundColor=textBg;
         inp._dom_input.style.color=textCol;
         inp._dom_input.oninput=(e)=>{
@@ -3186,9 +3235,7 @@ export class zlUIButton extends zlUIPanel
             this.UpdateButton();
         }
         this.UpdateTextColor();
-
-        this._owner.backend.Paint(this);
-        this.PaintChild();
+        super.Paint();
     }
     GetNotify(pos:Vec2):zlUIWin
     {
@@ -3327,9 +3374,7 @@ export class zlUICheck extends zlUIButton
     {
         this.UpdateButton();
         this.UpdateTextColor();
-        let mgr=this._owner;
-        mgr.backend.Paint(this);
-        this.PaintChild();
+        super.Paint();
     }
     OnClick():void {
         super.OnClick();
@@ -3424,12 +3469,11 @@ export class zlUICombo extends zlUIButton
         this.UpdateButton();
         this.UpdateTextColor();
 
-        this._owner.backend.Paint(this);
+        super.Paint();
 
         if(!this._owner.popup && this._owner.combo===this) {
             this._owner.combo=undefined;
         }
-        this.PaintChild();
     }
     CalRect(parent: zlUIWin): void 
     {
@@ -3476,8 +3520,14 @@ export class zlUICombo extends zlUIButton
             return;
         if(i>this.max_popup_items)
             i=this.max_popup_items;
-        combo_menu.x=this._screenRect.xy.x;
-        combo_menu.y=this._screenRect.max.y;
+        if(this._screenRect) {
+            combo_menu.x=this._screenRect.xy.x;
+            combo_menu.y=this._screenRect.max.y;
+        }
+        this.on_calrect=()=>{
+            combo_menu.x=this._screenRect.xy.x;
+            combo_menu.y=this._screenRect.max.y;
+        }
         combo_menu.w=this.popup_w?this.popup_w:this.w;
         combo_menu.h=i*combo_item.h
 			+combo_menu.padding+combo_menu.padding
@@ -3504,8 +3554,12 @@ export class zlUICombo extends zlUIButton
     }
     SetComboValue(value:number)
     {
+        let change=this.combo_value!=value;
         this.combo_value=value;
         this.text=value<this.combo_items.length?this.combo_items[value]:"";
+        if(change && this.on_combo) {
+            this.on_combo(this);
+        }
     }
 
     isDrawCombo:boolean=true;
@@ -3769,11 +3823,6 @@ export class zlUISlider extends zlUIPanel
         }
         return {isScrollH:isScrollH, isScrollW:isScrollW};
     }
-    Paint():void 
-    {
-        this._owner.backend.Paint(this);
-        this.PaintChild();
-    }
     CalRect(parent:zlUIWin):void 
     {
         let ow=this.w;
@@ -3997,11 +4046,6 @@ export class zlUIImageText extends zlUIWin
         return obj;
     }
 
-    Paint():void 
-    {
-        this._owner.backend.Paint(this);
-        this.PaintChild();
-    }
     CalRect(parent: zlUIWin): void {
         super.CalRect(parent);
         this.imageText=[];
@@ -4082,8 +4126,7 @@ export class zlUITreeNodeOpen extends zlUICheck
     Paint(): void {
         this.UpdateButton();
         this.UpdateTextColor();
-        this._owner.backend.Paint(this);
-        this.PaintChild();
+        super.Paint();
     }
 }
 
@@ -4179,10 +4222,6 @@ export class zlUITreeNode extends zlUICheck
             this.tree.expandTreeNode=undefined;
         }
         return ret;
-    }
-    Paint():void 
-    {
-        super.Paint();
     }
     OnClick(): void {
         super.OnClick();
@@ -4361,6 +4400,189 @@ export class zlUITree extends zlUISlider
     defaultTreeNode:zlUITreeNode=null;
 }
 
+export {zlUIEditItem as UIEditItem}
+
+export enum EditDataType
+{
+    eString,
+    eInteger,
+    eFloat,
+}
+
+export class zlUIEditItem extends zlUIPanel implements IEditable
+{
+    on_edit:(value:any[])=>void;
+
+    constructor(own:zlUIMgr) {
+        super(own);
+        this._csid=zlUIEditItem.CSID;        
+        this.textAlignW=Align.Left;
+        this.isDrawBorder=false;
+    }
+    static CSID="EditItem";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIEditItem(own);
+    }
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
+    {
+        switch(name) {
+        case "label":
+            this.SetText(toks[1]);
+            break;
+        case "labelwidth":
+            this.label_width=Number.parseInt(toks[1]);
+            break;
+        case "value":
+            this.value=toks.slice(1, toks.length-1);
+            break;
+        case "type":
+            this.type=toks[1];
+            break;
+        default:
+            return await super.ParseCmd(name, toks, parser);
+        }
+        return true;
+    }
+
+    Copy(obj:zlUIWin):void
+    {
+        super.Copy(obj);
+        let o=obj as zlUIEditItem;
+        this.label_width=o.label_width;
+        this.type=o.type;
+    }
+    Clone():zlUIWin
+    {
+        let obj=new zlUIEditItem(this._owner)
+        obj.Copy(this);
+        return obj;
+    }
+
+    IsEditable():boolean {return true;}
+    IsNextEdit():boolean {
+        let ret=false;
+        this.edit_value++;
+        if(this.edit_value>=this.value.length) {
+            this.edit_value=0;
+            ret=true;
+        }
+        return ret;
+    }
+
+    CalRectText():string
+    {
+        this._textRect={
+            x:this.padding,
+            y:this.padding,
+            z:Math.min(this.w, this.label_width),
+            w:this.h
+        }
+        return this.text;
+    }
+
+    ValueWidth():number {
+        return (this.w-this.label_width)/this.value.length;
+    }
+
+    GetNotify(pos: Vec2): zlUIWin {
+        let notify=super.GetNotify(pos);
+        if(this._owner.any_pointer_down && notify && this.value !== undefined) {
+            let vw=this.ValueWidth();
+            if(Use_Transform) {
+                if(this._invWorld) {
+                    let pt=this._invWorld.Transform(pos);
+                    let vx=this._localRect.x+this.label_width;
+                    let mx=pt.x-vx;
+                    this.edit_value=Math.max(0, Math.min(this.value.length-1, Math.floor(mx/vw)));
+                }
+            }else {
+                let vx=this._screenRect.x+this.label_width;
+                let mx=pos.x-vx;
+                this.edit_value=Math.max(0, Math.min(this.value.length-1, Math.floor(mx/vw)));
+            }
+        }
+        return notify;
+    }
+
+    OnNotify(): void {
+        if(!this.isEnable)
+            return;
+        if(this.value === undefined || this.value.length == 0)
+            return;
+        super.OnNotify();
+        let inp:Input;
+        const textCol=to_rgb(this.textColor);
+        const textBg=to_rgb(this.color);
+        if(this.type == "password")   {
+            inp=GetInput(EInputType.ePassword, textCol, textBg);
+        }else if(this.isMultiline) {
+            inp=GetInput(EInputType.eMultiLine, textCol, textBg);
+        }else {
+            inp=GetInput(EInputType.eInput, textCol, textBg);
+        }
+        let font=this._owner.GetFont(this.fontIndex);
+        inp._dom_input.style.textAlign="left";
+        inp._dom_input.style.font=font.CSS();
+
+        let vx=this._screenRect.x + this.label_width;
+        let vw=(this.w-this.label_width)/this.value.length;
+        let value=this.value[this.edit_value];
+        vx+=vw*this.edit_value;
+        inp.setText(value, 0, this._owner.GetFont(this.fontIndex));
+        if(this._screenRect) {
+            let screenXY=this._screenRect.xy;
+            inp.setRect(vx, screenXY.y, vw, this.h);
+        }
+        // this.on_calrect=()=>{
+        //     let screenXY=this._screenRect.xy;
+        //     inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
+        // }
+
+        inp._dom_input.style.backgroundColor=textBg;
+        inp._dom_input.style.color=textCol;
+        let current=this.edit_value;        
+        inp.on_input=(e)=>{
+            let text=inp._dom_input.value;
+            this.value[current]=text;
+
+            if(this.on_edit) {
+                this.on_edit(this.value);
+            }
+            if(this._owner.on_edit) {
+                this._owner.on_edit(this);
+            }
+            if(inp.isTab) {
+                this._owner.nextEdit=this;
+            }
+        }
+        this._owner.dom_input=inp;
+    }
+
+    Input(label:string, value:any[], type:string, callback:(data:any)=>void) {
+        this.SetText(label);
+        this.value=value;
+        this.type=type;
+        this.on_edit=callback;
+    }
+    InputText(label:string, value:any[], callback:(data:any)=>void) {
+        this.Input(label, value, 'text', callback);
+    }
+    InputNumber(label:string, value:any[], callback:(data:any)=>void) {
+        this.Input(label, value, 'number', callback);
+    }
+
+    label_width:number=160;
+    value:any[];
+    type:string="text";
+    edit_value:number=0;
+
+    isSlider:boolean=false;
+    isDrag:boolean=false;
+    min_value=0;
+    max_value=100;
+    step_value=1;
+}
+
 enum EEmitter
 {
     ePoint,
@@ -4379,6 +4601,7 @@ enum EForce
     eFriction,
     eSpin,
     eResize,
+    eSpeed,
     eMax,
 }
 
@@ -4403,6 +4626,8 @@ function ParseForce(name:string):EForce
         return EForce.eSpin;
     case 'resize':
         return EForce.eResize;
+    case 'speed':
+        return EForce.eSpeed;
     default:
         return EForce.eMax;
     }
@@ -4413,6 +4638,16 @@ class Emitter
     constructor() {}
 
     emitter:EEmitter=EEmitter.ePoint;
+
+    Copy(o:Emitter) {
+        this.emitter=o.emitter;
+    }
+
+    Clone():Emitter {
+        let e=new Emitter;
+        e.Copy(this);
+        return e;
+    }
 }
 
 /*
@@ -4434,6 +4669,7 @@ Force
     Spin        speed
                 force
     Resize      speed
+    Speed       speed
 */
 
 interface IForce
@@ -4455,6 +4691,24 @@ interface IParticle
     object?:zlUIWin
 }
 
+export enum EParticleShape
+{
+    eRect,
+    eQuad,
+}
+
+function ParseShape(v:string):EParticleShape {
+    switch(v) {
+    case 'rect':
+    case 'point':
+        return EParticleShape.eRect;
+    case 'quad':
+    case 'line':
+        return EParticleShape.eQuad;
+    }
+    return EParticleShape.eRect;
+}
+
 interface IController
 {
     particleCount:number
@@ -4473,6 +4727,7 @@ interface IController
     mass:number
     massVar:number
     color:Vec4[]
+    shape:number
 }
 
 export class zlUIParticle extends zlUIWin
@@ -4497,7 +4752,8 @@ export class zlUIParticle extends zlUIWin
             rotateVar:0,
             mass:1,
             massVar:5,
-            color:[]
+            color:[],
+            shape:EParticleShape.eRect,
         }
     }
     static CSID="Particle";
@@ -4580,10 +4836,32 @@ export class zlUIParticle extends zlUIWin
             this.blend.src=ParseBlend(toks[1]);
             this.blend.dst=ParseBlend(toks[2]);
             break;
+        case "shape":
+            this.controller.shape=ParseShape(toks[1]);
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
         return true;
+    }
+
+    Copy(obj: zlUIWin): void 
+    {
+        super.Copy(obj);
+        let o=obj as zlUIParticle;
+        this.emitter=o.emitter?.Clone();
+        this.controller=Clone(o.controller);
+        this.force=Clone(o.force);
+        this.blend=Clone(o.blend);
+        this.image=o.image;
+        this.source=o.source;
+        this.time=o.time;
+        this.loop=o.loop;
+    }
+    Clone(): zlUIWin {
+        let obj=new zlUIParticle(this._owner);
+        obj.Copy(this);
+        return obj;
     }
 
     InitParticle(pt:IParticle) {
@@ -4710,7 +4988,14 @@ export class zlUIParticle extends zlUIWin
                             break;
                         case EForce.eResize:
                             pt.size+=force.value[0]*ti;
-                            break;                            
+                            break;                     
+                        case EForce.eSpeed:
+                        {
+                            let f=force.value[0]*ti/pt.vec.Legnth();
+                            pt.vec.x+=pt.vec.x*f;
+                            pt.vec.y+=pt.vec.y*f;
+                        }
+                            break;
                         }
                     }
                     if(this.controller.color.length>0) {
@@ -4743,12 +5028,6 @@ export class zlUIParticle extends zlUIWin
         }
 
         return super.Refresh(ti, parent);
-    }
-
-    Paint():void 
-    {
-        this._owner.backend.Paint(this);
-        super.Paint();
     }
 
     emitter:Emitter;
@@ -5828,8 +6107,13 @@ export class zlUIMgr extends zlUIWin
         this.create_func['slider']=zlUISlider.Create;
         this.create_func['imagetext']=zlUIImageText.Create;
         this.create_func['tree']=zlUITree.Create;
+        this.create_func['edititem']=zlUIEditItem.Create;
         this.create_func['particle']=zlUIParticle.Create;
+
+        this._csid=zlUIMgr.CSID;
     }
+
+    static CSID="Mgr";
 
     on_create: ((this: zlUIWin, name: string) => any) | null; 
     on_click: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
@@ -6121,6 +6405,7 @@ export class zlUIMgr extends zlUIWin
         if(this.drag_drop) {
             this.drag_drop.Paint();
         }
+        this.backend.PaintEnd(this);
     }
 
     ScaleWH(w:number, h:number, mode:ScaleMode):void 
@@ -6241,10 +6526,14 @@ export class zlUIMgr extends zlUIWin
         return false;
     }
 
-    NextEdit(current:zlUIEdit)
+    NextEdit(current:IEditable)
     {
+        if(!current.IsNextEdit())   {
+            current.OnNotify();
+            return;
+        }
         let wait:zlUIWin[]=[this];
-        let list:zlUIEdit[]=[];
+        let list:IEditable[]=[];
         while(wait.length>0) {
             let win=wait.shift();
             if(win) {
@@ -6254,9 +6543,9 @@ export class zlUIMgr extends zlUIWin
                         continue;
                     }
                     wait.push(ch);
-                    if(ch instanceof zlUIEdit) {
+                    if(ch.IsEditable()) {
                         if(!this.IsOcclusion(ch)) {
-                            list.push(ch);
+                            list.push(ch as IEditable);
                         }
                     }
                 }
@@ -6266,7 +6555,7 @@ export class zlUIMgr extends zlUIWin
             return;
         let i=list.indexOf(current)+1;
         if(i>=list.length) {i=0;}
-        console.log("NextEdit:", list[i].Name);
+        //console.log("NextEdit:", list[i].Name);
         list[i].OnNotify();
     }
 
@@ -6325,6 +6614,10 @@ export class zlUIMgr extends zlUIWin
         return undefined;
     }
 
+    GetUId():number {
+        return ++this.uid;
+    }
+
     path:string;
     texture:zlTexturePack;
     fonts:IFont[]=[];
@@ -6366,7 +6659,7 @@ export class zlUIMgr extends zlUIWin
 
     default_panel_color:number=0xffebebeb;
     dom_input:Input;
-    nextEdit:zlUIEdit;
+    nextEdit:IEditable;
 
     track:zlTrackMgr;
 
@@ -6380,5 +6673,6 @@ export class zlUIMgr extends zlUIWin
     backend:IBackend;
 
     create_func:{[key:string]:(own:zlUIMgr)=>zlUIWin};
+    uid:number=0;
 }
 
