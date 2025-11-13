@@ -661,10 +661,10 @@ export class PaintEditItem extends PaintPanel
     PaintEditItem() {
         this.PaintText();
         let obj=this.obj as zlUIEditItem;
-        let font=obj._owner.GetFont(obj.fontIndex);
-        let th=(obj.h-obj._textSize.y)*0.5;
         
         if(obj.value !== undefined) {
+            let font=obj._owner.GetFont(obj.fontIndex);
+            let th=(obj.h-obj._textSize?.y)*0.5;
             let value_w=obj.w-obj.label_width;
             let vw=value_w/obj.value.length;
             let xy=Clone(obj._localRect.xy);
@@ -682,19 +682,41 @@ export class PaintEditItem extends PaintPanel
                         obj.rounding, obj.roundingCorner, obj.borderWidth);
                 }
 
-                this.xy.x+=4;
-                this.xy.y+=th;
+                switch(obj.type) {
+                case 'text':
+                case 'number':
+                    this.xy.x+=obj.padding;
+                    this.xy.y+=th;
+                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
+                    RenderText(this.drawlist, font, value, this.xy, 0, obj.textColor, this.clip);
+                    break;
+                case 'password':
+                    this.xy.x+=obj.padding;
+                    this.xy.y+=th;
+                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
+                    RenderText(this.drawlist, font, ''.padStart(value.length, '*'), this.xy, 0, obj.textColor, this.clip);
+                    break;
+                case 'button':
+                case 'checkbox':
+                case 'color':
+                case 'date':
+                case 'time':
+                case 'datetime-local':
+                case 'email':
+                case 'file':
+                case 'image':
+                case 'month':
+                case 'radio':
+                case 'range':
+                case 'url':
+                case 'week':
+                    break;
+                }
 
-                this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
-                RenderText(this.drawlist, font, value, this.xy, 0, obj.textColor, this.clip);
 
                 xy.x+=vw;
             }
 
-            switch(obj.type) {
-            case 'text':
-                break;
-            }
         }
     }
 

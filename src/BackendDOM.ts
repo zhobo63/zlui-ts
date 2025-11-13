@@ -151,7 +151,10 @@ class PaintMgr extends PaintWin
         for(let uid in this.backend.prev_visible_map) {
             if(this.backend.visible_map[uid] === undefined) {
                 let e=document.getElementById(`${uid}`);
-                e.style.display='none';
+                //e.style.display='none';
+                if(e) {
+                    e.remove();
+                }
             }
         }
         for(let uid in this.backend.visible_map) {

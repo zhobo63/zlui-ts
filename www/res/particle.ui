@@ -1,0 +1,27 @@
+
+LoadImage glow2.jpg
+
+Object Particle
+{
+    Name prt_test1
+    RectWH 200 200 0 0
+    Image glow2.jpg
+    Life 1
+    LifeVar 1
+    Speed 1
+    Color RGBA(255,255,255,0) RGBA(255,255,255,255) RGBA(0,255,255,255) RGBA(255,255,255,0)
+    #Blend one one
+}
+
+Object Particle
+{
+    Name prt_test2
+    RectWH 400 200 0 0
+    Image glow2.jpg
+    Life 1
+    LifeVar 1
+    Speed 1
+    Color RGBA(255,255,255,0) RGBA(255,255,255,255) RGBA(255,0,255,255) RGBA(255,255,255,0)
+    Shape line
+    #Blend one one
+}

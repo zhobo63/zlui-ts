@@ -1,0 +1,52 @@
+ifnot DarkTheme include dark.ui
+
+Clone Panel
+{
+    Name pnl_padding
+    RectWH 50 50 300 300
+    Padding 20
+    Rounding 10
+    Clip true
+    Drag true
+    Color4 RGBA(35,39,49,255) RGBA(35,39,49,155) RGBA(27,21,30,255) RGBA(27,21,30,155)
+    #Visible false
+ 
+    Clone Edit
+    {
+        Name ed_text
+        RectWH 20 20 120 30
+        Hint edit1
+    }
+
+    Clone Edit
+    {
+        Name ed_pw
+        RectWH 20 60 120 30
+        Password *
+        Text 123
+        Hint edit\spassword
+    }
+
+    Clone Button
+    {
+        Name btn_ok
+        RectWH 0 0 120 30
+        Anchor xy 1 1
+        Offset -140 0
+        Text OK
+    }
+    Clone Button
+    {
+        Name btn_cancel
+        RectWH 0 0 120 30
+        Anchor xy 1 1
+        Text Cancel
+    }
+    Clone Slider
+    {
+        Name sdr_
+        RectWH 0 0 120 30
+        Dock all 0 0 1 1
+        DockOffset 130 0 0 -40
+    }
+}

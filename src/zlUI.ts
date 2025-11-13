@@ -1,5 +1,5 @@
 
-export const Version="0.1.41";
+export const Version="0.1.42";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -2618,6 +2618,10 @@ export class zlUIPanel extends zlUIImage
 
     CalTextRemaining()
     {
+        if(this.isMultiline) {
+            this._textRemaining=0;
+            return;
+        }
         let isReady = [false];
         let font=this._owner.GetFont(this.fontIndex);
         let a=0;
@@ -2977,7 +2981,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     IsEditable():boolean {return true;}
 
     CalRectText(): string {
-        let text=this.text;
+        let text=super.CalRectText();
         if(this.isPassword && this.passwordText) {
             text=this.passwordText;
         }

@@ -1,0 +1,153 @@
+ifnot DarkTheme include dark.ui
+
+Clone Panel
+{    
+    Name pnl_arrange
+    RectWH 50 360 400 360
+    #Dock left|right 0.2 0 0.8 1
+    Padding 10
+    Rounding 10
+    #RoundingCorner top
+    #Clip true
+    Arrange vertical content
+    #Arrange vertical item 5 (100,100)
+    //Visible false
+    Drag true
+    //Sizable true
+    //Resizable true
+    ContentMargin 10 10
+
+    Clone Panel
+    {
+        Name pnl_top
+        RectWH 0 0 100 30
+        Dock left|right 0 0 1 1
+        Autosize height
+        Padding 10
+
+        Clone Button 
+        {
+            Name btn_ok
+            RectWH 10 10 120 30
+            Text OK
+        }
+    }
+    
+    Clone[5] Button
+    {
+        Name btn_content
+        RectWH 0 0 100 30
+        //Margin 10 10
+        Text Button
+    }
+    Object Win
+    {
+        Name BR
+        RectWH 0 0 0 0
+        Dock right 0 0 1 1
+    }
+
+    Clone Panel
+    {
+        Name pnl1
+        RectWH 0 0 100 80
+        Rounding 5
+        //Margin 10 10
+        Text A\sPanel
+    }
+    Clone Panel
+    {
+        Name pnl2
+        RectWH 0 0 100 80
+        //Margin 10 10
+        TextAnchor x 0.5 0
+        Text B\sPanel Gone
+    }
+
+    Clone[5] YButton
+    {
+        Name btn_content
+        RectWH 0 0 50 50
+        Margin 20 20
+    }
+    Clone[2] Check
+    {
+        Name chk_content
+        RectWH 0 0 120 30
+        //Margin 10 10
+    }
+    Clone Combo
+    {
+        Name cmb_content
+        RectWH 0 0 120 30
+        //Margin 10 10
+        ComboItems AAA BBB CCC
+        ComboValue 0
+    }
+    /*
+    Clone pnl_imagetext
+    {
+        Name pnl_imagetext1
+        Margin 10 10
+        W 200
+        Param Text_Number
+        {
+            Name imagetext_num1
+            W 200
+            Text 63212
+        }
+    }
+        */
+    Object Win
+    {
+        Name btn_group
+        RectWH 10 540 600 40
+        Dock left|right 0 0 1 1
+        Anchor y 0 1
+
+        Clone Button
+        {
+            Name btn_ok
+            RectWH 0 0 120 30
+            Align rightDown
+            Offset -130 0
+            Text OK
+        }
+        Clone Button
+        {
+            Name btn_cancel
+            RectWH 0 0 120 30
+            Align rightDown
+            Text Cancel
+        }
+
+    }
+}
+
+Clone Panel
+{
+    Name pnl_text_arrange
+    RectWH 460 420 300 300
+    Padding 10
+    Arrange vertical content
+
+    Clone Text
+    {
+        Name txt
+        RectWH 0 0 100 30
+        Dock left|right 0 0 1 1 
+        TextAnchor xy 0 0
+        Multiline true
+        Autosize textHeight
+        Text 這是第一行 這是第一行這是第一行這是第一行這是第一行這是第一行
+    }
+    Clone Text
+    {
+        Name txt2
+        RectWH 0 0 180 30
+        Dock right 0 0 1 1
+        TextAnchor xy 0 0.5
+        //DrawBorder true
+        Text 這是第二行這是第二行 這是第二行 這是第二行 這是第二行 這是第二行
+    }
+}

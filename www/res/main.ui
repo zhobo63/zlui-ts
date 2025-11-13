@@ -1,293 +1,41 @@
 ifnot DarkTheme include dark.ui
-include imagetext.ui
 #include login.ui
-
-Object Particle
-{
-    Name prt_
-    RectWH 100 100 50 50
-    
-}
-
-Clone Panel
-{
-    Name pnl_padding
-    RectWH 200 100 500 300
-    Padding 20
-    Rounding 10
-    Clip true
-    Drag true
-    Color4 RGBA(35,39,49,255) RGBA(35,39,49,155) RGBA(27,21,30,255) RGBA(27,21,30,155)
-    Visible false
- 
-    Clone Edit
-    {
-        Name ed_text
-        RectWH 20 20 120 30
-        Hint edit1
-    }
-
-    Clone Edit
-    {
-        Name ed_pw
-        RectWH 20 60 120 30
-        Password *
-        Text 123
-        Hint edit\spassword
-    }
-
-    Clone Button
-    {
-        Name btn_ok
-        RectWH 0 0 120 30
-        Anchor xy 1 1
-        Offset -140 0
-        Text OK
-    }
-    Clone Button
-    {
-        Name btn_cancel
-        RectWH 0 0 120 30
-        Anchor xy 1 1
-        Text Cancel
-    }
-    Clone Slider
-    {
-        Name sdr_
-        RectWH 0 0 120 30
-        Dock all 0 0 1 1
-        DockOffset 130 0 0 -40
-    }
-}
-
-Object Tree
-{
-    Name tree_1
-    RectWH 50 50 400 300
-    Color RGBA(35,39,49,255)
-    BorderColor RGBA(57,61,70,255)
-    TextColor RGBA(250,250,250,255)
-    DrawBorder true    
-    Rounding 5
-    Padding 10
-    Drag true
-
-    TreeNode 111
-    {
-        TreeNode 222
-        {
-        }
-        TreeNode 333
-        {
-        }
-        TreeNode 444
-        {
-            TreeNode 444
-            {
-                H 100
-                #TextAnchor xy 0 0
-                Clone Button
-                {
-                    Name btn_treenode444
-                    RectWH 60 30 120 30
-                    Text ckick me
-                    Hint this is a button in treenode
-                }
-                Clone Edit
-                {
-                    Name ed_treenode444
-                    RectWH 190 30 150 30
-                    DropType 1
-                }
-                DropType 1
-            }
-
-        }
-    }
-    TreeNode Abcde
-    {
-    }
-}
-
+include padding.ui
+include tree.ui
 
 Clone Panel
 {    
     Name dragdrop
-    RectWH 100 400 150 50
+    RectWH 460 360 150 50
     DragDrop true
     DragType 1
     Font 1
     Text DragMe
+    Hint drag to the same DragType to drop
 }
 
 Clone Combo
 {
     Name cbo_test
-    RectWH 100 500 150 30
+    RectWH 620 360 150 30
 
     ComboItems AAA ABC DEF
     ComboValue 0
 }
 
-Clone Panel
-{
-    Name pnl_text_arrange
-    RectWH 100 500 300 360
-    Padding 10
-    Arrange vertical content
-
-    Clone Text
-    {
-        Name txt
-        RectWH 0 0 100 30
-        Dock left|right 0 0 1 1 
-        TextAnchor xy 0 0
-        Multiline true
-        Autosize textHeight
-        Text 這是第一行\u2026這是第一行這是第一行這是第一行這是第一行這是第一行
-    }
-    Clone Text
-    {
-        Name txt2
-        RectWH 0 0 180 30
-        Dock right 0 0 1 1
-        TextAnchor xy 0 0.5
-        //DrawBorder true
-        Text 這是第二行這是第二行 這是第二行 這是第二行 這是第二行 這是第二行
-    }
-}
-
-Clone Panel
-{    
-    Name pnl_arrange
-    RectWH 100 100 500 360
-    Dock left|right 0.2 0 0.8 1
-    Padding 10
-    Rounding 10
-    #RoundingCorner top
-    #Clip true
-    Arrange vertical content
-    #Arrange vertical item 5 (100,100)
-    Visible false
-    //Drag true
-    //Sizable 
-    //Resizable true
-    ContentMargin 10 10
-
-    Clone Panel
-    {
-        Name pnl_top
-        RectWH 0 0 100 30
-        Dock left|right 0 0 1 1
-        Autosize height
-        Padding 10
-
-        Clone Button 
-        {
-            Name btn_ok
-            RectWH 10 10 120 30
-            Text OK
-        }
-    }
-    
-    Clone[5] Button
-    {
-        Name btn_content
-        RectWH 0 0 100 30
-        //Margin 10 10
-        Text Button
-    }
-    Object Win
-    {
-        Name BR
-        RectWH 0 0 0 0
-        Dock right 0 0 1 1
-    }
-
-    Clone Panel
-    {
-        Name pnl1
-        RectWH 0 0 100 80
-        Rounding 5
-        //Margin 10 10
-        Text A\sPanel
-    }
-    Clone Panel
-    {
-        Name pnl2
-        RectWH 0 0 100 80
-        //Margin 10 10
-        TextAnchor x 0.5 0
-        Text B\sPanel Gone
-    }
-
-    Clone[5] YButton
-    {
-        Name btn_content
-        RectWH 0 0 50 50
-        Margin 20 20
-    }
-    Clone[2] Check
-    {
-        Name chk_content
-        RectWH 0 0 120 30
-        //Margin 10 10
-    }
-    Clone Combo
-    {
-        Name cmb_content
-        RectWH 0 0 120 30
-        //Margin 10 10
-        ComboItems AAA BBB CCC
-        ComboValue 0
-    }
-    /*
-    Clone pnl_imagetext
-    {
-        Name pnl_imagetext1
-        Margin 10 10
-        W 200
-        Param Text_Number
-        {
-            Name imagetext_num1
-            W 200
-            Text 63212
-        }
-    }
-        */
-    Object Win
-    {
-        Name btn_group
-        RectWH 10 540 600 40
-        Dock left|right 0 0 1 1
-        Anchor y 0 1
-
-        Clone Button
-        {
-            Name btn_ok
-            RectWH 0 0 120 30
-            Align rightDown
-            Offset -130 0
-            Text OK
-        }
-        Clone Button
-        {
-            Name btn_cancel
-            RectWH 0 0 120 30
-            Align rightDown
-            Text Cancel
-        }
-
-    }
-}
-
 Clone EditItem
 {
     Name ed_item
-    RectWH 600 200 400 30
+    RectWH 770 50 300 30
     TextAlignW right
-    Value 123 555
+    #Type password
+    Value 123 456
+    Hint label edit multipe items
 }
+
+include imagetext.ui
+include arrange.ui
+include particle.ui
 
 TrackGroup rot
 {
