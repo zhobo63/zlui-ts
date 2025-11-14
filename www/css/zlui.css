@@ -33,14 +33,33 @@
 }
 
 .Win input {
+    --data-color: attr(data-color type(<color>));
+    --data-bordercolor: attr(data-bordercolor type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
+
     position: absolute;
-    background-color: rgba(23,26,29,1);
-    border-color: rgba(57,61,70,1);
+    background-color: var(--data-color, rgba(23,26,29,1));
+    border-color: var(--data-bordercolor, rgba(57,61,70,1));
     border-width: 1px;
     border-style: solid;
-    color: white;
+    color: var(--data-textcolor, white);
     caret-color:white;
     padding: 2px;
+}
+
+.Win::file-selector-button {
+    color: rgba(200,200,200,1);
+    background: rgba(35,39,49,1);
+    border-color: rgba(57,61,70,1);
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 4px;
+    width: 120px;
+}
+
+.Win::file-selector-button:hover {
+    background: rgba(57,61,70,1);
+    color: white;
 }
 
 *[tip] {
@@ -66,19 +85,25 @@
 }
 
 .Panel {
+    --data-color: attr(data-color type(<color>));
+    --data-bordercolor: attr(data-bordercolor type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
     display: block;
-    background-color: rgba(35,39,49,1);
-    border-color: rgba(57,61,70,1);
-    color: rgba(255,255,255,1);
+    background-color: var(--data-color, rgba(23,26,29,1));
+    border-color: var(--data-bordercolor, rgba(57,61,70,1));
+    color: var(--data-textcolor);
     border-style: solid;
     border-width: 1px;
 }
 
 .Button {
+    --data-color: attr(data-color type(<color>));
+    --data-bordercolor: attr(data-bordercolor type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
     display: block;
-    background-color: rgba(35,39,49,1);
-    border-color: rgba(57,61,70,1);
-    color: rgba(200,200,200,1);
+    background-color: var(--data-color, rgba(35,39,49,1));
+    border-color: var(--data-bordercolor, rgba(57,61,70,1));
+    color: var(--data-textcolor, rgba(200,200,200,1));
     border-style: solid;
     border-width: 1px;
     border-radius: 4px;
@@ -88,36 +113,50 @@
     text-align: center;
 }
 .Button:hover {
-    background-color: rgba(57,61,70,1);
-    color: rgba(255,255,255,1);
+    --data-colorhover: attr(data-colorhover type(<color>));
+    --data-textcolorhover: attr(data-textcolorhover type(<color>));
+    background-color: var(--data-colorhover, rgba(57,61,70,1));
+    color: var(--data-textcolorhover, white);
 }
 .Button:active {
-    background-color: rgba(35,39,49,1);
+    --data-colordown: attr(data-colordown type(<color>));
+    background-color: var(--data-colordown);
 }
 .Button::selection {
     background: none;
 }
 .Edit {
-    background-color: rgba(23,26,29,1);
-    border-color: rgba(57,61,70,1);
+    --data-color: attr(data-color type(<color>));
+    --data-bordercolor: attr(data-bordercolor type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
+
+    background-color: var(--data-color, rgba(23,26,29,1));
+    border-color: var(--data-bordercolor, rgba(57,61,70,1));
     border-width: 1px;
     color: white;
     caret-color:white;
     height: 30px;
 }
 .Check {
+    --data-color: attr(data-color type(<color>));
+    --data-bordercolor: attr(data-bordercolor type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
+
     border: none;
-    background-color: rgba(35,39,49,1);
-    border-color: rgba(57,61,70,1);
-    color: rgba(200,200,200,1);
+    background-color: var(--data-color, rgba(35,39,49,1));
+    border-color: var(--data-bordercolor, rgba(57,61,70,1));
+    color: var(--data-textcolor, rgba(200,200,200,1));
 }
 .Check:hover {
-    background-color: rgba(57,61,70,1);
+    --data-colorhover: attr(data-colorhover type(<color>));
+    background-color: var(--data-colorhover, rgba(57,61,70,1));
     color: white;
 }
 .Check:active {
-    background-color: rgba(35,39,49,1);
-    color: rgba(200,200,200,1);
+    --data-colordown: attr(data-colordown type(<color>));
+    --data-textcolordown: attr(data-textcolordown type(<color>));
+    background-color: var(--data-colordown, rgba(35,39,49,1));
+    color: var(--data-textcolordown, rgba(200,200,200,1));
 }
 .Check::selection {
     background: none;
@@ -128,8 +167,12 @@
 }
 
 .Combo {
-    background-color: rgba(23,26,29,1);
-    border-color: rgba(57,61,70,1);
+    --data-color: attr(data-color type(<color>));
+    --data-bordercolor: attr(data-bordercolor type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
+
+    background-color: var(--data-color, rgba(23,26,29,1));
+    border-color: var(--data-bordercolor, rgba(57,61,70,1));
     border-width: 1px;
     border-style: solid;
 }

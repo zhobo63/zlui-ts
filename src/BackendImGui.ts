@@ -928,6 +928,9 @@ export class BackendImGui implements IBackend
             console.error("BackendImGui::Paint", obj._csid);
             return;
         }
+        if(!this.parent?.IsVisible(obj))
+            return;
+
         paint.obj=obj;
         paint.Paint();
         paint.obj=null;
@@ -938,7 +941,7 @@ export class BackendImGui implements IBackend
     }
     SetParent(obj: zlUIWin) 
     {
-
+        this.parent=obj;
     }
 
     paint:{[key:string]:IPaint};
@@ -948,6 +951,8 @@ export class BackendImGui implements IBackend
 
     font:ImFont;
     drawlist:ImGui.ImDrawList;
+
+    parent:zlUIWin;
 }
 
 export const ImColor_Gray: ImGui.ImVec4 = new ImGui.ImVec4(0.5, 0.5, 0.5, 1)

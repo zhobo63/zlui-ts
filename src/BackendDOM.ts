@@ -1,11 +1,11 @@
-import { Align, EAnchor, IBackend, IFont, IPaint, ITexture, IVec2, Rect, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
+import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
 
-function CSSrgba(c:number):string
+function CSSrgba(c:number, alpha:number):string
 {
     const r=c&0xff;
     const g=(c>>8)&0xff;
     const b=(c>>16)&0xff;
-    const a=((c>>>24)&0xff)/255.0;        
+    const a=((c>>>24)&0xff)/255.0*alpha;
     return `rgba(${r},${g},${b},${a})`;
 }
 
@@ -65,7 +65,6 @@ class PaintWin implements IPaint
             e=this.Create() ;
             e.id=`${obj._uid}`;
             if(obj.hint) {
-                //e.title=obj.hint;
                 e.setAttribute("tip", obj.hint);
             }
             
@@ -125,7 +124,6 @@ class PaintWin implements IPaint
 
     Create(): HTMLElement {
         let e=document.createElement('div');
-        //e.classList.add('xy');
         e.classList.add('Win');
         return e;
     }
@@ -177,7 +175,7 @@ class PaintPanel extends PaintWin
         let e=document.getElementById(`${obj._uid}`) as HTMLDivElement;
     
         this.PaintText(e);
-        this.PaintPanel(e, obj._csid == zlUIPanel.CSID);
+        this.PaintPanel(e);
     }
 
     PaintText(e:HTMLDivElement) {
@@ -199,16 +197,11 @@ class PaintPanel extends PaintWin
             label.remove();
         }
     }
-    PaintPanel(e:HTMLDivElement, use_color:boolean) {
+    PaintPanel(e:HTMLDivElement) {
         let obj=this.obj as zlUIPanel;
-        if(use_color) {
-            e.style.backgroundColor=CSSrgba(obj.color);
-            e.style.borderColor=CSSrgba(obj.borderColor);
-            let color=CSSrgba(obj.textColor);
-            if(e.style.color != color) {
-                e.style.color=color;
-            }
-        }
+        e.setAttribute('data-color', CSSrgba(obj.color, obj.alpha));
+        e.setAttribute('data-bordercolor', CSSrgba(obj.borderColor, obj.alpha));
+        e.setAttribute('data-textcolor', CSSrgba(obj.textColor, obj.alpha));
         if(obj.isDrawBorder) {
             let borderRadius=`${obj.rounding}px`;
             let borderWidth=`${obj.borderWidth}px`;
@@ -303,7 +296,9 @@ class PaintButton extends PaintPanel
         let obj=this.obj as zlUIButton;
         super.Paint();
         let e=document.getElementById(`${obj._uid}`) as HTMLButtonElement
-
+        e.setAttribute('data-colorhover', CSSrgba(obj.colorHover, obj.alpha));
+        e.setAttribute('data-textcolorhover', CSSrgba(obj.textColorHover, obj.alpha));
+        e.setAttribute('data-colordown', CSSrgba(obj.colorDown, obj.alpha));
     }
 
     Create(): HTMLElement {
@@ -483,9 +478,25 @@ class PaintSlider extends PaintPanel
     }
 
     Create(): HTMLElement {
+        let obj=this.obj as zlUISlider;
         let e=document.createElement('div');
         e.classList.add('Win');
-        e.classList.add('Slider');
+        //e.classList.add('Slider');
+
+        switch(obj.scrollType) {
+        case ESliderType.eHorizontal:
+            e.style.overflowX='auto';
+            e.style.overflowY='hidden';
+            break;
+        case ESliderType.eVertical:
+            e.style.overflowX='hidden';
+            e.style.overflowY='auto';
+            break;
+        case ESliderType.eBoth:
+            e.style.overflow='auto';
+            break;
+        }
+
         return e;
     }
 }
@@ -507,8 +518,10 @@ class PaintEditItem extends PaintPanel
             for(let value of obj.value) {
                 let input_id=`input_${obj._uid}_${id}`;
                 let input=document.getElementById(input_id) as HTMLInputElement;
-                if(input.value!=value) {
-                    input.value=value;
+                if(typeof value === 'string') {
+                    if(input.value!=value) {
+                        input.value=value;
+                    }
                 }
                 id++;
             }
@@ -554,7 +567,14 @@ class PaintEditItem extends PaintPanel
                 input.onchange=(e)=>{
                     console.log(e);
                     let inx=Number.parseInt(input.getAttribute('index'));
-                    obj.value[inx]=input.value;
+                    switch(input.type) {
+                    case 'file':
+                        obj.value[inx]=input.files.length>0? input.files[0]:null;
+                        break;
+                    default:
+                        obj.value[inx]=input.value;
+                        break;
+                    }
                     if(obj.on_edit!==undefined) {
                         obj.on_edit(obj.value);
                     }

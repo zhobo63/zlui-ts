@@ -1,5 +1,5 @@
 
-export const Version="0.1.42";
+export const Version="0.1.43";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -152,7 +152,9 @@ export function Edit(win:zlUIWin, text:string, on_change:(txt:string)=>any, chil
 export function Button(win:zlUIWin, text:string, on_click:(obj:zlUIButton)=>any, child?:string):zlUIButton
 {
     let obj:zlUIButton=(child?win.GetUI(child):win) as zlUIButton;
-    obj.SetText(text);
+    if(text !== undefined) {
+        obj.SetText(text);
+    }
     obj.on_click=on_click;
     return obj;
 }
@@ -1753,8 +1755,8 @@ export class zlUIWin
             if(!ch.isVisible)   {
                 continue;
             }
-            if(!obj.IsVisible(ch))
-                continue;
+            // if(!obj.IsVisible(ch))
+            //     continue;
             mgr.backend.SetParent(this);
             ch.Paint();
         }
@@ -1934,6 +1936,11 @@ export class zlUIWin
                 py=parent._localRect.xy.y+this.offset.y;    //+parent.borderWidth;
             }
         }
+        x1+=this.offset.x;
+        x2+=this.offset.x;
+        y1+=this.offset.y;
+        y2+=this.offset.y;
+
         x1=Math.round(x1);
         x2=Math.round(x2);
         y1=Math.round(y1);
@@ -1957,8 +1964,8 @@ export class zlUIWin
                 ox+=this.originOffset.x;
                 oy+=this.originOffset.y;
             }
-            let x=Math.round(-px+ox+x1+this.offset.x);
-            let y=Math.round(-py+oy+y1+this.offset.y);
+            let x=Math.round(-px+ox+x1);
+            let y=Math.round(-py+oy+y1);
             this._local.translate.Set(x,y);
             x1=-ox;
             y1=-oy;
@@ -4431,7 +4438,7 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
     {
         switch(name) {
         case "label":
-            this.SetText(toks[1]);
+            this.SetText(toks[toks.length-1]);
             break;
         case "labelwidth":
             this.label_width=Number.parseInt(toks[1]);
