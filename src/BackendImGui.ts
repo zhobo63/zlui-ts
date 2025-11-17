@@ -1,5 +1,5 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { Board, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
 
 export let vec_a=new ImGui.Vec2;
@@ -314,6 +314,21 @@ export class PaintWin implements IPaint
 
     Paint()
     {
+        let obj=this.obj;
+        if(this.obj._owner.notify==this.obj) {
+            if(this.backend.is_move && obj.on_mousemove) {
+                let pt=obj.ToLocal(obj._owner.mouse_pos);
+                obj.on_mousemove(pt.x, pt.y);
+            }
+            if(this.backend.is_down && obj.on_mousedown) {
+                let pt=obj.ToLocal(obj._owner.mouse_pos);
+                obj.on_mousedown(pt.x, pt.y);
+            }
+            if(this.backend.is_up && obj.on_mouseup) {
+                let pt=obj.ToLocal(obj._owner.mouse_pos);
+                obj.on_mouseup(pt.x, pt.y);
+            }
+        }
     }
     PaintEnd() 
     {
@@ -829,6 +844,38 @@ export class PaintParticle extends PaintWin
     blend:ImGui.Blend=new ImGui.Blend;
 }
 
+class PaintMgr extends PaintWin
+{
+    constructor(backend:BackendImGui) {
+        super(backend);
+    }
+
+    Paint() {
+        let obj=this.obj as UIMgr;
+        let backend=this.backend;
+        backend.is_down=false;
+        backend.is_up=false;
+        backend.is_move=false;
+
+        if(!backend.prev_mouse_pos.Equal(obj.mouse_pos.x, obj.mouse_pos.y)) {
+            backend.is_move=true;
+            backend.prev_mouse_pos.Set(obj.mouse_pos.x, obj.mouse_pos.y);
+        }
+
+        if(backend.prev_down!=obj.any_pointer_down) {
+            if(obj.any_pointer_down) {
+                backend.is_down=true;
+            }else {
+                backend.is_up=true;
+            }
+            backend.prev_down=obj.any_pointer_down;
+        }
+
+
+        super.Paint();
+    }
+}
+
 export class BackendImGui implements IBackend
 {
     constructor(drawlist:ImDrawList)
@@ -852,7 +899,7 @@ export class BackendImGui implements IBackend
         this.paint[zlUITreeNodeOpen.CSID]=new PaintTreeNodeOpen(this);
         this.paint[zlUIEditItem.CSID]=new PaintEditItem(this);
         this.paint[zlUIParticle.CSID]=new PaintParticle(this);
-        this.paint[zlUIMgr.CSID]=new PaintWin(this);
+        this.paint[zlUIMgr.CSID]=new PaintMgr(this);
     }
 
     async CreateTexture(url:string):Promise<ITexture>
@@ -937,12 +984,17 @@ export class BackendImGui implements IBackend
     }
     PaintEnd(obj: zlUIWin) 
     {
-
     }
     SetParent(obj: zlUIWin) 
     {
         this.parent=obj;
     }
+
+    prev_mouse_pos:Vec2=new Vec2;
+    prev_down:boolean=false;
+    is_down:boolean=false;
+    is_up:boolean=false;
+    is_move:boolean=false;
 
     paint:{[key:string]:IPaint};
     

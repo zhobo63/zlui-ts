@@ -1,4 +1,4 @@
-import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
+import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UIMgr, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -35,7 +35,7 @@ class FontDOM implements IFont
     {
         return {x:0,y:0};
     }
-    CSS():string {return this.style;}
+    CSS():string {return `${this.style} ${this.size}px ${this.name}`;}
 
     name:string;
     style:string;
@@ -88,26 +88,50 @@ class PaintWin implements IPaint
             //e.style.position="fixed";
             //e.style.position='relative';
             e.style.position='absolute';
+
+            e.onmousemove=(e)=>{
+                if(obj.on_mousemove) {
+                    obj.on_mousemove(e.offsetX, e.offsetY);
+                }
+            }
+            e.onmousedown=(e)=>{
+                if(obj.on_mousedown) {
+                    obj.on_mousedown(e.offsetX, e.offsetY);
+                }
+            }
+            e.onmouseup=(e)=>{
+                if(obj.on_mouseup) {
+                    obj.on_mouseup(e.offsetX, e.offsetY);
+                }
+            }
         }
         if(this.backend.visible_map[obj._uid] !== undefined) {
             console.log("[BackendDOM] PaintWin same uid", obj);
         }
         this.backend.visible_map[obj._uid]=true;
 
-        this.SetRect(e, {x:obj.x, y:obj.y, w:obj.w, h:obj.h});
+        this.SetRect(e, {x:obj._localPos.x, y:obj._localPos.y, w:obj.w, h:obj.h});
     }
     PaintEnd() {
 
     }
 
     SetRect(e:HTMLElement, r:RectDOM) {
+        let scale=this.obj._world.scale;
+        let ox=0;
+        let oy=0;
+
+        if(this.backend.parent?._csid==UIMgr.CSID) {
+            ox=this.obj._owner.x;
+            oy=this.obj._owner.y;
+        }
         if(e.style.display != 'inline-block') {
             e.style.display='inline-block';
         }
-        let left=`${r.x}px`;
-        let top=`${r.y}px`;
-        let width=`${r.w}px`
-        let height=`${r.h}px`
+        let left=`${Math.floor(r.x*scale+ox)}px`;
+        let top=`${Math.floor(r.y*scale+oy)}px`;
+        let width=`${Math.floor(r.w*scale)}px`
+        let height=`${Math.floor(r.h*scale)}px`
         if(e.style.left != left) {
             e.style.left=left;
         }
@@ -141,8 +165,10 @@ class PaintMgr extends PaintWin
 
     Paint()
     {
+        let obj=this.obj as UIMgr;
         this.backend.visible_map={};
         this.backend.parent=undefined;
+        this.SetRect(this.backend.root, {x:obj._localPos.x, y:obj._localPos.y, w:obj.w, h:obj.h})
     }
     PaintEnd()
     {
@@ -184,7 +210,8 @@ class PaintPanel extends PaintWin
         let label=document.getElementById(label_id) as HTMLLabelElement;
         if(obj.text && obj.text.length>0) {
             let font=obj._owner.GetFont(obj.fontIndex);
-            e.style.font=font.style;
+            let fontstyle=`${font.style} ${Math.floor(font.size*obj._world.scale)}px ${font.name}`;
+            e.style.font=fontstyle;
 
             this.textAlign(e);
             if(!label) {
@@ -202,14 +229,14 @@ class PaintPanel extends PaintWin
         e.setAttribute('data-color', CSSrgba(obj.color, obj.alpha));
         e.setAttribute('data-bordercolor', CSSrgba(obj.borderColor, obj.alpha));
         e.setAttribute('data-textcolor', CSSrgba(obj.textColor, obj.alpha));
+        let borderRadius=`${obj.rounding}px`;
+        if(e.style.borderRadius!=borderRadius) {
+            e.style.borderRadius=borderRadius;
+        }
         if(obj.isDrawBorder) {
-            let borderRadius=`${obj.rounding}px`;
             let borderWidth=`${obj.borderWidth}px`;
             if(e.style.borderStyle!='solid') {
                 e.style.borderStyle="solid";
-            }
-            if(e.style.borderRadius!=borderRadius) {
-                e.style.borderRadius=borderRadius;
             }
             if(e.style.borderWidth!=borderWidth) {
                 e.style.borderWidth=borderWidth;
@@ -246,7 +273,7 @@ class PaintPanel extends PaintWin
                     e.style.lineHeight='1.5';
                     break;
                 case 0.5:
-                    e.style.lineHeight=`${obj.h}px`;
+                    e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale)}px`;
                     break
                 }
             }
@@ -269,7 +296,7 @@ class PaintPanel extends PaintWin
                 e.style.lineHeight='1.5';
                 break;
             case Align.Center:
-                e.style.lineHeight=`${obj.h}px`;
+                e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale)}px`;
                 break;
             }
         }
@@ -307,8 +334,8 @@ class PaintButton extends PaintPanel
         e.classList.add('Button');
         let obj=this.obj as zlUIButton;
         if(obj.on_click) {
-            e.onclick=()=>{
-                obj.on_click(obj);
+            e.onclick=(e)=>{
+                obj.OnClick();
             }
         }else {
             e.onclick=undefined;
@@ -432,30 +459,48 @@ class PaintEdit extends PaintPanel
 
     Create(): HTMLElement {
         let obj=this.obj as zlUIEdit;
-        let e=document.createElement(obj.isMultiline?'textarea':'input');
+        let e:HTMLInputElement|HTMLTextAreaElement;
+        if(obj.isMultiline) {
+            let area=document.createElement('textarea') as HTMLTextAreaElement;
+            area.style.resize='none';
+            e=area;
+        }else {
+            let input=document.createElement('input') as HTMLInputElement;
+            input.type=obj.type;
+            e=input;
+        }
         e.id=`${obj._uid}`;
         e.classList.add('Win');
         e.classList.add('Edit');
-        if(e.nodeName=='INPUT') {
-            if(obj.isPassword) {
-                (<HTMLInputElement>e).type='password';
-            }else {
-                (<HTMLInputElement>e).type='text';
+
+        switch(obj.type) {
+        case 'file':
+            break;
+        default:
+            if(e.value!=obj.text) {
+                e.value=obj.text;
             }
-        }else {
-            e.style.resize='none';
-        }
-        if(e.value!=obj.text) {
-            e.value=obj.text;
+            break;
         }
 
         e.onfocus=(ev)=>{
+            switch(obj.type) {
+            case 'file':
+                return;
+            }
             e.value=obj.text;
         }
         e.onblur=(ev)=>{
             obj.text=e.value;
         }
-        obj.on_change=()=>{
+        e.onchange=()=>{
+            switch(obj.type) {
+            case 'file':
+                if(obj.on_file) {
+                    obj.on_file((<HTMLInputElement>e).files[0]);
+                }
+                return;
+            }
             e.value=obj.text;
         }
         return e;
@@ -612,7 +657,7 @@ export class BackendDOM implements IBackend
     CreateFont(name:string, size:number, style:string):IFont {
         let font=new FontDOM;
         font.name=name;
-        font.style=`${style} ${size}px ${name}`;
+        font.style=style;
         font.size=size;
         return font;
     }

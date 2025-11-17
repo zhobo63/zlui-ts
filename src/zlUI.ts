@@ -1,5 +1,5 @@
 
-export const Version="0.1.43";
+export const Version="0.1.45";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -149,7 +149,7 @@ export function Edit(win:zlUIWin, text:string, on_change:(txt:string)=>any, chil
     return obj;
 }
 
-export function Button(win:zlUIWin, text:string, on_click:(obj:zlUIButton)=>any, child?:string):zlUIButton
+export function Button(win:zlUIWin, text:string, on_click:(obj:zlUIWin)=>any, child?:string):zlUIButton
 {
     let obj:zlUIButton=(child?win.GetUI(child):win) as zlUIButton;
     if(text !== undefined) {
@@ -573,7 +573,10 @@ export class Vec2 implements IVec2
             y:-this.x
         }
     }
-
+    Equal(x:number, y:number):boolean {
+        return this.x==x && this.y==y;
+    }
+ 
     x:number = 0;
     y:number = 0;
 
@@ -1233,6 +1236,10 @@ export class zlUIWin
     on_dragover: ((this: zlUIWin, obj: zlUIWin, drag: zlUIWin) => boolean) | null; 
     on_drop: ((this: zlUIWin, obj: zlUIWin, drop: zlUIWin) => boolean) | null; 
     on_calrect: ()=>any|null;
+    on_click: (obj: zlUIWin)=>void|null;
+    on_mousemove: (x:number,y:number)=>void|null;
+    on_mousedown: (x:number,y:number)=>void|null;
+    on_mouseup: (x:number,y:number)=>void|null;
 
     ClearCallback(child:boolean):void {
         this.on_size=undefined;
@@ -1242,6 +1249,7 @@ export class zlUIWin
         this.on_dragstart=undefined;
         this.on_dragover=undefined;
         this.on_drop=undefined;
+        this.on_click=undefined;
         if(child) {
             for(let ch of this.pChild) {
                 ch.ClearCallback(child);
@@ -1554,6 +1562,9 @@ export class zlUIWin
             break;
         case "enable":
             this.isEnable = ParseBool(toks[1]);
+            break;
+        case "alpha":
+            this.alpha=Number.parseFloat(toks[1]);
             break;
         case "include":
             let path=this._owner.path;
@@ -1936,17 +1947,13 @@ export class zlUIWin
                 py=parent._localRect.xy.y+this.offset.y;    //+parent.borderWidth;
             }
         }
-        x1+=this.offset.x;
-        x2+=this.offset.x;
-        y1+=this.offset.y;
-        y2+=this.offset.y;
-
         x1=Math.round(x1);
         x2=Math.round(x2);
         y1=Math.round(y1);
         y2=Math.round(y2);
         this.x=x1;
         this.y=y1;
+        this._localPos.Set(x1+this.offset.x, y1+this.offset.y);
         let nw=x2-x1;
         let nh=y2-y1;
         if(this.w!=nw || this.h!=nh) {
@@ -1958,8 +1965,8 @@ export class zlUIWin
             }    
         }
         if(Use_Transform) {
-            let ox=this.w*this.origin.x;
-            let oy=this.h*this.origin.y;
+            let ox=this.w*this.origin.x+this.offset.x;
+            let oy=this.h*this.origin.y+this.offset.y;
             if(this.originOffset) {
                 ox+=this.originOffset.x;
                 oy+=this.originOffset.y;
@@ -2150,6 +2157,25 @@ export class zlUIWin
         }        
     }
 
+    ToLocal(pos:Vec2):Vec2
+    {
+        let pt:Vec2=undefined;
+        if(Use_Transform) {
+            if(!this._invWorld)
+                return undefined;
+            pt=this._invWorld.Transform(pos);
+            if(!this._localRect.Inside(pt)) {
+                return undefined;
+            }
+        }
+        else { 
+            if(!this._screenRect.Inside(pos))
+                return undefined;
+            pt=new Vec2(pos.x-this._screenRect.x, pos.y-this._screenRect.y);
+        }
+        return pt;
+    }
+
     GetNotify(pos:Vec2):zlUIWin
     {
         if(this.isDisable)
@@ -2232,8 +2258,16 @@ export class zlUIWin
         return (this.IsSlider())?this:undefined;
     }
 
-    OnNotify():void { if(this.on_notify) this.on_notify(this);}
-    OnClick():void {}
+    OnNotify():void { 
+        if(this.on_notify) {
+            this.on_notify(this);
+        }
+    }
+    OnClick():void {
+        if(this.on_click) {
+            this.on_click(this);
+        }
+    }
     GetUI(name:string):zlUIWin
     {
         name=name.toLowerCase();
@@ -2377,6 +2411,7 @@ export class zlUIWin
     _csid:string;
     _uid:number;
     _owner:zlUIMgr;
+    _localPos:Vec2=new Vec2;
     _localRect:Rect=new Rect;
     _screenRect:Rect=undefined;
     _clipRect:Rect=new Rect;
@@ -2803,35 +2838,19 @@ export class zlUIPanel extends zlUIImage
 
 export {zlUIEdit as UIEdit}
 
-enum EInputType
-{
-    eInput,
-    eMultiLine, 
-    ePassword,
-    eMax,
-}
-
 export class Input
 {
-    constructor(type:EInputType, textCol:string, textBg:string)
+    constructor(type:string, textCol:string, textBg:string)
     {
-        let input;
-        switch(type)    {
-        case EInputType.eInput:
-            input=document.createElement('input');
-            input.type='text';
-            input.id='ginput_text';
-            break;
-        case EInputType.eMultiLine:
+        let input:HTMLInputElement|HTMLTextAreaElement;
+        if(type=='textarea') {
             input=document.createElement('textarea');
             input.style.resize='none';
             input.id='ginput_textarea';
-            break;
-        case EInputType.ePassword:
+        }else {
             input=document.createElement('input');
-            input.type='password';
-            input.id='ginput_password';
-            break;
+            input.type=type;
+            input.id='ginput_text';
         }
         input.style.position='fixed';
         input.style.top=0 + 'px';
@@ -2845,16 +2864,22 @@ export class Input
 
         input.addEventListener('blur', (e)=>{this.onLostFocus(e)})
         input.addEventListener('keydown', (e)=>{this.onKeydown(e as KeyboardEvent)})
+        input.onchange=(e)=>{
+            if(type=='file' && this.on_file) {
+                this.on_file((input as HTMLInputElement).files[0]);
+            }
+        }
 
         document.body.appendChild(input);
         this._dom_input=input;
         this.setVisible(false);
     }
 
-    public on_input: ((this: Input, text: string) => any) | null; 
-    public on_visible: ((this: Input, visible: boolean) => any) | null; 
+    on_input: ((this: Input, text: string) => any) | null; 
+    on_visible: ((this: Input, visible: boolean) => any) | null; 
+    on_file: (file:File)=>void|null;
 
-    private onLostFocus(e:Event)
+    onLostFocus(e:Event)
     {
         if(this.on_input)   {
             this.on_input(this._dom_input.value);
@@ -2915,9 +2940,9 @@ export class Input
     isTab:boolean=false;
 }
 
-let dom_input:{[key:number]:Input}={}
+let dom_input:{[key:string]:Input}={}
 
-function GetInput(type:EInputType, textColor:string, textBgColor:string):Input
+function GetInput(type:string, textColor:string, textBgColor:string):Input
 {
     let inp=dom_input[type];
     if(!inp)    {
@@ -2938,6 +2963,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
 {
     on_edit: ((this: zlUIWin, obj: zlUIEdit) => any) | null; 
 	on_before_edit: ((this: zlUIWin, txt: string) => string) | null;
+    on_file: (file:File)=>void|null;
 
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -2957,9 +2983,13 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch (name) {
+        case "type":
+            this.type=toks[1];
+            break;
         case "password":
             this.isPassword=true;
             this.password_char=ParseText(toks[1]);
+            this.type="password";
             break;
         case "maxlength":
             this.max_text_length=Number.parseInt(toks[1]);
@@ -3002,12 +3032,10 @@ export class zlUIEdit extends zlUIPanel implements IEditable
         let inp:Input;
         const textCol=to_rgb(this.textColor);
         const textBg=to_rgb(this.color);
-        if(this.isPassword)   {
-            inp=GetInput(EInputType.ePassword, textCol, textBg);
-        }else if(this.isMultiline) {
-            inp=GetInput(EInputType.eMultiLine, textCol, textBg);
+        if(this.isMultiline) {
+            inp=GetInput('textarea', textCol, textBg);
         }else {
-            inp=GetInput(EInputType.eInput, textCol, textBg);
+            inp=GetInput(this.type, textCol, textBg);
         }
         switch(this.textAlignW) {
         case Align.Left:
@@ -3068,6 +3096,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
                 this._owner.nextEdit=this;
             }
         }
+        inp.on_file=this.on_file;
         this._owner.dom_input=inp;
         console.log("OnNotify", this);
     }
@@ -3076,13 +3105,13 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     passwordText:string;
     password_char:string;
     max_text_length:number;
+    type:string="text";
 }
 
 export {zlUIButton as UIButton}
 
 export class zlUIButton extends zlUIPanel
 {
-    on_click:(this:zlUIWin, obj:zlUIButton)=>any|null;
     
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -3264,12 +3293,6 @@ export class zlUIButton extends zlUIPanel
         if(this.boardUp)  {
             this.boardUp.vert=null;
             this.boardUp.color=this.colorUp;
-        }
-    }
-    OnClick(): void {
-        super.OnClick();
-        if(this.on_click) {
-            this.on_click(this);
         }
     }
 
@@ -4524,12 +4547,10 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
         let inp:Input;
         const textCol=to_rgb(this.textColor);
         const textBg=to_rgb(this.color);
-        if(this.type == "password")   {
-            inp=GetInput(EInputType.ePassword, textCol, textBg);
-        }else if(this.isMultiline) {
-            inp=GetInput(EInputType.eMultiLine, textCol, textBg);
+        if(this.isMultiline) {
+            inp=GetInput('textarea', textCol, textBg);
         }else {
-            inp=GetInput(EInputType.eInput, textCol, textBg);
+            inp=GetInput(this.type, textCol, textBg);
         }
         let font=this._owner.GetFont(this.fontIndex);
         inp._dom_input.style.textAlign="left";
@@ -6127,7 +6148,6 @@ export class zlUIMgr extends zlUIWin
     static CSID="Mgr";
 
     on_create: ((this: zlUIWin, name: string) => any) | null; 
-    on_click: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
 
@@ -6285,7 +6305,7 @@ export class zlUIMgr extends zlUIWin
                 let oy=Math.abs(this.mouse_pos.y-this.first_pos_y);
                 if(ox<=this.touch_tolerance&&oy<=this.touch_tolerance) {
                     this.notify.OnClick();
-                    if(this.on_click)   {
+                    if(this.on_click) {
                         this.on_click(this.notify);
                     }
                 }
