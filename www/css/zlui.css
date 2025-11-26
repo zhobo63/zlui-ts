@@ -22,12 +22,23 @@
     border-radius: 4px;
 }
 
+select,
+::picker(select) {
+    appearance: base-select;
+
+    --data-color: attr(data-color type(<color>));
+    --data-bordercolor: attr(data-bordercolor type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
+    background-color: var(--data-color, rgba(35,39,49,1));
+    border-color: var(--data-bordercolor, rgba(77,81,90,1));
+    color: var(--data-textcolor, white);
+
+}
+
 .Win {
     margin: 0px;
     padding: 0px;
-    font-family: "FontAwesome6Free",Arial, sans-serif, Helvetica;
-    font-size: medium;
-    font-weight: bold;
+    font: bold medium "FontAwesome6Free",Arial, sans-serif, Helvetica;
     color: white;
     box-sizing: border-box;
 }
@@ -39,20 +50,19 @@
 
     position: absolute;
     background-color: var(--data-color, rgba(23,26,29,1));
-    border-color: var(--data-bordercolor, rgba(57,61,70,1));
-    border-width: 1px;
-    border-style: solid;
+    border: 1px solid var(--data-bordercolor, rgba(57,61,70,1));
     color: var(--data-textcolor, white);
     caret-color:white;
-    padding: 2px;
+    padding: 0px 4px 0px 4px;
 }
 
 .Win::file-selector-button {
     color: rgba(200,200,200,1);
     background: rgba(35,39,49,1);
-    border-color: rgba(57,61,70,1);
+    /* border-color: rgba(57,61,70,1);
     border-style: solid;
-    border-width: 1px;
+    border-width: 1px; */
+    border: 1px solid rgba(57,61,70,1);
     border-radius: 4px;
     width: 120px;
 }
@@ -63,25 +73,25 @@
 }
 
 *[tip] {
-  --margin:1em;
-  position: relative;
+    --margin:1em;
+    position: relative;
 
-  &:hover:after {
-    content: attr(tip);
-    position: absolute;
-    background: rgba(0,0,0,0.6);
-    top: calc(var(--margin) * 1.5);
-    left: 20%;
-    color: var(--black);
-    padding: calc(var(--margin) * 0.2) calc(var(--margin) * 0.5);
-    border-radius: calc(var(--margin) * 0.5);
-    white-space: nowrap;
-    font-size: var(--margin);
-    z-index: 999;
-    pointer-events: none;
-    display: block;
-    width: max-content;
-  }
+    &:hover:after {
+        content: attr(tip);
+        position: absolute;
+        background: rgba(0,0,0,0.6);
+        top: calc(var(--margin) * 1.5);
+        left: 10%;
+        color: var(--black);
+        padding: calc(var(--margin) * 0.2) calc(var(--margin) * 0.5);
+        border-radius: calc(var(--margin) * 0.5);
+        white-space: nowrap;
+        font-size: var(--margin);
+        z-index: 999;
+        pointer-events: none;
+        display: block;
+        width: max-content;
+    }
 }
 
 .Panel {
@@ -90,13 +100,10 @@
     --data-textcolor: attr(data-textcolor type(<color>));
     display: block;
     background-color: var(--data-color, rgba(23,26,29,1));
-    border-color: var(--data-bordercolor, rgba(57,61,70,1));
     color: var(--data-textcolor);
-    border-style: solid;
-    border-width: 1px;
 }
 
-.Button {
+/* .Button {
     --data-color: attr(data-color type(<color>));
     --data-bordercolor: attr(data-bordercolor type(<color>));
     --data-textcolor: attr(data-textcolor type(<color>));
@@ -111,7 +118,7 @@
     width: 120px;
     line-height: 30px;
     text-align: center;
-}
+} */
 .Button:hover {
     --data-colorhover: attr(data-colorhover type(<color>));
     --data-textcolorhover: attr(data-textcolorhover type(<color>));
@@ -137,27 +144,11 @@
     caret-color:white;
     height: 30px;
 }
-.Check {
-    --data-color: attr(data-color type(<color>));
-    --data-bordercolor: attr(data-bordercolor type(<color>));
-    --data-textcolor: attr(data-textcolor type(<color>));
 
-    border: none;
-    background-color: var(--data-color, rgba(35,39,49,1));
-    border-color: var(--data-bordercolor, rgba(57,61,70,1));
-    color: var(--data-textcolor, rgba(200,200,200,1));
+.Check {
+    padding-left: 40px;
 }
-.Check:hover {
-    --data-colorhover: attr(data-colorhover type(<color>));
-    background-color: var(--data-colorhover, rgba(57,61,70,1));
-    color: white;
-}
-.Check:active {
-    --data-colordown: attr(data-colordown type(<color>));
-    --data-textcolordown: attr(data-textcolordown type(<color>));
-    background-color: var(--data-colordown, rgba(35,39,49,1));
-    color: var(--data-textcolordown, rgba(200,200,200,1));
-}
+
 .Check::selection {
     background: none;
 }
@@ -166,15 +157,48 @@
     padding-left: 5px;
 }
 
-.Combo {
-    --data-color: attr(data-color type(<color>));
-    --data-bordercolor: attr(data-bordercolor type(<color>));
-    --data-textcolor: attr(data-textcolor type(<color>));
+.Check input {
+    display: none;
+}
 
-    background-color: var(--data-color, rgba(23,26,29,1));
-    border-color: var(--data-bordercolor, rgba(57,61,70,1));
-    border-width: 1px;
-    border-style: solid;
+.CheckMark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 25px;
+    width: 25px;
+    background: none;
+    border: 1px solid rgba(57,61,70,1);
+    border-radius: 4px;
+}
+.Check input:checked ~ .CheckMark {
+    background-color: #2196F3;
+}
+.CheckMark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+.Check input:checked ~ .CheckMark:after {
+    display: block;
+}
+.Check .CheckMark:after {
+    left: 9px;
+    top: 5px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 3px 3px 0;
+    -webkit-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);    
+}
+.Check label {
+    pointer-events: none;
+}
+
+.Combo {
+    padding: 0px 4px 0px 4px;
 }
 
 .Slider {

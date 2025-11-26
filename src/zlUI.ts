@@ -1,5 +1,5 @@
 
-export const Version="0.1.45";
+export const Version="0.1.47";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -215,6 +215,23 @@ function to_rgb(c:number):string
     const g=(c>>8)&0xff;
     const b=(c>>16)&0xff;
     return `rgba(${r},${g},${b},255)`;
+}
+
+function to_cssrgba(c:number):string
+{
+    const r=c&0xff;
+    const g=(c>>8)&0xff;
+    const b=(c>>16)&0xff;
+    const a=((c>>>24)&0xff)/255;
+    return `rgba(${r},${g},${b},${a})`;
+}
+
+function to_cssrgb(c:number):string
+{
+    const r=c&0xff;
+    const g=(c>>8)&0xff;
+    const b=(c>>16)&0xff;
+    return `rgba(${r},${g},${b},1)`;
 }
 
 export function toColorHex(c:Vec4):number
@@ -919,7 +936,7 @@ export class Rect
     }
     InsideRect(rc:IVec4):boolean
     {
-        if(this.max.x<rc.x||this.xy.x>rc.z||this.max.y<rc.y||this.xy.y>rc.w) {
+        if(this.max.x<=rc.x||this.xy.x>=rc.z||this.max.y<=rc.y||this.xy.y>=rc.w) {
             return false;
         }
         return true;
@@ -1423,7 +1440,12 @@ export class zlUIWin
         case "notify":
             this.isCanNotify=ParseBool(toks[1]);
             break;
+        case "resize":
+        case "resizable":
+            this.isResizable=ParseBool(toks[1]);
+            break;
         case "drag":
+        case "dragable":
             this.isCanDrag=ParseBool(toks[1]);
             break;
         case "+x":
@@ -1566,7 +1588,7 @@ export class zlUIWin
         case "alpha":
             this.alpha=Number.parseFloat(toks[1]);
             break;
-        case "include":
+        case "include": {
             let path=this._owner.path;
             let file=toks[1];
             let t=await fetch( path + file).then(r=>{           
@@ -1576,6 +1598,23 @@ export class zlUIWin
                 return "";
             });        
             await this.Parse(new Parser(t));
+        }
+            break;
+        case "load": {
+            let path=this._owner.path;
+            let file=toks[1];
+            fetch( path + file).then(r=>{
+                return r.text();
+            }).then(text=>{
+                return this.Parse(new Parser(text));
+            }).then(n=>{
+                if(this._owner.on_load) {
+                    this._owner.on_load(file);
+                }
+            }).catch(r=>{
+                console.log("Load " + path + file + " failed");
+            })
+        }
             break;
         default:
             console.log("zlUIWin " + this.Name + " unknow param " + name);
@@ -2840,7 +2879,7 @@ export {zlUIEdit as UIEdit}
 
 export class Input
 {
-    constructor(type:string, textCol:string, textBg:string)
+    constructor(type:string)
     {
         let input:HTMLInputElement|HTMLTextAreaElement;
         if(type=='textarea') {
@@ -2858,15 +2897,19 @@ export class Input
         input.style.borderWidth='0';
         input.style.borderStyle='none';
         input.style.zIndex='999';
-        input.style.backgroundColor=textBg;
-        input.style.color=textCol;
-        input.value="123";
+        //input.classList.add("Panel");
+        //input.value="123";
 
         input.addEventListener('blur', (e)=>{this.onLostFocus(e)})
         input.addEventListener('keydown', (e)=>{this.onKeydown(e as KeyboardEvent)})
         input.onchange=(e)=>{
             if(type=='file' && this.on_file) {
                 this.on_file((input as HTMLInputElement).files[0]);
+            }
+        }
+        input.onmousemove=(e)=>{
+            if(type=='range' && this.on_input) {
+                this.on_input(this._dom_input.value);    
             }
         }
 
@@ -2914,8 +2957,10 @@ export class Input
     {
         this._id=id;
         let input=this._dom_input;
-        input.style.font=font.style;
-        input.value=text;
+        input.style.font=font.CSS();
+        if(input.type!='file') {
+            input.value=text;
+        }
         this.setVisible(true);
     }
     public setVisible(b:boolean)
@@ -2942,13 +2987,64 @@ export class Input
 
 let dom_input:{[key:string]:Input}={}
 
-function GetInput(type:string, textColor:string, textBgColor:string):Input
+function GetInput(type:string):Input
 {
     let inp=dom_input[type];
     if(!inp)    {
-        inp=new Input(type, textColor, textBgColor);
+        inp=new Input(type);
         dom_input[type]=inp;
     }
+    return inp;
+}
+
+function CSSTextAlign(obj:zlUIPanel):string {
+    let textAlign="";
+    if(obj.textAnchor && (obj.textAnchor.mode & EAnchor.X)) {
+        if(obj.textAnchor.x<0.25) {
+            textAlign="left";
+        }else if(obj.textAnchor.x>0.75) {
+            textAlign="right";
+        }else {
+            textAlign="center";
+        }
+    }else {
+        switch(obj.textAlignW) {
+        case Align.None:
+        case Align.Left:
+            textAlign="left";
+            break;
+        case Align.Center:
+            textAlign="center";
+            break;
+        case Align.Right:
+            textAlign="right";
+            break;
+        }
+    }
+    return textAlign;
+}
+
+
+function NotifyEdit(obj:zlUIPanel, text:string, type:string, accept:string,
+    x:number, y:number, w:number, h:number, textAlign:string="left"):Input {
+    let inp:Input;
+    let e:HTMLInputElement|HTMLTextAreaElement;
+    if(obj.isMultiline) {
+        inp=GetInput('textarea');
+        e=inp._dom_input as HTMLTextAreaElement;
+    }else {
+        inp=GetInput(type);
+        e=inp._dom_input as HTMLInputElement;
+        e.accept=accept;
+    }
+    e.style.textAlign=textAlign;
+    let font=obj._owner.GetFont(obj.fontIndex);
+    inp.setText(text, obj._uid, font);
+    inp.setRect(x,y,w,h);
+    e.style.font=font.CSS();
+    e.style.backgroundColor=to_cssrgb(obj.color);
+    e.style.color=to_cssrgb(obj.textColor);
+    e.oninput=undefined;
     return inp;
 }
 
@@ -3028,52 +3124,11 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     OnNotify(): void {
         if(!this.isEnable)
             return;
+        if(!this._screenRect)
+            return;
         super.OnNotify();
-        let inp:Input;
-        const textCol=to_rgb(this.textColor);
-        const textBg=to_rgb(this.color);
-        if(this.isMultiline) {
-            inp=GetInput('textarea', textCol, textBg);
-        }else {
-            inp=GetInput(this.type, textCol, textBg);
-        }
-        switch(this.textAlignW) {
-        case Align.Left:
-            inp._dom_input.style.textAlign="left";
-            break;
-        case Align.Center:
-            inp._dom_input.style.textAlign="center";
-            break;
-        case Align.Right:
-            inp._dom_input.style.textAlign="right";
-            break;
-        }
-        if(this.textAnchor) {
-            if(this.textAnchor.mode & EAnchor.X) {
-                if(this.textAnchor.x==0) {
-                    inp._dom_input.style.textAlign="left";
-                }
-                else if(this.textAnchor.x==0.5) {
-                    inp._dom_input.style.textAlign="center";
-                }
-                else if(this.textAnchor.x==1) {
-                    inp._dom_input.style.textAlign="right";
-                }
-            }
-        }
-        inp.setText(this.text, 0, this._owner.GetFont(this.fontIndex));
-        if(this._screenRect) {
-            let screenXY=this._screenRect.xy;
-            inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
-        }
-        this.on_calrect=()=>{
-            let screenXY=this._screenRect.xy;
-            inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
-        }
-        let font=this._owner.GetFont(this.fontIndex);
-        inp._dom_input.style.font=font.CSS();
-        inp._dom_input.style.backgroundColor=textBg;
-        inp._dom_input.style.color=textCol;
+        let xy=this._screenRect.xy;
+        let inp:Input=NotifyEdit(this,this.text,this.type,this.accept, xy.x, xy.y, this.w, this.h, CSSTextAlign(this));
         inp._dom_input.oninput=(e)=>{
             let text=inp._dom_input.value;
 			if(this.on_before_edit)	{
@@ -3086,6 +3141,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
             this.SetText(text);
         }
         inp.on_input=(e)=>{
+            this.SetText(e);
             if(this.on_edit) {
                 this.on_edit(this);
             }
@@ -3106,6 +3162,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     password_char:string;
     max_text_length:number;
     type:string="text";
+    accept:string=".*";
 }
 
 export {zlUIButton as UIButton}
@@ -3519,60 +3576,18 @@ export class zlUICombo extends zlUIButton
 
     OnNotify():void {
         super.OnNotify();
-        if(this._owner.combo===this) {
-            this._owner.ClosePopup();
-            return;
-        }
-        if(!this.combo_items)
-            return;
-        let combo_menu=this._owner.DefaultComboMenu;
-        let combo_item=this._owner.DefaultComboItem;
-        combo_menu.pChild=[];
-        let i=0;
-        for(let item of this.combo_items) {
-            let btn=combo_item.Clone() as zlUIButton;
-            btn.isVisible=true;
-            btn.SetText(item);
-            btn.user_data=i;
-            btn.on_click=(o)=>{
-                combo_menu.isDelete=true;
-                this._owner.ClosePopup();
-                if(this.combo_value==btn.user_data) {
+        this._owner.PopupCombo(this, this.combo_items, this.max_popup_items, 
+            this._screenRect.xy.x, this._screenRect.max.y, this.popup_w?this.popup_w:this.w, (inx)=>{
+                if(this.combo_value==inx) {
                     this.SetText(this.combo_items[this.combo_value]);
                     return;
                 }
-                this.combo_value=btn.user_data;
+                this.combo_value=inx;
                 this.SetText(this.combo_items[this.combo_value]);
                 if(this.on_combo) {
                     this.on_combo(this);
                 }
-            }
-            combo_menu.ArrangeChild(btn,ESliderType.eVertical);
-            i++;
-        }
-        if(i==0)
-            return;
-        if(i>this.max_popup_items)
-            i=this.max_popup_items;
-        if(this._screenRect) {
-            combo_menu.x=this._screenRect.xy.x;
-            combo_menu.y=this._screenRect.max.y;
-        }
-        this.on_calrect=()=>{
-            combo_menu.x=this._screenRect.xy.x;
-            combo_menu.y=this._screenRect.max.y;
-        }
-        combo_menu.w=this.popup_w?this.popup_w:this.w;
-        combo_menu.h=i*combo_item.h
-			+combo_menu.padding+combo_menu.padding
-			+combo_menu.borderWidth+combo_menu.borderWidth;
-        if(combo_menu.y+combo_menu.h>this._owner.h) {
-            combo_menu.h=this._owner.h-combo_menu.y;
-        }
-        combo_menu.SetCalRect();
-        this._owner.AddChild(combo_menu);
-        this._owner.Popup(combo_menu);
-        this._owner.combo=this;
+            });
     }
 
     Combo(value:number, items?:string[], on_combo?:(value:number)=>any)
@@ -4443,6 +4458,20 @@ export enum EditDataType
     eFloat,
 }
 
+interface IRange
+{
+    min_value:number
+    max_value:number
+    step:number
+
+    rect:Rect
+}
+
+function FixedFloat(v:number, n:number):number
+{
+    return Number.parseFloat(v.toFixed(n));
+}
+
 export class zlUIEditItem extends zlUIPanel implements IEditable
 {
     on_edit:(value:any[])=>void;
@@ -4472,6 +4501,22 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
         case "type":
             this.type=toks[1];
             break;
+        case "accept":
+            this.accept=toks[1];
+            break;
+        case "range":
+            this.range={min_value:Number.parseFloat(toks[1]),
+                max_value:Number.parseFloat(toks[2]),
+                step:Number.parseFloat(toks[3]),
+                rect:new Rect
+            };
+            break;
+        case "items":
+            this.items=[];
+            for(let i=1;i<toks.length-1;i++) {
+                this.items.push(toks[i]);
+            }  
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -4492,7 +4537,17 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
         return obj;
     }
 
-    IsEditable():boolean {return true;}
+    IsEditable():boolean {
+        switch(this.type) {
+        case 'text':
+        case 'number':
+        case 'password':
+        case 'range':
+            return true;
+        }
+        return false;
+    }
+
     IsNextEdit():boolean {
         let ret=false;
         this.edit_value++;
@@ -4544,39 +4599,41 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
         if(this.value === undefined || this.value.length == 0)
             return;
         super.OnNotify();
-        let inp:Input;
-        const textCol=to_rgb(this.textColor);
-        const textBg=to_rgb(this.color);
-        if(this.isMultiline) {
-            inp=GetInput('textarea', textCol, textBg);
-        }else {
-            inp=GetInput(this.type, textCol, textBg);
-        }
-        let font=this._owner.GetFont(this.fontIndex);
-        inp._dom_input.style.textAlign="left";
-        inp._dom_input.style.font=font.CSS();
-
-        let vx=this._screenRect.x + this.label_width;
+        let xy=this._screenRect.xy;
         let vw=(this.w-this.label_width)/this.value.length;
-        let value=this.value[this.edit_value];
-        vx+=vw*this.edit_value;
-        inp.setText(value, 0, this._owner.GetFont(this.fontIndex));
-        if(this._screenRect) {
-            let screenXY=this._screenRect.xy;
-            inp.setRect(vx, screenXY.y, vw, this.h);
-        }
-        // this.on_calrect=()=>{
-        //     let screenXY=this._screenRect.xy;
-        //     inp.setRect(screenXY.x, screenXY.y, this.w, this.h);
-        // }
-
-        inp._dom_input.style.backgroundColor=textBg;
-        inp._dom_input.style.color=textCol;
         let current=this.edit_value;        
-        inp.on_input=(e)=>{
-            let text=inp._dom_input.value;
-            this.value[current]=text;
+        let vx=xy.x+this.label_width+vw*current;
+        let value=this.value[current];
+        let type=this.type;
+        switch(type) {
+        case 'range': {
+            let rw=vw*0.4;
+            vw=rw;
+            type='number';
+            if(this._owner.mouse_pos.x>vx+rw)
+                return;
+        }
+            break;
+        case 'checkbox':
+            return;
+        case 'combo':
+            this._owner.PopupCombo(this, this.items, 10, vx, xy.y+this.h, vw, (inx)=>{
+                if(this.value[current]!=inx) {
+                    this.value[current]=inx;
+                    if(this.on_edit)
+                        this.on_edit(this.value);
+                }
+            });
+            return;
 
+        }
+        let inp:Input=NotifyEdit(this,value,type, this.accept,  vx, xy.y, vw, this.h);
+
+        inp.on_input=(e)=>{
+            if(this.type != "file") {
+                let text=inp._dom_input.value;
+                this.value[current]=text;
+            }
             if(this.on_edit) {
                 this.on_edit(this.value);
             }
@@ -4587,32 +4644,87 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
                 this._owner.nextEdit=this;
             }
         }
+        inp.on_file=(file)=>{this.value[current]=file;}
         this._owner.dom_input=inp;
     }
 
-    Input(label:string, value:any[], type:string, callback:(data:any)=>void) {
-        this.SetText(label);
+    OnClick(): void {
+        super.OnClick();
+
+        if(this.type=='checkbox') {
+            this.value[this.edit_value]=!this.value[this.edit_value];
+            if(this.on_edit) {
+                this.on_edit(this.value);
+            }
+        }
+    }
+
+    Refresh(ti: number, parent?: zlUIWin): boolean {
+        if(this.type=='range' && this.range && this._owner.any_pointer_down) {
+            let xy=this._screenRect.xy;
+            let vw=(this.w-this.label_width)/this.value.length;
+            let current=this.edit_value;         
+            let vx=xy.x+this.label_width+vw*current;
+            let rx=vw*0.4;
+            this.range.rect.Set(vx+rx, xy.y,
+                vx+vw ,this._screenRect.max.y);
+            if(this.range.rect.Inside(this._owner.mouse_pos)) {
+                let mw=this.range.rect.Width()-this.padding-this.padding;
+                let mx=this._owner.mouse_pos.x-(this.range.rect.x+this.padding);
+                let per=Math.max(0,Math.min(1,mx/mw));   //0.0~1.0
+                let range=(this.range.max_value-this.range.min_value);
+                let step=Math.floor((range/this.range.step)*per)*this.range.step;
+                let value=`${FixedFloat(this.range.min_value+step, 6)}`;
+                if(this.value[current]!=value) {
+                    this.value[current]=value;
+                    if(this.on_edit)
+                        this.on_edit(this.value);
+                }
+            }
+        }
+        return super.Refresh(ti, parent);
+    }
+
+    Input(value:any[], type:string, callback:(data:any)=>void, label?:string) {
+        if(label!==undefined) {
+            this.SetText(label);
+        }
         this.value=value;
         this.type=type;
-        this.on_edit=callback;
+        this.on_edit=callback;        
     }
-    InputText(label:string, value:any[], callback:(data:any)=>void) {
-        this.Input(label, value, 'text', callback);
+    InputText(value:any[], callback:(data:any)=>void, label?:string) {
+        this.Input(value, 'text', callback, label);
     }
-    InputNumber(label:string, value:any[], callback:(data:any)=>void) {
-        this.Input(label, value, 'number', callback);
+    InputNumber(value:any[], callback:(data:any)=>void, label?:string) {
+        this.Input(value, 'number', callback, label);
+    }
+    Combo(value:any[], items:string[], callback:(data:any)=>void, label?:string) {
+        this.items=items;
+        this.Input(value, 'combo', callback, label);
+    }
+    Check(value:any[], items:string[], callback:(data:any)=>void, label?:string) {
+        this.items=items;
+        this.Input(value, 'checkbox', callback, label);
+    }
+    Range(value:any[], callback:(data:any)=>void, 
+        minvalue:number=0, maxvalue:number=100, step:number=1, label?:string) {
+        this.range={
+            min_value:minvalue,
+            max_value:maxvalue, 
+            step:step,
+            rect:new Rect
+        };
+        this.Input(value, 'range', callback, label);
     }
 
     label_width:number=160;
     value:any[];
     type:string="text";
+    accept:string="*/*";
     edit_value:number=0;
-
-    isSlider:boolean=false;
-    isDrag:boolean=false;
-    min_value=0;
-    max_value=100;
-    step_value=1;
+    items:string[];
+    range:IRange;    
 }
 
 enum EEmitter
@@ -6143,10 +6255,14 @@ export class zlUIMgr extends zlUIWin
         this.create_func['particle']=zlUIParticle.Create;
 
         this._csid=zlUIMgr.CSID;
+
+        this.default_hint_panel=new zlUIPanel(this);
+        this.default_hint_panel.isVisible=false;        
     }
 
     static CSID="Mgr";
 
+    on_load: (file:string)=>any;
     on_create: ((this: zlUIWin, name: string) => any) | null; 
     on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
@@ -6222,7 +6338,7 @@ export class zlUIMgr extends zlUIWin
         }
     }
 
-    async Load(file:string, path:string):Promise<boolean>
+    async Load(file:string, path:string, parent?:string):Promise<boolean>
     {
         console.log("zlUIMgr Load "+ path + file);
         this.path=path;
@@ -6235,6 +6351,12 @@ export class zlUIMgr extends zlUIWin
             console.log("Load " + path + file + " failed");
             return "";
         });        
+        if(parent) {
+            let win=this.GetUI(parent);
+            if(win) {
+                return await win.Parse(new Parser(t)) > 0;
+            }
+        }
         return await this.Parse(new Parser(t)) > 0;
     }
     async LoadTexturePack(file:string, path:string):Promise<boolean>
@@ -6364,7 +6486,8 @@ export class zlUIMgr extends zlUIWin
             this.hover=notify;
 
             if(notify.hint) {
-                this.ShowHint(notify.hint, new Vec2(this.mouse_pos.x+20, this.mouse_pos.y));
+                this.hint_pos.Set(this.mouse_pos.x+20, this.mouse_pos.y);
+                this.ShowHint(notify.hint, this.hint_pos);
             }else {
                 this.HideHint();
             }
@@ -6487,6 +6610,54 @@ export class zlUIMgr extends zlUIWin
         }
         return img;
     }
+
+    PopupCombo(obj:zlUIWin, items:string[], max_popup_items:number, 
+        popup_x:number, popup_y:number, popup_w:number, callback:(inx:number)=>void) {
+        if(this.combo===obj) {
+            this.ClosePopup();
+            return;
+        }
+        if(!items)
+            return;
+
+        let combo_menu=this.DefaultComboMenu;
+        let combo_item=this.DefaultComboItem;
+        combo_menu.pChild=[];
+        let i=0;
+        for(let item of items) {
+            let btn=combo_item.Clone() as zlUIButton;
+            btn.isVisible=true;
+            btn.SetText(item);
+            btn.user_data=i;
+            btn.on_click=()=>{
+                combo_menu.isDelete=true;
+                this.ClosePopup();
+                callback(btn.user_data);
+            }
+            combo_menu.ArrangeChild(btn,ESliderType.eVertical);
+            i++;
+        }
+        if(i==0)
+            return;
+        if(i>max_popup_items)
+            i=max_popup_items;
+
+        combo_menu.x=popup_x;
+        combo_menu.y=popup_y;        
+        combo_menu.w=popup_w?popup_w:obj.w;
+        combo_menu.h=i*combo_item.h
+			+combo_menu.padding+combo_menu.padding
+			+combo_menu.borderWidth+combo_menu.borderWidth;
+        if(combo_menu.y+combo_menu.h>this.h) {
+            combo_menu.h=this.h-combo_menu.y;
+        }
+        combo_menu.isVisible=true;
+        combo_menu.SetCalRect();
+        this.AddChild(combo_menu);
+        this.Popup(combo_menu);
+        this.combo=obj;
+    }
+
     Popup(ui:zlUIWin):void
     {
         if(this.popup) {
@@ -6511,6 +6682,8 @@ export class zlUIMgr extends zlUIWin
     }
     ShowHint(hint:string, pt:Vec2):void
     {
+        if(this.DefaultHintPanel===undefined)
+            return;
         let pnl=this.DefaultHintPanel;
         pnl.x=pt.x;
         pnl.y=pt.y;
@@ -6523,6 +6696,8 @@ export class zlUIMgr extends zlUIWin
     }
     HideHint():void
     {
+        if(this.DefaultHintPanel===undefined)
+            return;
         let pnl=this.DefaultHintPanel;
         if(pnl.isVisible) {
             pnl.isVisible=false;
@@ -6630,10 +6805,6 @@ export class zlUIMgr extends zlUIWin
         return this.default_combo_item;
     }
     get DefaultHintPanel():zlUIPanel {
-        if(!this.default_hint_panel) {
-            this.default_hint_panel=new zlUIPanel(this);
-            this.default_hint_panel.isVisible=false;
-        }
         return this.default_hint_panel;
     }
 
@@ -6678,7 +6849,7 @@ export class zlUIMgr extends zlUIWin
     default_combo_item:zlUIButton;
     default_hint_panel:zlUIPanel;
 
-    combo:zlUICombo;
+    combo:zlUIWin;
 
     prevDown:boolean=false;
     any_pointer_down:boolean=false;
@@ -6687,6 +6858,7 @@ export class zlUIMgr extends zlUIWin
     mouse_wheel_speed:number=20;
     touch_tolerance:number=50;
     down_index:number=0;
+    hint_pos:Vec2=new Vec2();
 
     default_panel_color:number=0xffebebeb;
     dom_input:Input;

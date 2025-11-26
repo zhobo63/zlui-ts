@@ -1,0 +1,66 @@
+ifnot DarkTheme include dark.ui
+
+Clone EditItem
+{
+    Name ed_item1
+    RectWH 770 120 300 30
+    TextAlignW center
+    #Type password
+    Label text
+    Value 123 456
+    Hint label edit multipe items
+}
+Clone EditItem
+{
+    Name ed_item2
+    RectWH 770 150 300 30
+    TextAlignW center
+    Label password
+    Type password
+    Value 123
+    Hint label edit multipe items
+}
+Clone EditItem
+{
+    Name ed_item3
+    RectWH 770 180 300 30
+    TextAlignW center
+    Label Combo
+    Type combo
+    Items 貓 狗 雞 豬 羊
+    Value 0 1
+    Hint label edit multipe items
+}
+Clone EditItem
+{
+    Name ed_item3
+    RectWH 770 210 300 30
+    TextAlignW center
+    Label Check
+    Type checkbox
+    Value true true
+    Items 啟用 停用
+    Hint label edit multipe items
+}
+
+Clone EditItem
+{
+    Name ed_item4
+    RectWH 770 240 300 30
+    TextAlignW center
+    Label Range
+    Type range
+    Value 40
+    Range -100 100 0.01
+    Hint label edit multipe items
+}
+Clone EditItem
+{
+    Name ed_item5
+    RectWH 770 270 300 30
+    TextAlignW center
+    Label File
+    Type file
+    Value 1
+    Hint label edit multipe items
+}

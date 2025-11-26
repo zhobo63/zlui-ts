@@ -1,6 +1,6 @@
 {
   "name": "@zhobo63/zlui-ts",
-  "version": "0.1.45",
+  "version": "0.1.47",
   "description": "zlUI is a simple scripted ui system that with a single zlUI.ts file.",
   "main": "./src/zlUI",
   "scripts": {

@@ -5,7 +5,7 @@ ifnot DarkTheme include dark.ui
 Clone Panel 
 {
     Name pnl_imagetext
-    RectWH 770 90 120 60
+    RectWH 770 50 120 60
 
     Object ImageText
     {

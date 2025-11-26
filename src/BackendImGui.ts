@@ -666,6 +666,8 @@ export class PaintTreeNodeOpen extends PaintCheck
     }    
 }
 
+const CHECKMARK_SIZE=20;
+
 export class PaintEditItem extends PaintPanel
 {
     constructor(backend:BackendImGui)
@@ -676,22 +678,33 @@ export class PaintEditItem extends PaintPanel
     PaintEditItem() {
         this.PaintText();
         let obj=this.obj as zlUIEditItem;
+        let vh=0;
+        switch(obj.type) {
+        case 'checkbox':
+            vh=CHECKMARK_SIZE;
+            break;
+        default:
+            vh=obj._textSize?.y;
+            break;
+        }
         
         if(obj.value !== undefined) {
             let font=obj._owner.GetFont(obj.fontIndex);
-            let th=(obj.h-obj._textSize?.y)*0.5;
+            let th=(obj.h-vh)*0.5;
             let value_w=obj.w-obj.label_width;
             let vw=value_w/obj.value.length;
             let xy=Clone(obj._localRect.xy);
             let xy2=Clone(obj._localRect.max);
             
             for(let value of obj.value) {
-                this.xy.Set(xy.x+obj.label_width, xy.y);
+                let x=xy.x+obj.label_width;
+                this.xy.Set(x, xy.y);
                 this.xy2.Set(this.xy.x+vw-1, xy2.y);
 
-                RenderClient(this.drawlist, this.xy, this.xy2, obj.color4, obj.color, obj.alpha,
-                    obj.rounding, obj.roundingCorner);
-
+                if(obj.isDrawClient) {
+                    RenderClient(this.drawlist, this.xy, this.xy2, obj.color4, obj.color, obj.alpha,
+                        obj.rounding, obj.roundingCorner);
+                }
                 if(obj.isDrawBorder) {
                     RenderBorder(this.drawlist, this.xy, this.xy2, obj.borderColor, obj.alpha,
                         obj.rounding, obj.roundingCorner, obj.borderWidth);
@@ -700,35 +713,93 @@ export class PaintEditItem extends PaintPanel
                 switch(obj.type) {
                 case 'text':
                 case 'number':
-                    this.xy.x+=obj.padding;
-                    this.xy.y+=th;
+                    this.xy.x=x+obj.padding;
+                    this.xy.y=xy.y+th;
                     this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
                     RenderText(this.drawlist, font, value, this.xy, 0, obj.textColor, this.clip);
                     break;
                 case 'password':
-                    this.xy.x+=obj.padding;
-                    this.xy.y+=th;
+                    this.xy.x=x+obj.padding;
+                    this.xy.y=xy.y+th;
                     this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
                     RenderText(this.drawlist, font, ''.padStart(value.length, '*'), this.xy, 0, obj.textColor, this.clip);
                     break;
                 case 'button':
+                    break;
                 case 'checkbox':
+                    this.xy.x=x+obj.padding;
+                    this.xy.y=xy.y+th;
+                    this.xy3.Set(this.xy.x+20, this.xy.y+20);
+                    RenderCheck(this.drawlist, this.xy, this.xy3, 
+                        obj.borderColor, obj.textColor, obj.alpha, 4, value);
+                    if(obj.items) {
+                        this.xy.x+=obj.padding + 20;
+                        this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
+                        let text=value? obj.items[0]:obj.items[1];
+                        RenderText(this.drawlist, font, text, this.xy, 0, obj.textColor, this.clip);
+                    }
+                    break;
+                case 'combo':
+                    this.xy.x=x+obj.padding;
+                    this.xy.y=xy.y+th;
+                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
+                    if(value>=0 && value<obj.items.length) {
+                        RenderText(this.drawlist, font, obj.items[value], this.xy, 0, obj.textColor, this.clip);
+                    }
+                    this.xy3.Set(this.xy2.x-16-obj.padding, this.xy.y);
+                    RenderArrow(this.drawlist, this.xy3, 
+                        MultiplyAlpha(obj.textColor, obj.alpha), ImGui.ImGuiDir.Down, 16, 1);
+
+                    break;
                 case 'color':
                 case 'date':
                 case 'time':
                 case 'datetime-local':
                 case 'email':
-                case 'file':
+                    break;
+                case 'file': {
+                    if(value && (typeof value === "object")) {
+                        let file=value as File;
+                        this.xy.x=x+obj.padding;
+                        this.xy.y=xy.y+th;
+                        this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
+                        RenderText(this.drawlist, font, file.name, this.xy, 0, obj.textColor, this.clip);
+                    }
+                }
+                    break;
                 case 'image':
                 case 'month':
                 case 'radio':
-                case 'range':
+                    break;
+                case 'range': {
+                    this.xy.x=x+obj.padding;
+                    this.xy.y=xy.y+th;
+                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
+                    RenderText(this.drawlist, font, value, this.xy, 0, obj.textColor, this.clip);
+                    if(obj.range) {
+                        let rw=vw*0.4;
+                        th=(obj.h-10)*0.5;
+                        this.xy.x+=rw;
+                        this.xy.y=xy.y+th;
+                        this.xy2.x-=obj.padding;
+                        this.xy2.y-=th;
+                        RenderBorder(this.drawlist, this.xy, this.xy2, obj.borderColor, obj.alpha,
+                            2, ECornerFlags.All, 1);
+                        let per=(value-obj.range.min_value)/(obj.range.max_value-obj.range.min_value);
+                        if(per>0) {
+                            rw=this.xy2.x-this.xy.x;
+                            let rx=rw*per;
+                            this.xy2.x=this.xy.x+rx;
+                            RenderClient(this.drawlist, this.xy, this.xy2, undefined, 0xff00ff00, obj.alpha,
+                                2, ECornerFlags.All);
+                        }
+                    }
+                }
+                    break;
                 case 'url':
                 case 'week':
                     break;
                 }
-
-
                 xy.x+=vw;
             }
 
@@ -752,6 +823,8 @@ export class PaintEditItem extends PaintPanel
 
     xy:Vec2=new Vec2;
     xy2:Vec2=new Vec2;
+    xy3:Vec2=new Vec2;
+    xy4:Vec2=new Vec2;
     clip:Vec4=new Vec4;
 }
 

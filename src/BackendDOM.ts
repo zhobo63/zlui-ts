@@ -1,4 +1,4 @@
-import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UIMgr, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
+import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -67,6 +67,7 @@ class PaintWin implements IPaint
             if(obj.hint) {
                 e.setAttribute("tip", obj.hint);
             }
+            e.setAttribute('data-name', obj.Name);
             
             let parent=document.getElementById(`${this.backend.parent._uid}`);
 
@@ -88,21 +89,38 @@ class PaintWin implements IPaint
             //e.style.position="fixed";
             //e.style.position='relative';
             e.style.position='absolute';
+            let x:number, y:number;
+            let ox:number, oy:number;
+            let isDragging=false;
 
-            e.onmousemove=(e)=>{
+            e.onmousemove=(_e)=>{
                 if(obj.on_mousemove) {
-                    obj.on_mousemove(e.offsetX, e.offsetY);
+                    obj.on_mousemove(_e.offsetX, _e.offsetY);
+                }
+                if(obj.isCanDrag && isDragging) {
+                    obj.x=x+(_e.x-ox)/obj._world.scale;
+                    obj.y=y+(_e.y-oy)/obj._world.scale;
+                    obj.SetCalRect();
+                    this.SetPosition(e, obj, obj.x, obj.y);
                 }
             }
             e.onmousedown=(e)=>{
                 if(obj.on_mousedown) {
                     obj.on_mousedown(e.offsetX, e.offsetY);
                 }
+                if(obj.isCanDrag) {
+                    ox=e.x;
+                    oy=e.y;
+                    x=obj.x;
+                    y=obj.y;
+                    isDragging=true;
+                }
             }
             e.onmouseup=(e)=>{
                 if(obj.on_mouseup) {
                     obj.on_mouseup(e.offsetX, e.offsetY);
                 }
+                isDragging=false;
             }
         }
         if(this.backend.visible_map[obj._uid] !== undefined) {
@@ -114,6 +132,21 @@ class PaintWin implements IPaint
     }
     PaintEnd() {
 
+    }
+
+    SetPosition(e:HTMLElement, obj:UIWin, x:number, y:number) {
+        let scale=obj._world.scale;
+        let ox=0;
+        let oy=0;
+
+        if(this.backend.parent?._csid==UIMgr.CSID) {
+            ox=obj._owner.x;
+            oy=obj._owner.y;
+        }
+        let left=`${Math.floor(obj.x*scale+ox)}px`;
+        let top=`${Math.floor(obj.y*scale+oy)}px`;
+        e.style.left=left;
+        e.style.top=top;
     }
 
     SetRect(e:HTMLElement, r:RectDOM) {
@@ -192,6 +225,7 @@ class PaintPanel extends PaintWin
     constructor(backend:BackendDOM)
     {
         super(backend);
+        this.has_label=true;
     }
 
     Paint()
@@ -204,11 +238,11 @@ class PaintPanel extends PaintWin
         this.PaintPanel(e);
     }
 
-    PaintText(e:HTMLDivElement) {
+    PaintText(e:HTMLElement) {
         let obj=this.obj as zlUIPanel;
         let label_id=`label_${obj._uid}`;
         let label=document.getElementById(label_id) as HTMLLabelElement;
-        if(obj.text && obj.text.length>0) {
+        if(this.has_label && obj.text && obj.text.length>0) {
             let font=obj._owner.GetFont(obj.fontIndex);
             let fontstyle=`${font.style} ${Math.floor(font.size*obj._world.scale)}px ${font.name}`;
             e.style.font=fontstyle;
@@ -234,15 +268,9 @@ class PaintPanel extends PaintWin
             e.style.borderRadius=borderRadius;
         }
         if(obj.isDrawBorder) {
-            let borderWidth=`${obj.borderWidth}px`;
-            if(e.style.borderStyle!='solid') {
-                e.style.borderStyle="solid";
-            }
-            if(e.style.borderWidth!=borderWidth) {
-                e.style.borderWidth=borderWidth;
-            }
+            e.style.border=`${obj.borderWidth}px solid ${CSSrgba(obj.borderColor, obj.alpha)}`;
         }else {
-            e.style.borderStyle="none";
+            e.style.border="none";
         }
         if(obj.isDrawClient) {
 
@@ -275,6 +303,8 @@ class PaintPanel extends PaintWin
                 case 0.5:
                     e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale)}px`;
                     break
+                case 1:
+                    break;
                 }
             }
         }else {
@@ -298,6 +328,8 @@ class PaintPanel extends PaintWin
             case Align.Center:
                 e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale)}px`;
                 break;
+            case Align.Down:
+                break;
             }
         }
     }
@@ -309,6 +341,8 @@ class PaintPanel extends PaintWin
         e.classList.add('Panel'); 
         return e;
     }
+
+    has_label:boolean;
 }
 
 class PaintButton extends PaintPanel
@@ -331,6 +365,7 @@ class PaintButton extends PaintPanel
     Create(): HTMLElement {
         let e=document.createElement('button');
         e.classList.add('Win');
+        e.classList.add('Panel');
         e.classList.add('Button');
         let obj=this.obj as zlUIButton;
         if(obj.on_click) {
@@ -355,12 +390,9 @@ class PaintCheck extends PaintButton
     {
         let obj=this.obj as zlUICheck;
         super.Paint();
-        let e=document.getElementById(`${obj._uid}`) as HTMLButtonElement
-
-        e.onclick=()=>{
-            obj.isChecked=!obj.isChecked;
-            this.checkbox.checked=obj.isChecked;
-        }
+        //let e=document.getElementById(`${obj._uid}`) as HTMLButtonElement
+        let chk=document.getElementById(this.CheckID()) as HTMLInputElement;
+        chk.checked=obj.isChecked;
     }
 
     CheckID():string {
@@ -368,17 +400,29 @@ class PaintCheck extends PaintButton
     }
 
     Create(): HTMLElement {
-        let e=document.createElement('button');
+        let obj = this.obj as UICheck;
+        let e=document.createElement('label');
         let chk=document.createElement('input');
         this.checkbox=chk;
         chk.id=this.CheckID();
+        chk.name=chk.id;
         chk.type='checkbox';
+        chk.checked=obj.isChecked;
         e.append(chk);
+
+        let span=document.createElement('span');
+        span.classList.add('CheckMark');
+        e.append(span);
+        
+        e.setAttribute('for', chk.id);
+
         e.classList.add('Win');
+        e.classList.add('Panel');
+        e.classList.add('Button');
         e.classList.add('Check');
-        let obj=this.obj as zlUICheck;
+
         chk.onchange=()=>{
-            obj.isChecked=chk.checked;
+            obj.OnClick();
         }
         return e;
     }
@@ -391,6 +435,7 @@ class PaintCombo extends PaintButton
     constructor(backend:BackendDOM)
     {
         super(backend);
+        this.has_label=false;
     }
 
     Paint()
@@ -409,7 +454,7 @@ class PaintCombo extends PaintButton
 
     isComboItemChange(e:HTMLSelectElement, obj:zlUICombo):boolean
     {
-        if(e.options.length!=obj.combo_items.length)
+        if(e.options.length!=obj.combo_items?.length)
             return true;
         for(let i=0;i<obj.combo_items.length;i++) {
             if(e.options[i].textContent!=obj.combo_items[i])
@@ -423,6 +468,8 @@ class PaintCombo extends PaintButton
             e.remove(0);
         }
         let obj=this.obj as zlUICombo;
+        if(obj.combo_items === undefined)
+            return;
         let i=0;
         for(let item of obj.combo_items) {
             let opt=document.createElement('option');
@@ -436,7 +483,9 @@ class PaintCombo extends PaintButton
     Create(): HTMLElement {
         let e=document.createElement('select');
         e.classList.add('Win');
+        e.classList.add('Panel');
         e.classList.add('Combo');
+        this.textAlign(e);
         this.CreateOption(e);
         return e;
     }
@@ -466,12 +515,14 @@ class PaintEdit extends PaintPanel
             e=area;
         }else {
             let input=document.createElement('input') as HTMLInputElement;
+            input.accept=obj.accept;
             input.type=obj.type;
             e=input;
         }
         e.id=`${obj._uid}`;
         e.classList.add('Win');
         e.classList.add('Edit');
+        e.disabled=!obj.isEnable;
 
         switch(obj.type) {
         case 'file':
@@ -489,9 +540,10 @@ class PaintEdit extends PaintPanel
                 return;
             }
             e.value=obj.text;
+            e.select();
         }
         e.onblur=(ev)=>{
-            obj.text=e.value;
+            obj.SetText(e.value);
         }
         e.onchange=()=>{
             switch(obj.type) {
@@ -501,7 +553,9 @@ class PaintEdit extends PaintPanel
                 }
                 return;
             }
-            e.value=obj.text;
+            obj.SetText(e.value);
+            if(e.value != obj.text)
+                e.value=obj.text;
         }
         return e;
     }
@@ -579,11 +633,13 @@ class PaintEditItem extends PaintPanel
     Create(): HTMLElement {
         let obj=this.obj as zlUIEditItem;
         let e=document.createElement('div');
+        e.id=`${obj._uid}`;
         e.classList.add('Win');
         e.classList.add('Panel');         
 
         let label_id=`label_${obj._uid}`;
         let label=document.createElement('label') as HTMLLabelElement;
+        label.style.position="absolute";
         label.id=label_id
         label.textContent=obj.text;
         this.SetRect(label, {x:0, y:0, w:obj.label_width, h:obj.h});
@@ -602,6 +658,7 @@ class PaintEditItem extends PaintPanel
                 let input=document.createElement('input')as HTMLInputElement;
                 input.classList.add('Win');
                 input.setAttribute('type', obj.type);
+                input.disabled=!obj.isEnable;
                 this.SetRect(input, {x:vx, y:0, w:vw-1, h:obj.h-1});
                 vx+=vw;
 
@@ -622,6 +679,9 @@ class PaintEditItem extends PaintPanel
                     }
                     if(obj.on_edit!==undefined) {
                         obj.on_edit(obj.value);
+                        if(input.value!==obj.value[inx]) {
+                            input.value=obj.value[inx];
+                        }
                     }
                 }
 

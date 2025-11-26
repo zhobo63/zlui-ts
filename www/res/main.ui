@@ -23,17 +23,8 @@ Clone Combo
     ComboValue 0
 }
 
-Clone EditItem
-{
-    Name ed_item
-    RectWH 770 50 300 30
-    TextAlignW right
-    #Type password
-    Value 123 456
-    Hint label edit multipe items
-}
-
 include imagetext.ui
+load edititem.ui
 include arrange.ui
 include particle.ui
 
