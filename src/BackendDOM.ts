@@ -659,8 +659,6 @@ class PaintEditItem extends PaintPanel
                 input.classList.add('Win');
                 input.setAttribute('type', obj.type);
                 input.disabled=!obj.isEnable;
-                this.SetRect(input, {x:vx, y:0, w:vw-1, h:obj.h-1});
-                vx+=vw;
 
                 let input_id=`input_${obj._uid}_${id}`;
                 input.id=input_id;
@@ -672,6 +670,9 @@ class PaintEditItem extends PaintPanel
                     switch(input.type) {
                     case 'file':
                         obj.value[inx]=input.files.length>0? input.files[0]:null;
+                        break;
+                    case 'checkbox':
+                        obj.value[inx]=input.checked;
                         break;
                     default:
                         obj.value[inx]=input.value;
@@ -685,7 +686,30 @@ class PaintEditItem extends PaintPanel
                     }
                 }
 
-                label.append(input);
+                if(obj.type=='checkbox') {
+                    let el=document.createElement('label');
+                    el.style.position="absolute";
+                    el.setAttribute('data-color', CSSrgba(obj.color, 0));
+                    el.setAttribute('data-bordercolor', CSSrgba(obj.borderColor, obj.alpha));
+                    el.setAttribute('data-textcolor', CSSrgba(obj.textColor, obj.alpha));
+
+                    this.SetRect(el, {x:vx, y:0, w:vw-1, h:obj.h-1});
+                    el.setAttribute('for', input_id);
+                    el.classList.add('Win');
+                    el.classList.add('Panel');
+                    el.classList.add('Button');
+                    el.classList.add('Check');
+                    el.append(input);
+                    let span=document.createElement('span');
+                    span.classList.add('CheckMark');
+                    el.append(span);
+
+                    e.append(el);
+                }else {
+                    this.SetRect(input, {x:vx, y:0, w:vw-1, h:obj.h-1});
+                    label.append(input);
+                }
+                vx+=vw;
                 id++;
             }
         }

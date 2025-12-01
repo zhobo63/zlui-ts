@@ -1,12 +1,36 @@
 # zlui-ts README
 
-### Brief Description
+## Brief Description
 
-zlUI is a simple scripted ui system that with a single zlUI.ts file.
+  `zlui-ts` is a TypeScript UI library for creating modern graphical user interfaces.
+
+  Here are the key takeaways:
+
+   * Core UI System: The file defines the foundational classes and logic for a UI framework. The
+     central class appears to be zlUIWin, which represents a window or a UI element and can contain
+     other elements in a hierarchical structure.
+   * UI Components: It includes definitions for common UI elements such as panels, buttons,
+     checkboxes, combo boxes, and edit fields.
+   * Layout and Styling: The library has a comprehensive system for positioning and sizing elements,
+     including features like alignment, anchoring, docking, arrangment, and autosizing. It also handles colors,
+     transparency (alpha), and transformations (scaling, rotation).
+   * Backend Abstraction: It's designed to be backend-agnostic. It defines interfaces (IBackend,
+     IFont, ITexture) that a rendering backend must implement. This means the UI can be rendered in
+     different environments (like the browser DOM `BackendDOM.ts` or a native ImGui application `BackendImGui.ts`) by providing a
+     suitable backend.
+   * Text-based UI Definition: The presence of a Parser class and numerous Parse... functions
+     strongly suggests that UIs can be defined using a custom text format, which the library then
+     parses to create the UI tree.
+   * Vector Math: It includes its own set of math classes for vectors and matrices (Vec2, Vec4,
+     Mat2, Transform), which are essential for graphics and UI positioning.
+
+  In summary, zlui-ts is a versatile and extensible UI library with a focus on a declarative,
+  text-based approach to defining user interfaces and the ability to be rendered on different
+  platforms through its backend system.
 
 <img src="https://zhobo63.github.io/zlui/zlui-5-ed5913f66.gif">
 
-### Requirements
+## Requirements
 
 zlUI system rendering base on @zhobo63\imgui-ts
 
@@ -53,14 +77,14 @@ window.addEventListener('DOMContentLoaded', async () =>{
 
 ```
 
-### Known Issues
+## Known Issues
 
-ImTransform when rotate or scale
+- ImTransform when rotate or scale
+    * Edit Box
+    * Clip Rect 
+- Transform is only available for BackendImGui
 
-- Edit Box
-- Clip Rect 
-
-### Update History
+## Update History
 
 - 0.1.40
     zlUIParticle
@@ -92,6 +116,168 @@ ImTransform when rotate or scale
 - 0.1.6 Rotate scale and alpha animation
 
 <img src="https://zhobo63.github.io/zlui/zlui-5-ed5913f65.gif">
+
+## UI Definition
+
+### Base Properties (`zlUIWin`)
+These properties are available for **every** UI component as they are part of the base class.
+
+*   **`name <string>`**: Assigns a unique identifier.
+*   **`rectwh <x> <y> <width> <height>`**: Sets position and dimensions in one line.
+*   **`x <number>` / `left <number>`**: Sets the X coordinate.
+*   **`y <number>` / `top <number>`**: Sets the Y coordinate.
+*   **`w <number>` / `width <number>`**: Sets the width.
+*   **`h <number>` / `height <number>`**: Sets the height.
+*   **`align <type>`**: Aligns the component within its parent.
+    *   `type`: `none`, `left`, `top`, `right`, `down`, `center`, `centerw`, `centerh`, `centertop`, `centerdown`, `righttop`, `rightdown`, `lefttop`, `leftdown`, `parentwidth`, `parentheight`, `textwidth`, `textheight`, `textsize`.
+*   **`visible <bool>`**: Toggles visibility (`true`, `false`, `yes`, `no`, `1`, `0`).
+*   **`enable <bool>`**: Toggles if the component is interactive (`true`, `false`).
+*   **`disable <bool>`**: An alias for setting `enable` to `false`.
+*   **`notify <bool>`**: Toggles if the component can be targeted by mouse events.
+*   **`resize <bool>` / `resizable <bool>`**: Allows the component to be resized by dragging.
+*   **`drag <bool>` / `dragable <bool>`**: Allows the component to be moved by dragging.
+*   **`autosize <mode>`**: Automatically adjusts size based on child or text content.
+    *   `mode`: `none`, `width`, `height`, `all`, `size`, `textwidth`, `textheight`, `textsize`.
+*   **`autoheight <bool>`**: Alias for `autosize height`.
+*   **`padding <number>`**: Sets internal padding space.
+*   **`margin <x> <y>`**: Sets external margin for layout purposes (e.g., in an `arrange content` container).
+*   **`content_margin <x> <y>`**: Sets spacing between child elements in an `arrange content` container.
+*   **`clip <bool>`**: Enables clipping of child elements that render outside this component's bounds.
+*   **`anchor <mode> <x_ratio> <y_ratio>`**: Anchors the component relative to its parent's size using a ratio (0.0 to 1.0).
+    *   `mode`: `x`, `y`, `xy`, `all`.
+*   **`dock <mode> <left> <top> <right> <bottom>`**: Docks the component to parent edges using percentage-based coordinates (0.0 to 1.0).
+    *   `mode`: `left`, `top`, `right`, `down`, `all`.
+*   **`dockoffset <l> <t> <r> <b>`**: Adds a fixed pixel offset to the `dock` property.
+*   **`offset <x> <y>`**: Applies a fixed pixel offset to the component's final position.
+*   **`arrange <direction> <mode> [...]`**: Arranges child components.
+    *   `direction`: `horizon`, `vertical`.
+    *   `mode`: `item`, `content`, `row`. For `item` mode, additional parameters are `item_per_row` and `item_size`.
+*   **`hint <string>`**: Sets a tooltip text to show on hover.
+*   **`alpha <float>`**: Sets transparency (0.0 to 1.0).
+*   **`rotate <degrees>`**: Rotates the component around its origin.
+*   **`scale <float>`**: Scales the component from its origin.
+*   **`origin <x_ratio> <y_ratio>`**: Sets the rotation/scaling origin as a ratio of the component's size (0.0 to 1.0). Default is `0.5 0.5` (center).
+*   **`originoffset <x> <y>`**: Applies a fixed pixel offset to the origin.
+*   **`dragdrop <bool>`**: Enables the component as a source for drag-and-drop operations.
+*   **`dragtype <integer>`**: An integer ID for the type of item being dragged.
+*   **`droptype <integer>`**: An integer ID that determines what `dragtype` this component can accept.
+
+---
+
+### Component-Specific Properties
+
+#### `Image` (`zlUIImage`)
+*Inherits from `zlUIWin`.*
+*   **`image <texture_name>`**: Specifies the image to display from a loaded texture pack.
+*   **`color <color_value>`**: Sets a solid background color (e.g., `0xffrrggbbaa`, `rgb(r,g,b)`).
+*   **`rounding <number>`**: Radius for rounded corners.
+*   **`roundingcorner <flags>`**: Specifies which corners to round.
+    *   `flags`: `none`, `topleft`, `topright`, `botleft`, `botright`, `top`, `bot`, `left`, `right`, `all`.
+
+#### `Panel` (`zlUIPanel`)
+*Inherits from `zlUIImage`.*
+*   **`text <string>`**: Sets the display text.
+*   **`textcolor <color_value>`**: Sets the text color.
+*   **`textcolorhover <color_value>`**: Sets the text color on mouse hover.
+*   **`colorhover <color_value>`**: Sets the panel's background color on hover.
+*   **`color4 <c1> <c2> <c3> <c4>`**: Sets a gradient with four colors for the background.
+*   **`colorhover4 <c1> <c2> <c3> <c4>`**: Sets a four-color gradient for the hover state.
+*   **`font <font_index>`**: Specifies which loaded font to use by its integer index.
+*   **`textalignw <align>`**: Horizontal text alignment (`left`, `center`, `right`).
+*   **`textalignh <align>`**: Vertical text alignment (`top`, `center`, `down`).
+*   **`textanchor <mode> <x> <y>`**: Fine-grained text positioning using ratios.
+*   **`textoffset <x> <y>`**: Applies a fixed pixel offset to the text position.
+*   **`multiline <bool>`**: Allows text to wrap to the next line.
+*   **`drawclient <bool>`**: Toggles drawing of the main background/image.
+*   **`drawborder <bool>`**: Toggles drawing of the border.
+*   **`borderwidth <number>`**: Sets the border width in pixels.
+*   **`bordercolor <color_value>`**: Sets the border color.
+*   **`board <texture> <x1> <y1> <x2> <y2>`**: Defines a 9-patch style border using a texture region.
+
+#### `Button` (`zlUIButton`)
+*Inherits from `zlUIPanel`.*
+*   **`board <...>`**: Sets the 9-patch board for all states (up, down, hover).
+*   **`boardup <...>`, `boarddown <...>`, `boardhover <...>`**: State-specific 9-patch boards.
+*   **`color <...>`**: Sets the background color for all states.
+*   **`colorup <...>`, `colordown <...>`, `colorhover <...>`, `colordisable <...>`**: State-specific background colors.
+*   **`color4 <...>`, `colordown4 <...>`, `colorup4 <...>`**: State-specific 4-color gradients.
+*   **`textcolor <...>`**: Sets the text color for all states.
+*   **`textcolorup <...>`, `textcolordown <...>`, `textcolorhover <...>`, `textcolordisable <...>`**: State-specific text colors.
+*   **`image <...>`**: Sets the image for all states.
+*   **`imagedown <...>`, `imagehover <...>`, `imageup <...>`**: State-specific images.
+*   **`drawbutton <bool>`**: If `false`, disables the automatic state-change appearance logic.
+
+#### `Check` (`zlUICheck`)
+*Inherits from `zlUIButton`.*
+*   **`drawcheck <bool>`**: If `true` (default), draws a visual checkmark graphic when checked.
+*   **`checktext <checked_string> <unchecked_string>`**: Sets the text to display for the checked and unchecked states respectively.
+
+#### `Combo` (`zlUICombo`)
+*Inherits from `zlUIButton`.*
+*   **`comboitems <item1> <item2> ...`**: A space-separated list of strings for the dropdown menu.
+*   **`combovalue <index>`**: Sets the initially selected item by its index.
+*   **`popupwidth <number>`**: Overrides the width of the dropdown popup.
+*   **`maxpopupitems <number>`**: Sets the maximum number of items visible in the popup before a scrollbar appears.
+
+#### `Edit` (`zlUIEdit`)
+*Inherits from `zlUIPanel`.*
+*   **`type <string>`**: Sets the input type. Common values are `text`, `number`, and `password`. Also supports standard HTML input types like `file`.
+*   **`password <char>`**: A shortcut to set `type` to `password` and define the masking character.
+*   **`maxlength <number>`**: Sets the maximum number of characters allowed in the input field.
+*   **`accept <string>`**: For `type file`, specifies the accepted file types (e.g., `".png, .jpg"`).
+
+#### `Slider` (`zlUISlider`)
+*Inherits from `zlUIPanel`.*
+*   **`direction <type>`**: Sets the scroll direction: `vertical` (default), `horizon`, or `both`.
+*   **`itemmode <bool>`**: If true, scrolling snaps to discrete item sizes instead of being continuous.
+*   **`mousewheelspeed <float>`**: Controls the sensitivity of mouse wheel scrolling.
+*   **`scrollbarcolor <color_value>`**: Sets the color of the scrollbar thumb.
+*   **`scrollbarcolor4 <c1>...<c4>`**: Sets a 4-color gradient for the scrollbar thumb.
+*   **`scrollbarcolorhover <color_value>`**: Sets the scrollbar color on mouse hover.
+*   **`scrollbarcolorhover4 <c1>...<c4>`**: Sets a 4-color gradient for the scrollbar on hover.
+
+#### `ImageText` (`zlUIImageText`)
+*Inherits from `zlUIWin`.*
+*   **`text <string>`**: The text to render using the image font.
+*   **`color <color_value>`**: Tints the character images.
+*   **`fontspace <number>`**: Sets the horizontal spacing between characters.
+*   **`textalignw`/`textalignh`/`textanchor`**: Used for positioning the block of text within the component's bounds.
+*   **`ascii <char> <image_index>`**: Maps a character to a pre-defined image index.
+*   **`imagelist <tex> <w> <h> <off_x> <off_y>`**: Defines a single character image from a texture.
+*   **`imagew <tex> <w> <h> <count>`**: Defines a row of character images by slicing a texture horizontally.
+*   **`imageh <tex> <w> <h> <count>`**: Defines a column of character images by slicing a texture vertically.
+
+#### `Tree` (`zlUITree`)
+*Inherits from `zlUISlider`.*
+*   **`singleselect <bool>`**: If `true`, only one tree node can be selected at a time.
+*   **`treenode <text>`**: Starts a block defining a new top-level tree node.
+*   **`defaulttreenode <name>`**: Specifies a pre-defined `TreeNode` object to use as a template for all nodes in this tree.
+
+#### `EditItem` (`zlUIEditItem`)
+*Inherits from `zlUIPanel`.* A composite control with a label and one or more editable values.
+*   **`label <string>`**: The text label for the item.
+*   **`labelwidth <number>`**: The width reserved for the label text.
+*   **`value <val1> <val2> ...`**: The initial value(s) for the editable fields.
+*   **`type <string>`**: The type of editor to use: `text`, `number`, `range`, `checkbox`, `combo`, `file`.
+*   **`items <item1> <item2> ...`**: A list of strings for the `combo` type.
+*   **`range <min> <max> <step>`**: Defines the min, max, and step values for the `range` type.
+
+#### `Particle` (`zlUIParticle`)
+*Inherits from `zlUIWin`.* An emitter for a particle system.
+*   **`image <texture_name>`**: The texture to use for each particle.
+*   **`particlecount <number>`**: The maximum number of particles.
+*   **`timestart <sec>` / `timeend <sec>`**: The start and end time of the emission loop.
+*   **`speed <val>` / `speedvar <val>`**: The initial speed and variance of particles.
+*   **`life <sec>` / `lifevar <sec>`**: The lifetime and variance of particles.
+*   **`dir <deg>` / `dirvar <deg>`**: The emission direction and variance in degrees.
+*   **`size <px>` / `sizevar <px>`**: The initial size and variance of particles.
+*   **`rot <deg>` / `rotvar <deg>`**: The initial rotation and variance.
+*   **`mass <val>` / `massvar <val>`**: The mass and variance, used by forces.
+*   **`color <c1> <c2> ...`**: A series of colors the particle will transition through over its life.
+*   **`shape <type>`**: The shape of the particle quad (`rect` or `quad`).
+*   **`blend <src> <dst>`**: The blend mode (e.g., `srcalpha invsrcalpha` for alpha blending, `one one` for additive).
+*   **`force <type> [...]`**: Applies a force to the particles (e.g., `force gravity 100 100 9.8`).
+*   **`source <name>`**: Uses a UI object as the particle's visual instead of a simple image.
 
 ### zlui-ts ui file format
 
