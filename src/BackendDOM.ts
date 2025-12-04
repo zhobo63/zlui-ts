@@ -33,7 +33,33 @@ class FontDOM implements IFont
             text_end: number | null,
             isready:boolean[]) :IVec2
     {
-        return {x:0,y:0};
+        let id='FontDOM_CalTextSize';
+        let e=document.getElementById(id);
+        if(!e) {
+            e=document.createElement('div');
+            e.id=id;
+            e.classList.add('Win');
+            e.style.position='absolute';
+            document.body.appendChild(e);
+        }
+        e.style.font=this.CSS();
+        if(wrap_width) {
+            e.style.width=`${max_width}px`;
+        }else {
+            e.style.width='';
+        }
+        e.innerText=text_begin;
+        e.style.visibility='hidden';
+
+        // console.log("CalTextSize", {
+        //     text:text_begin,
+        //     offset:{w:e.offsetWidth, h:e.offsetHeight},
+        //     client:{w:e.clientWidth, h:e.clientHeight},
+        //     scroll:{w:e.scrollWidth, h:e.scrollHeight},
+        // })
+        
+        isready[0]=true;
+        return {x:e.offsetWidth,y:e.offsetHeight};
     }
     CSS():string {return `${this.style} ${this.size}px ${this.name}`;}
 

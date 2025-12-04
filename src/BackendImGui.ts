@@ -1,5 +1,5 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { Board, BoardType, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
 
 export let vec_a=new ImGui.Vec2;
@@ -388,7 +388,14 @@ export class PaintPanel extends PaintImage
             board.image=UpdateTexturePack(board.image);
         }
         let obj=this.obj as zlUIPanel;
-        RenderBoard(this.drawlist, board, obj._localRect, MultiplyAlpha(board.color, obj.alpha));
+        switch(board.type) {
+        case BoardType.NineGrid:
+            RenderBoard(this.drawlist, board, obj._localRect, MultiplyAlpha(board.color, obj.alpha));
+            break;
+        case BoardType.Image:
+            RenderImage(this.drawlist, board.image, obj._localRect, MultiplyAlpha(board.color, obj.alpha), obj.rounding, obj.roundingCorner);
+            break;
+        }
     }
 
     PaintClient()

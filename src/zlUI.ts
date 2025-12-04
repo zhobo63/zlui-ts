@@ -1,5 +1,5 @@
 
-export const Version="0.1.47";
+export const Version="0.1.48";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -814,6 +814,23 @@ export class Transform
     scale:number=1;
 }
 
+export enum BoardType
+{
+    NineGrid,
+    Image,
+    Max
+}
+
+function ParseBoardType(tok:string): BoardType
+{
+    switch(tok) {
+    case 'image':
+        return BoardType.Image;
+    default:
+        return BoardType.NineGrid;
+    }
+}
+
 export interface Board
 {
     x1:number;
@@ -821,6 +838,7 @@ export interface Board
     x2:number;
     y2:number;
     image:TexturePack;
+    type:number;
     color?:number;
     vert?:Vec2[];
     uv?:Vec2[];
@@ -835,6 +853,7 @@ function ParseBoard(toks:string[], mgr:zlUIMgr):Board
         x2:Number.parseInt(toks[4]),
         y2:Number.parseInt(toks[5]),
         image: mgr.GetTexture(toks[1]),
+        type:ParseBoardType(toks[6])
     }
     return b;
 }
@@ -2635,7 +2654,8 @@ export class zlUIPanel extends zlUIImage
             y1:obj.y1,
             x2:obj.x2,
             y2:obj.y2,
-            image:obj.image
+            image:obj.image,
+            type:obj.type,
         }
         return b;
     }
