@@ -1,0 +1,88 @@
+ifnot DarkTheme include dark.ui
+
+Clone Text
+{
+    Name LabelText
+    TextAlignW right
+    Visible false
+}
+Clone Edit
+{
+    Name LabelRange
+    RectWH 0 0 100 10
+    TextColor RGBA(0,155,255,255)
+    Rounding 4
+    Visible false
+}
+
+Object LabelEdit
+{
+    Name LabelEdit
+    DrawClient false
+    Padding 1
+
+    LabelWidth 120
+    DefaultLabel LabelText
+    DefaultEdit Edit
+    DefaultCheck Check
+    DefaultCombo Combo
+    DefaultRange LabelRange
+    Visible false
+}
+
+Clone LabelEdit
+{
+    Name ed_text
+    RectWH 770 320 300 30
+    Visible true
+    Label text
+    Value 123 456
+}
+Clone LabelEdit
+{
+    Name ed_passwd
+    RectWH 770 350 300 30
+    Visible true
+    Label passwd
+    Value 444
+    Type password
+}
+Clone LabelEdit
+{
+    Name ed_combo
+    RectWH 770 380 300 30
+    Visible true
+    Label Combo
+    Value 0 1
+    Items 貓 狗 雞 豬 羊
+    Type combo
+}
+Clone LabelEdit
+{
+    Name ed_check
+    RectWH 770 410 300 30
+    Visible true
+    Label Check
+    Value 0 1
+    Items 啟用 停用
+    Type check
+}
+Clone LabelEdit
+{
+    Name ed_range
+    RectWH 770 440 300 30
+    Visible true
+    Label Range
+    Value 40
+    Type range
+    Range -100 100 0.01
+}
+Clone LabelEdit
+{
+    Name ed_file
+    RectWH 770 470 300 30
+    Visible true
+    Label File
+    Type file
+    Value _
+}

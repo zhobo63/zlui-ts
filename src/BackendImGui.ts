@@ -1,5 +1,5 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, BoardType, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { Board, BoardType, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
 
 export let vec_a=new ImGui.Vec2;
@@ -474,6 +474,29 @@ export class PaintEdit extends PaintPanel
         super(backend);
     }
     
+    PaintClient()
+    {
+        let obj=this.obj as zlUIEdit;
+        if(obj.isDrawClient)   {
+            RenderClient(this.drawlist, obj._localRect.xy, obj._localRect.max,
+                obj.color4, obj.color, obj.alpha, 
+                obj.rounding, obj.roundingCorner);
+        }        
+        if(obj.type=='range' && obj.range) {
+            let lr=obj._localRect;
+            let range=obj.range;
+            let per=(obj.value-range.min_value)/(range.max_value-range.min_value);
+            range.rect.xy.x=lr.x;
+            range.rect.xy.y= lr.y;
+            range.rect.max.x=lr.x+lr.Width()*per;
+            range.rect.max.y=lr.w;
+
+            RenderClient(this.drawlist, range.rect.xy, range.rect.max,
+                undefined, obj.textColor, obj.alpha, 
+                obj.rounding, obj.roundingCorner);
+        }
+    }
+
     PaintText():void 
     {
         let obj=this.obj as zlUIEdit;
@@ -673,168 +696,6 @@ export class PaintTreeNodeOpen extends PaintCheck
     }    
 }
 
-const CHECKMARK_SIZE=20;
-
-export class PaintEditItem extends PaintPanel
-{
-    constructor(backend:BackendImGui)
-    {
-        super(backend);
-    }
-
-    PaintEditItem() {
-        this.PaintText();
-        let obj=this.obj as zlUIEditItem;
-        let vh=0;
-        switch(obj.type) {
-        case 'checkbox':
-            vh=CHECKMARK_SIZE;
-            break;
-        default:
-            vh=obj._textSize?.y;
-            break;
-        }
-        
-        if(obj.value !== undefined) {
-            let font=obj._owner.GetFont(obj.fontIndex);
-            let th=(obj.h-vh)*0.5;
-            let value_w=obj.w-obj.label_width;
-            let vw=value_w/obj.value.length;
-            let xy=Clone(obj._localRect.xy);
-            let xy2=Clone(obj._localRect.max);
-            
-            for(let value of obj.value) {
-                let x=xy.x+obj.label_width;
-                this.xy.Set(x, xy.y);
-                this.xy2.Set(this.xy.x+vw-1, xy2.y);
-
-                if(obj.isDrawClient) {
-                    RenderClient(this.drawlist, this.xy, this.xy2, obj.color4, obj.color, obj.alpha,
-                        obj.rounding, obj.roundingCorner);
-                }
-                if(obj.isDrawBorder) {
-                    RenderBorder(this.drawlist, this.xy, this.xy2, obj.borderColor, obj.alpha,
-                        obj.rounding, obj.roundingCorner, obj.borderWidth);
-                }
-
-                switch(obj.type) {
-                case 'text':
-                case 'number':
-                    this.xy.x=x+obj.padding;
-                    this.xy.y=xy.y+th;
-                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
-                    RenderText(this.drawlist, font, value, this.xy, 0, obj.textColor, this.clip);
-                    break;
-                case 'password':
-                    this.xy.x=x+obj.padding;
-                    this.xy.y=xy.y+th;
-                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
-                    RenderText(this.drawlist, font, ''.padStart(value.length, '*'), this.xy, 0, obj.textColor, this.clip);
-                    break;
-                case 'button':
-                    break;
-                case 'checkbox':
-                    this.xy.x=x+obj.padding;
-                    this.xy.y=xy.y+th;
-                    this.xy3.Set(this.xy.x+20, this.xy.y+20);
-                    RenderCheck(this.drawlist, this.xy, this.xy3, 
-                        obj.borderColor, obj.textColor, obj.alpha, 4, value);
-                    if(obj.items) {
-                        this.xy.x+=obj.padding + 20;
-                        this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
-                        let text=value? obj.items[0]:obj.items[1];
-                        RenderText(this.drawlist, font, text, this.xy, 0, obj.textColor, this.clip);
-                    }
-                    break;
-                case 'combo':
-                    this.xy.x=x+obj.padding;
-                    this.xy.y=xy.y+th;
-                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
-                    if(value>=0 && value<obj.items.length) {
-                        RenderText(this.drawlist, font, obj.items[value], this.xy, 0, obj.textColor, this.clip);
-                    }
-                    this.xy3.Set(this.xy2.x-16-obj.padding, this.xy.y);
-                    RenderArrow(this.drawlist, this.xy3, 
-                        MultiplyAlpha(obj.textColor, obj.alpha), ImGui.ImGuiDir.Down, 16, 1);
-
-                    break;
-                case 'color':
-                case 'date':
-                case 'time':
-                case 'datetime-local':
-                case 'email':
-                    break;
-                case 'file': {
-                    if(value && (typeof value === "object")) {
-                        let file=value as File;
-                        this.xy.x=x+obj.padding;
-                        this.xy.y=xy.y+th;
-                        this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
-                        RenderText(this.drawlist, font, file.name, this.xy, 0, obj.textColor, this.clip);
-                    }
-                }
-                    break;
-                case 'image':
-                case 'month':
-                case 'radio':
-                    break;
-                case 'range': {
-                    this.xy.x=x+obj.padding;
-                    this.xy.y=xy.y+th;
-                    this.clip.Set(this.xy.x, this.xy.y, this.xy2.x, this.xy2.y);
-                    RenderText(this.drawlist, font, value, this.xy, 0, obj.textColor, this.clip);
-                    if(obj.range) {
-                        let rw=vw*0.4;
-                        th=(obj.h-10)*0.5;
-                        this.xy.x+=rw;
-                        this.xy.y=xy.y+th;
-                        this.xy2.x-=obj.padding;
-                        this.xy2.y-=th;
-                        RenderBorder(this.drawlist, this.xy, this.xy2, obj.borderColor, obj.alpha,
-                            2, ECornerFlags.All, 1);
-                        let per=(value-obj.range.min_value)/(obj.range.max_value-obj.range.min_value);
-                        if(per>0) {
-                            rw=this.xy2.x-this.xy.x;
-                            let rx=rw*per;
-                            this.xy2.x=this.xy.x+rx;
-                            RenderClient(this.drawlist, this.xy, this.xy2, undefined, 0xff00ff00, obj.alpha,
-                                2, ECornerFlags.All);
-                        }
-                    }
-                }
-                    break;
-                case 'url':
-                case 'week':
-                    break;
-                }
-                xy.x+=vw;
-            }
-
-        }
-    }
-
-    Paint()
-    {
-        if(Use_Transform) {
-            let obj=this.obj as zlUIEditItem;
-            if(obj._world) {
-                let drawlist=this.drawlist;
-                let vstart=drawlist.GetVertexSize();    
-                this.PaintEditItem();
-                drawlist.Transform(toImTransform(mat2_a, obj._world), vstart);
-            }
-        }else {
-            this.PaintEditItem();
-        }
-    }
-
-    xy:Vec2=new Vec2;
-    xy2:Vec2=new Vec2;
-    xy3:Vec2=new Vec2;
-    xy4:Vec2=new Vec2;
-    clip:Vec4=new Vec4;
-}
-
 export class PaintParticle extends PaintWin
 {
     constructor(backend:BackendImGui)
@@ -876,8 +737,8 @@ export class PaintParticle extends PaintWin
                     let inv=1/len;
                     let nvec_x=pt.vec.x*inv;
                     let nvec_y=pt.vec.y*inv;                    
-                    let p2_x=pt.pos.x-pt.vec.x;
-                    let p2_y=pt.pos.y-pt.vec.y;                    
+                    let p2_x=pt.pos.x+pt.vec.x;
+                    let p2_y=pt.pos.y+pt.vec.y;                    
                     let cvec_x=nvec_y*hsize;
                     let cvec_y=-nvec_x*hsize;
                     
@@ -977,7 +838,7 @@ export class BackendImGui implements IBackend
         this.paint[zlUITree.CSID]=new PaintSlider(this);
         this.paint[zlUIImageText.CSID]=new PaintImageText(this);
         this.paint[zlUITreeNodeOpen.CSID]=new PaintTreeNodeOpen(this);
-        this.paint[zlUIEditItem.CSID]=new PaintEditItem(this);
+        this.paint[zlUILabelEdit.CSID]=new PaintPanel(this);
         this.paint[zlUIParticle.CSID]=new PaintParticle(this);
         this.paint[zlUIMgr.CSID]=new PaintMgr(this);
     }

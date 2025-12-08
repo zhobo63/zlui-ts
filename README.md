@@ -82,7 +82,7 @@ window.addEventListener('DOMContentLoaded', async () =>{
 - ImTransform when rotate or scale
     * Edit Box
     * Clip Rect 
-- Transform is only available for BackendImGui
+- Transform, zlUIParticle is only available for BackendImGui
 
 ## Update History
 
@@ -225,6 +225,8 @@ These properties are available for **every** UI component as they are part of th
 *   **`password <char>`**: A shortcut to set `type` to `password` and define the masking character.
 *   **`maxlength <number>`**: Sets the maximum number of characters allowed in the input field.
 *   **`accept <string>`**: For `type file`, specifies the accepted file types (e.g., `".png, .jpg"`).
+*   **`range <number> <number> <number>`**:
+*   **`value <number>`**:
 
 #### `Slider` (`zlUISlider`)
 *Inherits from `zlUIPanel`.*
@@ -253,14 +255,20 @@ These properties are available for **every** UI component as they are part of th
 *   **`treenode <text>`**: Starts a block defining a new top-level tree node.
 *   **`defaulttreenode <name>`**: Specifies a pre-defined `TreeNode` object to use as a template for all nodes in this tree.
 
-#### `EditItem` (`zlUIEditItem`)
+#### `LabelEdit` (`zlUILabelEdit`)
 *Inherits from `zlUIPanel`.* A composite control with a label and one or more editable values.
 *   **`label <string>`**: The text label for the item.
 *   **`labelwidth <number>`**: The width reserved for the label text.
 *   **`value <val1> <val2> ...`**: The initial value(s) for the editable fields.
-*   **`type <string>`**: The type of editor to use: `text`, `number`, `range`, `checkbox`, `combo`, `file`.
+*   **`type <string>`**: The type of editor to use: `text`, `password`, `number`, `range`, `check`, `combo`, `file`.
 *   **`items <item1> <item2> ...`**: A list of strings for the `combo` type.
 *   **`range <min> <max> <step>`**: Defines the min, max, and step values for the `range` type.
+*   **`accept <string>`**: 
+*   **`defaultlabel <zlUIPanel>`**: 
+*   **`defaultedit <zlUIEdit>`**: 
+*   **`defaultcheck <zlUICheck>`**: 
+*   **`defaultcombo <zlUICombo>`**: 
+*   **`defaultrange <zlUIEdit>`**: 
 
 #### `Particle` (`zlUIParticle`)
 *Inherits from `zlUIWin`.* An emitter for a particle system.

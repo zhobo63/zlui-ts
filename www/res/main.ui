@@ -24,7 +24,7 @@ Clone Combo
 }
 
 include imagetext.ui
-load edititem.ui
+include labeledit.ui
 include arrange.ui
 include particle.ui
 

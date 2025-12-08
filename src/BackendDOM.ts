@@ -1,4 +1,4 @@
-import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIEditItem, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
+import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -626,124 +626,6 @@ class PaintSlider extends PaintPanel
     }
 }
 
-class PaintEditItem extends PaintPanel
-{
-    constructor(backend:BackendDOM)
-    {
-        super(backend);
-    }
-
-    Paint()
-    {
-        let obj=this.obj as zlUIEditItem;
-        super.Paint();
-
-        if(obj.value !== undefined) {
-            let id=0;
-            for(let value of obj.value) {
-                let input_id=`input_${obj._uid}_${id}`;
-                let input=document.getElementById(input_id) as HTMLInputElement;
-                if(typeof value === 'string') {
-                    if(input.value!=value) {
-                        input.value=value;
-                    }
-                }
-                id++;
-            }
-        }
-    }
-
-    PaintText(e:HTMLDivElement) {
-    }
-
-    Create(): HTMLElement {
-        let obj=this.obj as zlUIEditItem;
-        let e=document.createElement('div');
-        e.id=`${obj._uid}`;
-        e.classList.add('Win');
-        e.classList.add('Panel');         
-
-        let label_id=`label_${obj._uid}`;
-        let label=document.createElement('label') as HTMLLabelElement;
-        label.style.position="absolute";
-        label.id=label_id
-        label.textContent=obj.text;
-        this.SetRect(label, {x:0, y:0, w:obj.label_width, h:obj.h});
-        this.textAlign(label);
-        e.append(label);
-        let value_width=obj.w-obj.label_width;
-        let vx=obj.label_width;
-
-        if(obj.value !== undefined) {
-            let id=0;
-            let values=obj.value;
-
-            let vw=values.length>1 ? value_width/values.length:value_width;
-
-            for(let value of values) {
-                let input=document.createElement('input')as HTMLInputElement;
-                input.classList.add('Win');
-                input.setAttribute('type', obj.type);
-                input.disabled=!obj.isEnable;
-
-                let input_id=`input_${obj._uid}_${id}`;
-                input.id=input_id;
-                input.value=value;
-                input.setAttribute('index', `${id}`);
-                input.onchange=(e)=>{
-                    console.log(e);
-                    let inx=Number.parseInt(input.getAttribute('index'));
-                    switch(input.type) {
-                    case 'file':
-                        obj.value[inx]=input.files.length>0? input.files[0]:null;
-                        break;
-                    case 'checkbox':
-                        obj.value[inx]=input.checked;
-                        break;
-                    default:
-                        obj.value[inx]=input.value;
-                        break;
-                    }
-                    if(obj.on_edit!==undefined) {
-                        obj.on_edit(obj.value);
-                        if(input.value!==obj.value[inx]) {
-                            input.value=obj.value[inx];
-                        }
-                    }
-                }
-
-                if(obj.type=='checkbox') {
-                    let el=document.createElement('label');
-                    el.style.position="absolute";
-                    el.setAttribute('data-color', CSSrgba(obj.color, 0));
-                    el.setAttribute('data-bordercolor', CSSrgba(obj.borderColor, obj.alpha));
-                    el.setAttribute('data-textcolor', CSSrgba(obj.textColor, obj.alpha));
-
-                    this.SetRect(el, {x:vx, y:0, w:vw-1, h:obj.h-1});
-                    el.setAttribute('for', input_id);
-                    el.classList.add('Win');
-                    el.classList.add('Panel');
-                    el.classList.add('Button');
-                    el.classList.add('Check');
-                    el.append(input);
-                    let span=document.createElement('span');
-                    span.classList.add('CheckMark');
-                    el.append(span);
-
-                    e.append(el);
-                }else {
-                    this.SetRect(input, {x:vx, y:0, w:vw-1, h:obj.h-1});
-                    label.append(input);
-                }
-                vx+=vw;
-                id++;
-            }
-        }
-        return e;
-    }
-
-}
-
 export class BackendDOM implements IBackend
 {
     constructor(root:HTMLElement) {
@@ -755,7 +637,7 @@ export class BackendDOM implements IBackend
         this.paint[zlUICombo.CSID]=new PaintCombo(this);
         this.paint[zlUIEdit.CSID]=new PaintEdit(this);
         this.paint[zlUISlider.CSID]=new PaintSlider(this);
-        this.paint[zlUIEditItem.CSID]=new PaintEditItem(this);
+        this.paint[zlUILabelEdit.CSID]=new PaintPanel(this);
         this.root=root;
     }
 

@@ -222,18 +222,18 @@ Object Win
 			Text label			
 		}
 	}
-	Clone LabelPanel
-	{
-		Name LabelEdit
-		Clone Edit
-		{
-			Name label_value
-			Dock all 0.5 0 1 1
-			TextAnchor xy 0 0.5
-			TextOffset 5 0
-			Text value
-		}
-	}
+	// Clone LabelPanel
+	// {
+	// 	Name LabelEdit
+	// 	Clone Edit
+	// 	{
+	// 		Name label_value
+	// 		Dock all 0.5 0 1 1
+	// 		TextAnchor xy 0 0.5
+	// 		TextOffset 5 0
+	// 		Text value
+	// 	}
+	// }
 	Clone LabelPanel
 	{
 		Name LabelCheck

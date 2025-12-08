@@ -1,5 +1,5 @@
 
-export const Version="0.1.48";
+export const Version="0.1.49";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -1384,6 +1384,8 @@ export class zlUIWin
                     }
                     this.AddChild(ch2);
                 }
+            }else {
+                console.log("object not found", toks[1]);
             }
         }
         else {
@@ -1636,7 +1638,7 @@ export class zlUIWin
         }
             break;
         default:
-            console.log("zlUIWin " + this.Name + " unknow param " + name);
+            console.log(`${this._csid} ${this.Name} unknow param ${name}`);
             return false;
         }
         }
@@ -1686,7 +1688,9 @@ export class zlUIWin
 
         this.pChild=[];
         for(let ch of obj.pChild) {
-            this.pChild.push(ch.Clone())
+            if(ch.isCopyable) {
+                this.pChild.push(ch.Clone())
+            }
         }
     }
 
@@ -2433,6 +2437,7 @@ export class zlUIWin
     isDelete:boolean=false;
     isDragDrop:boolean=false;
     isEnable:boolean=true;  //是否可作用: Button Check Combo Edit
+    isCopyable:boolean=true;
     pChild:zlUIWin[]=[];
     x:number=0;
     y:number=0;
@@ -3068,6 +3073,20 @@ function NotifyEdit(obj:zlUIPanel, text:string, type:string, accept:string,
     return inp;
 }
 
+interface IRange
+{
+    min_value:number
+    max_value:number
+    step:number
+
+    rect:Rect
+}
+
+function FixedFloat(v:number, n:number):number
+{
+    return Number.parseFloat(v.toFixed(n));
+}
+
 interface IEditable
 {
     OnNotify:()=>void;
@@ -3080,6 +3099,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     on_edit: ((this: zlUIWin, obj: zlUIEdit) => any) | null; 
 	on_before_edit: ((this: zlUIWin, txt: string) => string) | null;
     on_file: (file:File)=>void|null;
+    on_value: ((this:zlUIWin, value:number)=>any) | null;
 
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -3110,6 +3130,16 @@ export class zlUIEdit extends zlUIPanel implements IEditable
         case "maxlength":
             this.max_text_length=Number.parseInt(toks[1]);
             break;
+        case "range":
+            this.range={min_value:Number.parseFloat(toks[1]),
+                max_value:Number.parseFloat(toks[2]),
+                step:Number.parseFloat(toks[3]),
+                rect:new Rect
+            };
+            break;
+        case "value":
+            this.value=Number.parseFloat(toks[1]);
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -3123,6 +3153,8 @@ export class zlUIEdit extends zlUIPanel implements IEditable
         this.passwordText=o.passwordText;
         this.password_char=o.password_char;
         this.max_text_length=o.max_text_length;
+        this.range=Clone(o.range);
+        this.value=o.value;
     }
     Clone():zlUIWin
     {
@@ -3141,12 +3173,35 @@ export class zlUIEdit extends zlUIPanel implements IEditable
         return text;
     }
 
+    Refresh(ti: number, parent?: zlUIWin): boolean {
+        if(this._owner.notify===this && this.type=='range') {
+            if(this._owner.any_pointer_down) {
+                let mw=this._screenRect.Width();
+                let mx=this._owner.mouse_pos.x-this._screenRect.x;
+                let per=Math.max(0,Math.min(1,mx/mw));   //0.0~1.0
+                let range=(this.range.max_value-this.range.min_value);
+                let step=Math.floor((range/this.range.step)*per)*this.range.step;
+                let value=FixedFloat(this.range.min_value+step, 6);
+                if(this.value!=value) {
+                    this.value=value;
+                    if(this.on_value) {
+                        this.on_value(value);
+                    }
+                }
+            }
+        }
+
+        return super.Refresh(ti, parent);
+    }
+
     OnNotify(): void {
         if(!this.isEnable)
             return;
         if(!this._screenRect)
             return;
         super.OnNotify();
+        if(this.type=='range')
+            return;
         let xy=this._screenRect.xy;
         let inp:Input=NotifyEdit(this,this.text,this.type,this.accept, xy.x, xy.y, this.w, this.h, CSSTextAlign(this));
         inp._dom_input.oninput=(e)=>{
@@ -3183,6 +3238,8 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     max_text_length:number;
     type:string="text";
     accept:string=".*";
+    range:IRange;
+    value:number;
 }
 
 export {zlUIButton as UIButton}
@@ -3625,7 +3682,7 @@ export class zlUICombo extends zlUIButton
     {
         let change=this.combo_value!=value;
         this.combo_value=value;
-        this.text=value<this.combo_items.length?this.combo_items[value]:"";
+        this.text=this.combo_items && value<this.combo_items.length?this.combo_items[value]:"";
         if(change && this.on_combo) {
             this.on_combo(this);
         }
@@ -4185,6 +4242,7 @@ export class zlUITreeNodeOpen extends zlUICheck
             x:0,
             y:0,
         };
+        this.isCopyable=false;
         this.isDrawBorder=false;
         this.isDrawClient=false;
         this.isDrawCheck=true;
@@ -4221,6 +4279,7 @@ export class zlUITreeNode extends zlUICheck
         this.isDrawClient=true;
         this.isDrawBorder=false;
         this.isDrawCheck=false;
+        this.isCopyable=false;
         this.treenodeOpen=new zlUITreeNodeOpen(own);
         this.treenodeOpen.isChecked=this.open;
         this.AddChild(this.treenodeOpen);
@@ -4469,48 +4528,26 @@ export class zlUITree extends zlUISlider
     defaultTreeNode:zlUITreeNode=null;
 }
 
-export {zlUIEditItem as UIEditItem}
+export {zlUILabelEdit as UILabelEdit}
 
-export enum EditDataType
-{
-    eString,
-    eInteger,
-    eFloat,
-}
-
-interface IRange
-{
-    min_value:number
-    max_value:number
-    step:number
-
-    rect:Rect
-}
-
-function FixedFloat(v:number, n:number):number
-{
-    return Number.parseFloat(v.toFixed(n));
-}
-
-export class zlUIEditItem extends zlUIPanel implements IEditable
+export class zlUILabelEdit extends zlUIPanel
 {
     on_edit:(value:any[])=>void;
 
     constructor(own:zlUIMgr) {
         super(own);
-        this._csid=zlUIEditItem.CSID;        
-        this.textAlignW=Align.Left;
-        this.isDrawBorder=false;
+        this._csid=zlUILabelEdit.CSID;
     }
-    static CSID="EditItem";
+    static CSID="LabelEdit";
     static Create(own:zlUIMgr):zlUIWin {
-        return new zlUIEditItem(own);
+        return new zlUILabelEdit(own);
     }
+
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch(name) {
         case "label":
-            this.SetText(toks[toks.length-1]);
+            this.label=toks[toks.length-1];
             break;
         case "labelwidth":
             this.label_width=Number.parseInt(toks[1]);
@@ -4537,6 +4574,21 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
                 this.items.push(toks[i]);
             }  
             break;
+        case "defaultlabel":
+            this.default_label=this._owner.GetUI(toks[1]) as zlUIPanel;
+            break;
+        case "defaultedit":
+            this.default_edit=this._owner.GetUI(toks[1]) as zlUIEdit;
+            break;
+        case "defaultcheck":
+            this.default_check=this._owner.GetUI(toks[1]) as zlUICheck;
+            break;
+        case "defaultcombo":
+            this.default_combo=this._owner.GetUI(toks[1]) as zlUICombo;
+            break;
+        case "defaultrange":
+            this.default_range=this._owner.GetUI(toks[1]) as zlUIEdit;
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -4546,205 +4598,311 @@ export class zlUIEditItem extends zlUIPanel implements IEditable
     Copy(obj:zlUIWin):void
     {
         super.Copy(obj);
-        let o=obj as zlUIEditItem;
+        let o=obj as zlUILabelEdit;
+        this.default_label=o.default_label;
+        this.default_edit=o.default_edit;
+        this.default_check=o.default_check;
+        this.default_combo=o.default_combo;
+        this.default_range=o.default_range;
+        this.label=o.label;
         this.label_width=o.label_width;
         this.type=o.type;
+        this.accept=o.accept;
+        this.range=Clone(o.range);
+        this.items=Clone(o.items);
     }
+
     Clone():zlUIWin
     {
-        let obj=new zlUIEditItem(this._owner)
+        let obj=new zlUILabelEdit(this._owner)
         obj.Copy(this);
         return obj;
     }
 
-    IsEditable():boolean {
-        switch(this.type) {
-        case 'text':
-        case 'number':
-        case 'password':
-        case 'range':
-            return true;
-        }
-        return false;
-    }
-
-    IsNextEdit():boolean {
-        let ret=false;
-        this.edit_value++;
-        if(this.edit_value>=this.value.length) {
-            this.edit_value=0;
-            ret=true;
-        }
-        return ret;
-    }
-
-    CalRectText():string
+    CreateUILabel():zlUIPanel
     {
-        this._textRect={
-            x:this.padding,
-            y:this.padding,
-            z:Math.min(this.w, this.label_width),
-            w:this.h
+        let ui:zlUIPanel
+        if(this.default_label) {
+            ui=this.default_label.Clone() as zlUIPanel;
+        }else {
+            ui=new zlUIPanel(this._owner);
+            ui.isDrawBorder=false;
+            ui.isDrawClient=false;        
         }
-        return this.text;
+        ui.isCopyable=false;
+        ui.isVisible=true;
+        return ui;
     }
-
-    ValueWidth():number {
-        return (this.w-this.label_width)/this.value.length;
+    CreateUICheck():zlUICheck
+    {
+        let ui:zlUICheck=this.default_check?<zlUICheck>this.default_check.Clone():new zlUICheck(this._owner);
+        ui.check_text=this.items;
+        ui.isCopyable=false;
+        ui.isVisible=true;
+        return ui as zlUICheck;
     }
-
-    GetNotify(pos: Vec2): zlUIWin {
-        let notify=super.GetNotify(pos);
-        if(this._owner.any_pointer_down && notify && this.value !== undefined) {
-            let vw=this.ValueWidth();
-            if(Use_Transform) {
-                if(this._invWorld) {
-                    let pt=this._invWorld.Transform(pos);
-                    let vx=this._localRect.x+this.label_width;
-                    let mx=pt.x-vx;
-                    this.edit_value=Math.max(0, Math.min(this.value.length-1, Math.floor(mx/vw)));
-                }
-            }else {
-                let vx=this._screenRect.x+this.label_width;
-                let mx=pos.x-vx;
-                this.edit_value=Math.max(0, Math.min(this.value.length-1, Math.floor(mx/vw)));
-            }
-        }
-        return notify;
+    CreateUICombo():zlUICombo
+    {
+        let ui:zlUICombo=this.default_combo?<zlUICombo>this.default_combo.Clone():new zlUICombo(this._owner);
+        ui.isCopyable=false;
+        ui.isVisible=true;
+        ui.combo_items=this.items;
+        return ui;
     }
-
-    OnNotify(): void {
-        if(!this.isEnable)
-            return;
-        if(this.value === undefined || this.value.length == 0)
-            return;
-        super.OnNotify();
-        let xy=this._screenRect.xy;
-        let vw=(this.w-this.label_width)/this.value.length;
-        let current=this.edit_value;        
-        let vx=xy.x+this.label_width+vw*current;
-        let value=this.value[current];
-        let type=this.type;
-        switch(type) {
-        case 'range': {
-            let rw=vw*0.4;
-            vw=rw;
-            type='number';
-            if(this._owner.mouse_pos.x>vx+rw)
-                return;
-        }
-            break;
-        case 'checkbox':
-            return;
-        case 'combo':
-            this._owner.PopupCombo(this, this.items, 10, vx, xy.y+this.h, vw, (inx)=>{
-                if(this.value[current]!=inx) {
-                    this.value[current]=inx;
-                    if(this.on_edit)
-                        this.on_edit(this.value);
-                }
-            });
-            return;
-
-        }
-        let inp:Input=NotifyEdit(this,value,type, this.accept,  vx, xy.y, vw, this.h);
-
-        inp.on_input=(e)=>{
-            if(this.type != "file") {
-                let text=inp._dom_input.value;
-                this.value[current]=text;
-            }
-            if(this.on_edit) {
-                this.on_edit(this.value);
-            }
-            if(this._owner.on_edit) {
-                this._owner.on_edit(this);
-            }
-            if(inp.isTab) {
-                this._owner.nextEdit=this;
-            }
-        }
-        inp.on_file=(file)=>{this.value[current]=file;}
-        this._owner.dom_input=inp;
+    CreateUIEdit():zlUIEdit
+    {
+        let ui:zlUIEdit=this.default_edit?<zlUIEdit>this.default_edit.Clone():new zlUIEdit(this._owner);
+        ui.isCopyable=false;
+        ui.isVisible=true;
+        ui.accept=this.accept;
+        ui.type=this.type;
+        return ui;
     }
-
-    OnClick(): void {
-        super.OnClick();
-
-        if(this.type=='checkbox') {
-            this.value[this.edit_value]=!this.value[this.edit_value];
-            if(this.on_edit) {
-                this.on_edit(this.value);
-            }
-        }
+    CreateUIRange():zlUIEdit
+    {
+        let ui:zlUIEdit=this.default_range?<zlUIEdit>this.default_range.Clone():new zlUIEdit(this._owner);
+        ui.isCopyable=false;
+        ui.isVisible=true;
+        ui.type='range';
+        ui.range=this.range;
+        return ui;
     }
 
     Refresh(ti: number, parent?: zlUIWin): boolean {
-        if(this.type=='range' && this.range && this._owner.any_pointer_down) {
-            let xy=this._screenRect.xy;
-            let vw=(this.w-this.label_width)/this.value.length;
-            let current=this.edit_value;         
-            let vx=xy.x+this.label_width+vw*current;
-            let rx=vw*0.4;
-            this.range.rect.Set(vx+rx, xy.y,
-                vx+vw ,this._screenRect.max.y);
-            if(this.range.rect.Inside(this._owner.mouse_pos)) {
-                let mw=this.range.rect.Width()-this.padding-this.padding;
-                let mx=this._owner.mouse_pos.x-(this.range.rect.x+this.padding);
-                let per=Math.max(0,Math.min(1,mx/mw));   //0.0~1.0
-                let range=(this.range.max_value-this.range.min_value);
-                let step=Math.floor((range/this.range.step)*per)*this.range.step;
-                let value=`${FixedFloat(this.range.min_value+step, 6)}`;
-                if(this.value[current]!=value) {
-                    this.value[current]=value;
-                    if(this.on_edit)
-                        this.on_edit(this.value);
-                }
-            }
-        }
+        
         return super.Refresh(ti, parent);
     }
 
+    CalRect(parent: zlUIWin): void {
+        let label:zlUIPanel=this.ui_label;
+        if(label === undefined) {
+            label=this.CreateUILabel();
+            this.ui_label=label;
+            this.AddChild(label);            
+        }
+        if(label.text!=this.label) {
+            label.SetText(this.label);
+        }
+        let labelpadding2=this.label_padding+this.label_padding;
+        let padding2=this.padding+this.padding;
+        label.x=this.padding+this.label_padding;
+        label.y=this.padding;
+        label.w=Math.min(this.w, this.label_width-padding2-labelpadding2);
+        label.h=this.h-padding2;
+
+        this.value_width=this.w-padding2-this.label_width;
+
+        if(this.value!==undefined) {
+            if(this.ui_value===undefined) {
+                this.ui_value=[];
+                for(let i=0;i<this.value.length;i++) {
+                    let value=this.value[i];
+                    let ui:zlUIWin;
+                    switch(this.type) {
+                    case 'check':
+                        let chk=this.CreateUICheck();
+                        if(typeof value !== 'boolean') {
+                            value=ParseBool(value);
+                            this.value[i]=value;
+                        }
+                        chk.isChecked=value;
+                        if(this.items) {
+                            chk.SetText(value?this.items[0]:this.items[1]);
+                        }
+                        chk.on_check=(check)=>{
+                            this.SetValue(check, i);
+                        }
+                        ui=chk;
+                        break;
+                    case 'combo':
+                        let combo=this.CreateUICombo();
+                        if(typeof value !== 'number') {
+                            value=Number.parseInt(value);
+                            this.value[i]=value;
+                        }
+                        combo.SetComboValue(value);
+                        combo.on_combo=()=>{
+                            this.SetValue(combo.combo_value, i);
+                        }
+                        ui=combo;
+                        break;
+                    case 'password': {
+                        let edit=this.CreateUIEdit();
+                        edit.isPassword=true;
+                        edit.password_char=this.password;
+                        edit.SetText(value);
+                        edit.on_edit=()=>{
+                            this.SetValue(edit.text, i);
+                        }
+                        ui=edit;
+                    }
+                        break;
+                    case 'range': {
+                        ui=new zlUIWin(this._owner);
+                        ui.Name='LABELEDIT_RANGE';
+                        let edit=this.CreateUIEdit();
+                        edit.Name='LABELEDIT_RANGE_TEXT';
+                        edit.type='text';
+                        edit.dock={
+                            mode:EDock.All,
+                            x:0,y:0,z:0.4,w:1
+                        }
+                        edit.SetText(value);
+                        edit.on_edit=()=>{
+                            this.SetValue(Number.parseFloat(edit.text), i);
+                        }
+                        let range=this.CreateUIRange();
+                        range.Name='LABELEDIT_RANGE_VALUE';
+                        range.type='range';
+                        range.dock={
+                            mode:EDock.All,
+                            x:0.4,y:0,z:1,w:1
+                        }
+                        range.value=Number.parseFloat(value);
+                        range.on_value=(value)=>{
+                            this.SetValue(value, i);
+                        }
+                        ui.AddChild(edit);
+                        ui.AddChild(range);
+                    }
+                        break;
+                    case 'file': {
+                        let file=this.CreateUIEdit();
+                        file.on_file=(f)=>{
+                            this.SetValue(f, i);
+                        }
+                        ui=file;
+                    }
+                        break;
+                    default: {
+                        let edit=this.CreateUIEdit();
+                        edit.SetText(value);
+                        edit.on_edit=()=>{
+                            this.SetValue(edit.text, i);
+                        }
+                        ui=edit;
+                    }
+                        break;
+                    }
+                    ui.SetCalRect();
+                    ui.isCopyable=false;
+                    this.ui_value[i]=ui;
+                    this.AddChild(ui);
+                }
+            }
+            let item_width=Math.floor(this.value_width/this.value.length);
+            let x=this.label_width;
+            for(let uivalue of this.ui_value) {
+                uivalue.x=x;
+                uivalue.y=this.padding;
+                uivalue.w=item_width-1;
+                uivalue.h=this.h-padding2;
+                x+=item_width;
+            }
+        }
+        super.CalRect(parent);
+    }
+
+    SetValue(value:any, index:number) {
+        if(this.value[index] !== value) {
+            switch(this.type) {
+            case 'check':
+                let chk=this.ui_value[index] as zlUICheck;
+                chk.isChecked=value;
+                break;
+            case 'combo':
+                let combo=this.ui_value[index] as zlUICombo;
+                combo.SetComboValue(value);
+                break;
+            case 'range':
+                value=Math.min(value, this.range.max_value);
+                value=Math.max(value, this.range.min_value);
+                let range_edit=this.ui_value[index].pChild[0] as zlUIEdit;
+                range_edit.SetText(`${value}`);
+                let range_value=this.ui_value[index].pChild[1] as zlUIEdit;
+                range_value.value=value;
+                break;
+            case 'file': {
+                let edit=this.ui_value[index] as zlUIEdit;
+                edit.SetText(value.name);
+            }
+                break;
+            default:
+                let edit=this.ui_value[index] as zlUIEdit;
+                edit.SetText(value);
+                break;
+            }
+            this.value[index]=value;
+            if(this.on_edit) {
+                this.on_edit(this.value);
+            }
+        }
+    }
+
     Input(value:any[], type:string, callback:(data:any)=>void, label?:string) {
-        if(label!==undefined) {
-            this.SetText(label);
+        if(label !== undefined) {
+            this.label=label;
+            if(this.ui_label) {
+                this.ui_label.SetText(label);
+            }
+        }
+        if(this.ui_value !== undefined) {
+            this.ui_value.forEach(ui=>ui.isDelete=true);
+            this.ui_value=undefined;
         }
         this.value=value;
         this.type=type;
-        this.on_edit=callback;        
+        this.on_edit=callback;
+        this.SetCalRect();
     }
-    InputText(value:any[], callback:(data:any)=>void, label?:string) {
-        this.Input(value, 'text', callback, label);
+    InputText(value:string[], callback:(data:any)=>void, label?:string) {
+        this.Input(value, "text", callback, label);
     }
-    InputNumber(value:any[], callback:(data:any)=>void, label?:string) {
-        this.Input(value, 'number', callback, label);
+    InputPassword(value:string[], callback:(data:any)=>void, label?:string) {
+        this.Input(value, "password", callback, label);
     }
-    Combo(value:any[], items:string[], callback:(data:any)=>void, label?:string) {
+    InputNumber(value:number[], callback:(data:any)=>void, label?:string) {
+        this.Input(value, "number", callback, label);
+    }
+    Combo(value:number[], items:string[], callback:(data:any)=>void, label?:string) {
         this.items=items;
-        this.Input(value, 'combo', callback, label);
+        this.Input(value, "combo", callback, label);
     }
-    Check(value:any[], items:string[], callback:(data:any)=>void, label?:string) {
+    Check(value:boolean[], items:string[], callback:(data:any)=>void, label?:string) {
         this.items=items;
-        this.Input(value, 'checkbox', callback, label);
+        this.Input(value, "check", callback, label);
     }
-    Range(value:any[], callback:(data:any)=>void, 
+    Range(value:number[], callback:(data:any)=>void, 
         minvalue:number=0, maxvalue:number=100, step:number=1, label?:string) {
         this.range={
             min_value:minvalue,
             max_value:maxvalue, 
             step:step,
-            rect:new Rect
+            rect:new Rect,
         };
         this.Input(value, 'range', callback, label);
     }
 
-    label_width:number=160;
+    ui_label:zlUIPanel;
+    ui_value:zlUIWin[];
+
+    default_label:zlUIPanel;    
+    default_edit:zlUIEdit;
+    default_check:zlUICheck;
+    default_combo:zlUICombo;
+    default_range:zlUIEdit;
+
+    label:string="";
+    label_width:number=80;
+    label_padding:number=5;
     value:any[];
+    value_width:number=0;
     type:string="text";
+
+    password:string="*";
     accept:string="*/*";
-    edit_value:number=0;
+    range:IRange;
     items:string[];
-    range:IRange;    
 }
 
 enum EEmitter
@@ -6271,7 +6429,7 @@ export class zlUIMgr extends zlUIWin
         this.create_func['slider']=zlUISlider.Create;
         this.create_func['imagetext']=zlUIImageText.Create;
         this.create_func['tree']=zlUITree.Create;
-        this.create_func['edititem']=zlUIEditItem.Create;
+        this.create_func['labeledit']=zlUILabelEdit.Create;
         this.create_func['particle']=zlUIParticle.Create;
 
         this._csid=zlUIMgr.CSID;
