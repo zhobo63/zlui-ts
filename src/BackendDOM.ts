@@ -470,6 +470,10 @@ class PaintCombo extends PaintButton
         super.Paint();
         let e=document.getElementById(`${obj._uid}`) as HTMLSelectElement;
         
+        if(e.value != `${obj.combo_value}`) {
+            e.value=`${obj.combo_value}`;
+        }
+
         if(this.isComboItemChange(e, obj)) {
             this.CreateOption(e);
         }
@@ -529,7 +533,21 @@ class PaintEdit extends PaintPanel
     {
         let obj=this.obj as zlUIEdit;
         super.Paint();
-
+        let e:HTMLInputElement|HTMLTextAreaElement;
+        if(obj.isMultiline) {
+            e=document.getElementById(`${obj._uid}`) as HTMLTextAreaElement
+        }else {
+            e=document.getElementById(`${obj._uid}`) as HTMLInputElement;
+        }
+        switch(obj.type) {
+        case 'file':
+            break;
+        default:
+            if(e.value!=obj.text) {
+                e.value=obj.text;
+            }
+            break;
+        }
     }
 
     Create(): HTMLElement {

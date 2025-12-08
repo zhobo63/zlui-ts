@@ -1,5 +1,5 @@
 
-export const Version="0.1.49";
+export const Version="0.1.50";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -48,7 +48,6 @@ barwidth
 
 UIGrid
 UIColorPicker
-UIEditItem
 
 isResizable
 UIDatePicker
@@ -3682,7 +3681,7 @@ export class zlUICombo extends zlUIButton
     {
         let change=this.combo_value!=value;
         this.combo_value=value;
-        this.text=this.combo_items && value<this.combo_items.length?this.combo_items[value]:"";
+        this.text=this.combo_items && value>=0 && value<this.combo_items.length?this.combo_items[value]:"";
         if(change && this.on_combo) {
             this.on_combo(this);
         }
@@ -4700,6 +4699,7 @@ export class zlUILabelEdit extends zlUIPanel
                     let ui:zlUIWin;
                     switch(this.type) {
                     case 'check':
+                    case 'checkbox':
                         let chk=this.CreateUICheck();
                         if(typeof value !== 'boolean') {
                             value=ParseBool(value);
@@ -4731,7 +4731,7 @@ export class zlUILabelEdit extends zlUIPanel
                         edit.isPassword=true;
                         edit.password_char=this.password;
                         edit.SetText(value);
-                        edit.on_edit=()=>{
+                        edit.on_change=()=>{
                             this.SetValue(edit.text, i);
                         }
                         ui=edit;
@@ -4777,7 +4777,7 @@ export class zlUILabelEdit extends zlUIPanel
                     default: {
                         let edit=this.CreateUIEdit();
                         edit.SetText(value);
-                        edit.on_edit=()=>{
+                        edit.on_change=()=>{
                             this.SetValue(edit.text, i);
                         }
                         ui=edit;
@@ -4829,7 +4829,11 @@ export class zlUILabelEdit extends zlUIPanel
                 break;
             default:
                 let edit=this.ui_value[index] as zlUIEdit;
-                edit.SetText(value);
+                if(typeof value === 'string') {
+                    edit.SetText(value);
+                }else {
+                    edit.SetText(`${value}`);
+                }                
                 break;
             }
             this.value[index]=value;
