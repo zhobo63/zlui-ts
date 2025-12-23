@@ -1,5 +1,5 @@
 
-export const Version="0.1.50";
+export const Version="0.1.51";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -1275,6 +1275,7 @@ export class zlUIWin
     on_mousemove: (x:number,y:number)=>void|null;
     on_mousedown: (x:number,y:number)=>void|null;
     on_mouseup: (x:number,y:number)=>void|null;
+    on_create: (element:HTMLElement)=>void|null;
 
     ClearCallback(child:boolean):void {
         this.on_size=undefined;
@@ -2541,6 +2542,21 @@ export class zlUIImage extends zlUIWin
         this.image=this._owner.GetTexture(name);
     }
 
+    SetUrl(url:string,callback:(obj:zlUIWin)=>void):void {
+        this._owner.backend.CreateTexture(url).then((tex)=>{
+            this.image={
+                x1:0,
+                y1:0,
+                x2:tex._width,
+                y2:tex._height,
+                texture:tex,
+            }
+            if(callback) {
+                callback(this);
+            }
+        })
+    }
+
     Paint():void
     {
         if(this.image && this.image.texture._texture && !this.image.uv1) {
@@ -3427,6 +3443,22 @@ export class zlUIButton extends zlUIPanel
             this.boardUp.vert=null;
             this.boardUp.color=this.colorUp;
         }
+    }
+    SetUrl(url:string, callback:(obj:zlUIWin)=>void):void {
+        this._owner.backend.CreateTexture(url).then((tex)=>{
+            this.imageUp={
+                x1:0,
+                y1:0,
+                x2:tex._width,
+                y2:tex._height,
+                texture:tex
+            }
+            this.imageHover=this.imageUp;
+            this.imageDown=this.imageUp;
+            if(callback) {
+                callback(this);
+            }
+        })
     }
 
     isPaintButton:boolean=true;
@@ -4706,6 +4738,7 @@ export class zlUILabelEdit extends zlUIPanel
                             this.value[i]=value;
                         }
                         chk.isChecked=value;
+                        chk.isEnable=this.isEnable;
                         if(this.items) {
                             chk.SetText(value?this.items[0]:this.items[1]);
                         }
@@ -4721,6 +4754,7 @@ export class zlUILabelEdit extends zlUIPanel
                             this.value[i]=value;
                         }
                         combo.SetComboValue(value);
+                        combo.isEnable=this.isEnable;
                         combo.on_combo=()=>{
                             this.SetValue(combo.combo_value, i);
                         }
@@ -4730,6 +4764,7 @@ export class zlUILabelEdit extends zlUIPanel
                         let edit=this.CreateUIEdit();
                         edit.isPassword=true;
                         edit.password_char=this.password;
+                        edit.isEnable=this.isEnable;
                         edit.SetText(value);
                         edit.on_change=()=>{
                             this.SetValue(edit.text, i);
@@ -4743,6 +4778,7 @@ export class zlUILabelEdit extends zlUIPanel
                         let edit=this.CreateUIEdit();
                         edit.Name='LABELEDIT_RANGE_TEXT';
                         edit.type='text';
+                        edit.isEnable=this.isEnable;
                         edit.dock={
                             mode:EDock.All,
                             x:0,y:0,z:0.4,w:1
@@ -4759,6 +4795,7 @@ export class zlUILabelEdit extends zlUIPanel
                             x:0.4,y:0,z:1,w:1
                         }
                         range.value=Number.parseFloat(value);
+                        range.isEnable=this.isEnable;
                         range.on_value=(value)=>{
                             this.SetValue(value, i);
                         }
@@ -4768,6 +4805,7 @@ export class zlUILabelEdit extends zlUIPanel
                         break;
                     case 'file': {
                         let file=this.CreateUIEdit();
+                        file.isEnable=this.isEnable;
                         file.on_file=(f)=>{
                             this.SetValue(f, i);
                         }
@@ -4777,6 +4815,7 @@ export class zlUILabelEdit extends zlUIPanel
                     default: {
                         let edit=this.CreateUIEdit();
                         edit.SetText(value);
+                        edit.isEnable=this.isEnable;
                         edit.on_change=()=>{
                             this.SetValue(edit.text, i);
                         }
@@ -6445,7 +6484,7 @@ export class zlUIMgr extends zlUIWin
     static CSID="Mgr";
 
     on_load: (file:string)=>any;
-    on_create: ((this: zlUIWin, name: string) => any) | null; 
+    on_createui: ((this: zlUIWin, name: string) => any) | null; 
     on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
 
@@ -6564,8 +6603,8 @@ export class zlUIMgr extends zlUIWin
 
     Create(name:string):zlUIWin
     {
-        if(this.on_create) {
-            let obj=this.on_create(name);
+        if(this.on_createui) {
+            let obj=this.on_createui(name);
             if(obj) {
                 return obj;
             }

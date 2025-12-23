@@ -148,6 +148,9 @@ class PaintWin implements IPaint
                 }
                 isDragging=false;
             }
+            if(obj.on_create) {
+                obj.on_create(e);
+            }
         }
         if(this.backend.visible_map[obj._uid] !== undefined) {
             console.log("[BackendDOM] PaintWin same uid", obj);
@@ -279,7 +282,7 @@ class PaintPanel extends PaintWin
                 label.id=label_id
                 e.append(label);
             }            
-            label.textContent=obj.text;
+            label.innerText=obj.text;
         }else if(label) {
             label.remove();
         }
@@ -559,7 +562,6 @@ class PaintEdit extends PaintPanel
             e=area;
         }else {
             let input=document.createElement('input') as HTMLInputElement;
-            input.accept=obj.accept;
             input.type=obj.type;
             e=input;
         }
@@ -570,6 +572,7 @@ class PaintEdit extends PaintPanel
 
         switch(obj.type) {
         case 'file':
+            (<HTMLInputElement>e).accept=obj.accept;
             break;
         default:
             if(e.value!=obj.text) {
