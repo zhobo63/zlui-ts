@@ -5564,7 +5564,8 @@ export class zlUIDatePicker extends zlUIPanel
     async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
     {
         switch(name) {
-        case "defaultpanel":
+        case "date":
+            this.SetDate(toks[1]);
             break;
         default:
             return await super.ParseCmd(name, toks, parser);

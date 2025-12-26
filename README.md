@@ -86,6 +86,15 @@ window.addEventListener('DOMContentLoaded', async () =>{
 
 ## Update History
 
+- 0.1.52
+    zlUIDatePicker
+
+- 0.1.49
+    zlUILabelEdit
+
+- 0.1.48
+    BackendDOM
+
 - 0.1.40
     zlUIParticle
         [TODO] Emitter
@@ -286,6 +295,10 @@ These properties are available for **every** UI component as they are part of th
 *   **`blend <src> <dst>`**: The blend mode (e.g., `srcalpha invsrcalpha` for alpha blending, `one one` for additive).
 *   **`force <type> [...]`**: Applies a force to the particles (e.g., `force gravity 100 100 9.8`).
 *   **`source <name>`**: Uses a UI object as the particle's visual instead of a simple image.
+
+#### `DatePicker` (`zlUIDatePicker`)
+*Inherits from `zlUIPanel`.* A date picker control.
+*   **`date <string>`**: The current date text, date format:YYYY-MM-DD
 
 ### zlui-ts ui file format
 
