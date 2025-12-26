@@ -1,4 +1,4 @@
-import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
+import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -659,6 +659,7 @@ export class BackendDOM implements IBackend
         this.paint[zlUIEdit.CSID]=new PaintEdit(this);
         this.paint[zlUISlider.CSID]=new PaintSlider(this);
         this.paint[zlUILabelEdit.CSID]=new PaintPanel(this);
+        this.paint[zlUIDatePicker.CSID]=new PaintPanel(this);
         this.root=root;
     }
 
