@@ -1,5 +1,5 @@
 
-export const Version="0.1.51";
+export const Version="0.1.52";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -12,6 +12,15 @@ export function SetFLT_MAX(v:number) {
 }
 
 const DEGTORAD = 1.74532925199433E-02;
+const COL_COLOREDIT=ParseColor('rgba(23,26,29,255)')
+const COL_COLOR=ParseColor('rgba(35,39,49,255)')
+const COL_COLORHOVER=ParseColor('rgba(57,61,70,255)')
+const COL_COLORDISABLE=ParseColor('rgba(100,100,100,255)');
+const COL_BORDERCOLOR=ParseColor('rgba(57,61,70,255)')
+const COL_COLORDOWN=ParseColor('rgba(77,81,90,255)')
+const COL_TEXTCOLOR=ParseColor('rgba(200,200,200,255)')
+const COL_TEXTCOLORHOVER=ParseColor('rgba(255,255,255,255)')
+const COL_TEXTCOLORDISABLE=ParseColor('rgba(150,150,150,255)');
 
 //export let Use_ImTransform=false;
 
@@ -2582,6 +2591,7 @@ export class zlUIPanel extends zlUIImage
     {
         super(own)
         this._csid=zlUIPanel.CSID;
+        this.color=COL_COLOR;
     }
     static CSID="Panel";
     static Create(own:zlUIMgr):zlUIWin {
@@ -2888,8 +2898,8 @@ export class zlUIPanel extends zlUIImage
 
 
     text:string="";
-    textColor:number=0xff000000;
-    textColorHover:number=0xffffffff;
+    textColor:number=COL_TEXTCOLOR;
+    textColorHover:number=COL_TEXTCOLORHOVER;
     textAlignW:Align=Align.Center;
     textAlignH:Align=Align.Center;
     isMultiline:boolean=false;
@@ -2897,8 +2907,8 @@ export class zlUIPanel extends zlUIImage
     isDrawClient:boolean=true;
     isDrawBorder:boolean=false;
     isDrawHover:boolean=false;
-    borderColor:number=0xffffffff;
-    colorHover:number=0xffffffff;
+    borderColor:number=COL_BORDERCOLOR;
+    colorHover:number=COL_COLORHOVER;
     board:Board;
     drawBoard:Board;
     textAnchor:IAnchor;
@@ -3125,6 +3135,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     {
         super(own)
         this._csid=zlUIEdit.CSID;
+        this.color=COL_COLOREDIT;
     }
     static CSID="Edit";
     static Create(own:zlUIMgr):zlUIWin {
@@ -3466,12 +3477,12 @@ export class zlUIButton extends zlUIPanel
     boardDown:Board;
     boardUp:Board;
     boardHover:Board;
-    colorDown:number=0xffffffff;
-    colorUp:number=0xffffffff;
-    colorDisable:number=0xff787878;
-    textColorDown:number=0xffffffff;
-    textColorUp:number=0xff808080;
-    textColorDisable:number=0xffa0a0a0;
+    colorDown:number=COL_COLORDOWN;
+    colorUp:number=COL_COLOR;
+    colorDisable:number=COL_COLORDISABLE;
+    textColorDown:number=COL_TEXTCOLORHOVER;
+    textColorUp:number=COL_TEXTCOLOR;
+    textColorDisable:number=COL_TEXTCOLORDISABLE;
     imageDown:TexturePack;
     imageUp:TexturePack;
     imageHover:TexturePack;
@@ -5407,6 +5418,232 @@ export class zlUIParticle extends zlUIWin
     loop:number = -1;
 }
 
+const DayOfMonth=[31,28,31,30,31,30,31,31,30,31,30,31];
+function IsLeapYear(year:number):boolean
+{
+    return (year%4==0 && year%100!=0) || (year%400==0);
+}
+function GetFirstDayOfMonth(year:number, month:number):number
+{
+    let d=new Date(year, month, 1);
+    return d.getDay();    
+}
+function DateFormat(date:string):string
+{
+    let d=new Date(date);
+    return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+}
+
+export class zlUIDatePicker extends zlUIPanel
+{
+    on_date:(date:string)=>void;
+
+    constructor(own:zlUIMgr) {
+        super(own);
+        this.w=360;
+        this.h=320;
+        this.padding=10;
+
+        // this.Parse(new Parser(`
+
+        //     `));
+
+        this.pnl_year_month=new zlUIPanel(own);
+        this.pnl_year_month.Name="year_month";
+        this.pnl_year_month.isCopyable=false;
+        this.pnl_year_month.h=50;
+        this.pnl_year_month.dock={
+            mode:EDock.Left|EDock.Top|EDock.Right,
+            x:0,y:0,z:1,w:1
+        }
+        this.pnl_year_month.padding=5;
+
+        this.btn_month_left=new zlUIButton(own);
+        this.btn_month_left.Name="month_left";
+        this.btn_month_left.isCopyable=false;
+        this.btn_month_left.rounding=4;
+        this.btn_month_left.h=30;
+        this.btn_month_left.w=30;
+        this.btn_month_left.anchor={
+            mode:EAnchor.All,
+            x:0, y:0.5
+        }
+        this.btn_month_left.SetText("<");
+        this.btn_month_left.on_click=()=>{
+            let date=new Date(`${this.ed_year_month.text}-01`);
+            date.setMonth(date.getMonth()-1);
+            this.OnMonth(date);
+        }
+        this.pnl_year_month.AddChild(this.btn_month_left);
+
+        this.btn_month_right=new zlUIButton(own);
+        this.btn_month_right.Name="month_right";
+        this.btn_month_right.isCopyable=false;
+        this.btn_month_right.rounding=4;
+        this.btn_month_right.h=30;
+        this.btn_month_right.w=30;
+        this.btn_month_right.anchor={
+            mode:EAnchor.All,
+            x:1, y:0.5
+        }
+        this.btn_month_right.SetText(">");
+        this.btn_month_right.on_click=()=>{
+            let date=new Date(`${this.ed_year_month.text}-01`);
+            date.setMonth(date.getMonth()+1);
+            this.OnMonth(date);
+        }
+        this.pnl_year_month.AddChild(this.btn_month_right);
+
+        this.ed_year_month=new zlUIEdit(own);
+        this.ed_year_month.Name="year_month";
+        this.ed_year_month.isCopyable=false;
+        this.ed_year_month.h=30;  
+        this.ed_year_month.w=120;
+        this.ed_year_month.dock={
+            mode:EDock.All,
+            x:0.2,y:0,z:0.8,w:1
+        }
+        this.ed_year_month.on_edit=()=>{
+            let date=new Date(`${this.ed_year_month.text}-01`);
+            this.OnMonth(date);
+        }
+        this.pnl_year_month.AddChild(this.ed_year_month);
+
+        this.AddChild(this.pnl_year_month);
+
+        let dx=0;
+        let dw=1/7;
+        const week_txt=['日','一','二','三','四','五','六']
+        for(let i=0;i<7;i++) {
+            let week=new zlUIPanel(own);
+            week.y=50;
+            week.h=40;
+            week.isCopyable=false;
+            week.isDrawClient=false;
+            week.textColor=ParseColor('rgb(255,255,255)');
+            week.dock={
+                mode:EDock.Left|EDock.Right,
+                x:dx,y:0,z:dx+dw,w:1
+            }
+            week.Name=`week[${i}]`;
+            week.SetText(week_txt[i]);
+            week.isCanNotify=false;
+            dx=week.dock.z;            
+            this.AddChild(week);
+        }
+
+        this.btn_day=[];
+        for(let i=0;i<zlUIDatePicker.BTN_DAY_COUNT;i++) {
+            let day=new zlUIButton(own);
+            this.btn_day[i]=day;
+            day.Name=`day[${i}]`;
+            day.isCopyable=false;
+            day.h=30;
+            day.rounding=4;
+            day.borderColor=ParseColor('rgb(120,120,120)');
+            day.SetText(`${i}`)
+            this.AddChild(day);
+
+            day.on_click=()=>{
+                let txt=DateFormat(`${this.ed_year_month.text}-${day.text}`);
+                this.SetDate(txt);
+                if(this.on_date) {
+                    this.on_date(txt);
+                }                
+            }
+        }
+
+        this.SetDate(new Date());
+    }    
+
+    static CSID="DatePicker";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIDatePicker(own);
+    }
+    static BTN_DAY_COUNT=42;
+    async ParseCmd(name:string, toks:string[], parser:Parser):Promise<boolean>
+    {
+        switch(name) {
+        case "defaultpanel":
+            break;
+        default:
+            return await super.ParseCmd(name, toks, parser);
+        }
+        return true;
+    }
+    Clone():zlUIWin
+    {
+        let obj=new zlUIDatePicker(this._owner)
+        obj.Copy(this);
+        return obj;
+    }
+    CalRect(parent: zlUIWin): void {
+        let day_padding=5;
+        let w=this.w-this.padding-this.padding-day_padding*6;
+        let day_w=Math.floor(w/7);
+        let y=100;
+        let n=0;
+        let x=this.padding;
+        for(let i=0;i<zlUIDatePicker.BTN_DAY_COUNT;i++) {
+            let btn_day=this.btn_day[i];
+            btn_day.y=y;
+            btn_day.x=x;
+            btn_day.w=day_w;
+            x+=day_w+day_padding;
+            n++;
+            if(n>=7) {
+                n=0;
+                x=this.padding;
+                y+=btn_day.h+day_padding;
+            }
+        }
+        super.CalRect(parent);
+    }
+
+    OnMonth(date:Date) {
+        let year=date.getFullYear();
+        let month=date.getMonth();
+        let day=100;
+        if(this.date.getFullYear()==year && this.date.getMonth()==month) {
+            day=this.date.getDate();
+        }
+        this.ed_year_month.SetText(`${year}-${(month+1).toString().padStart(2, '0')}`);
+        let first_day=GetFirstDayOfMonth(year, month);
+        let days=DayOfMonth[month];
+
+        for(let i=0;i<zlUIDatePicker.BTN_DAY_COUNT;i++) {
+            let btn_day=this.btn_day[i];
+            btn_day.isVisible=false;
+            btn_day.isDrawBorder=false;
+        }
+        for(let i=0;i<days;i++) {
+            let btn_day=this.btn_day[first_day+i];
+            btn_day.isVisible=true;
+            btn_day.isDrawBorder=(i+1)==day;
+            btn_day.SetText(`${i+1}`);
+        }
+    }
+
+    SetDate(date:string|Date) {
+        if(typeof date === 'string') {
+            this.date=new Date(date);
+        }else {
+            this.date=date;
+        }
+        this.OnMonth(this.date);
+    }
+
+    pnl_year_month:zlUIPanel;
+    ed_year_month:zlUIEdit;
+    btn_month_left:zlUIButton;
+    btn_month_right:zlUIButton;
+    btn_day:zlUIButton[];
+
+    date:Date;
+}
+
+export {zlUIDatePicker as UIDatePicker}
+
 export class zlTexturePack
 {
     constructor(own:zlUIMgr)
@@ -6474,6 +6711,7 @@ export class zlUIMgr extends zlUIWin
         this.create_func['tree']=zlUITree.Create;
         this.create_func['labeledit']=zlUILabelEdit.Create;
         this.create_func['particle']=zlUIParticle.Create;
+        this.create_func['datepicker']=zlUIDatePicker.Create;
 
         this._csid=zlUIMgr.CSID;
 

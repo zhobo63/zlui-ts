@@ -247,18 +247,6 @@ Object Win
 			Text
 		}
 	}
-	Object EditItem
-	{
-		Name EditItem
-		RectWH 10 10 400 30
-		Color RGBA(35,39,49,255)
-		BorderColor RGBA(57,61,70,255)
-		TextColor RGBA(255,255,255,255)
-		DrawBorder true
-		Padding 5
-		LabelWidth 120
-		Label label
-	}
 }
 
 DefaultComboMenu Popup

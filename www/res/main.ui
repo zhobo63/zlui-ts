@@ -28,6 +28,44 @@ include labeledit.ui
 include arrange.ui
 include particle.ui
 
+Object DatePicker
+{
+    Name DatePicker
+    Color RGBA(23,26,29,255)
+#		ColorHover RGBA(57,61,70,255)
+#		ColorDown RGBA(77,81,90,255)
+	BorderColor RGBA(57,61,70,255)
+	TextColor RGBA(255,255,255,255)
+	DrawBorder true
+	BorderWidth 1
+    Rounding 5
+    Drag true
+
+    DefaultPanel Panel
+
+    // Param DATEPICKER_TOP
+    // {
+    //     Color RGBA(35,39,49,255)
+    //     Rounding 4
+    // }
+    // Param MONTH_LEFT
+    // {
+    //     Text \uf0d9
+	// 	Color RGBA(35,39,49,0)
+	// 	ColorHover RGBA(57,61,70,255)
+	// 	ColorDown RGBA(77,81,90,255)
+    //     Rounding 4
+    // }
+    // Param MONTH_RIGHT
+    // {
+    //     Text \uf0da
+	// 	Color RGBA(35,39,49,0)
+	// 	ColorHover RGBA(57,61,70,255)
+	// 	ColorDown RGBA(77,81,90,255)
+    //     Rounding 4
+    // }
+}
+
 TrackGroup rot
 {
     Track pnl_arrange
