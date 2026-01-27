@@ -1,16 +1,18 @@
 
 LoadImage glow2.jpg
+LoadImage diamond.png
 
 Object Particle
 {
     Name prt_test1
     RectWH 200 200 0 0
     Image glow2.jpg
+    ParticleCount 200
     Life 1
-    LifeVar 1
+    LifeVar 4
     Speed 1
-    Color RGBA(255,255,255,0) RGBA(255,255,255,255) RGBA(0,255,255,255) RGBA(255,255,255,0)
-    #Blend one one
+    Color RGBA(255,255,255,0) RGBA(255,255,255,255) RGBA(0,255,255,255) RGBA(0,0,0,0)
+    Blend one one
 }
 
 Object Particle
@@ -21,7 +23,29 @@ Object Particle
     Life 1
     LifeVar 1
     Speed 1
-    Color RGBA(255,255,255,0) RGBA(255,255,255,255) RGBA(255,0,255,255) RGBA(255,255,255,0)
+    Color RGBA(255,255,255,0) RGBA(255,255,255,255) RGBA(255,0,255,255) RGBA(0,0,0,0)
     Shape line
-    #Blend one one
+    Blend one one
+}
+
+Object Particle
+{
+    Name prt_test3
+    RectWH 400 600 200 0
+    Anchor y 0 1
+    Image diamond.png
+    ParticleCount 100
+    Life 2
+    LifeVar 2
+    Rot 4
+    RotVar 360
+    Rotating -300
+    RotatingVar 600
+    Speed 700
+    Dir 270
+    DirVar 60
+    Size 100
+    Force acceler 0 500
+    Color RGBA(255,255,255,0) RGBA(255,255,255,255) RGBA(255,255,255,0)
+    Blend srcalpha invsrcalpha
 }

@@ -1,5 +1,5 @@
 
-export const Version="0.1.52";
+export const Version="0.1.54";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -1155,6 +1155,54 @@ export function Clone(o:any):any
     return undefined;
 }
 
+export enum EDragLimit
+{
+    None,
+    Top=1,
+    Left=1<<1,
+    Right=1<<2,
+    Down=1<<4,
+
+    All=Top|Left|Right|Down,
+    LeftRight=Left|Right,
+    TopDown=Top|Down,
+}
+
+function ParseLimit(tok:string):EDragLimit
+{
+    let mode:EDragLimit=EDragLimit.None;
+    let toks=tok.split("|");
+    for(let cmd of toks) {
+        switch(cmd) {
+        case "left":
+            mode|=EDragLimit.Left;
+            break;
+        case "top":
+            mode|=EDragLimit.Top;
+            break;
+        case "right":
+            mode|=EDragLimit.Right;
+            break;
+        case "down":
+        case "bottom":
+            mode|=EDragLimit.Down;
+            break;
+        case "all":
+            mode=EDragLimit.All;
+            break;
+        }
+    }
+    return mode;
+}
+
+export interface IDragLimit
+{
+    mode:EDragLimit;
+    x:number;
+    y:number;
+    z:number;
+    w:number;
+}
 
 export class Bezier
 {
@@ -1478,6 +1526,15 @@ export class zlUIWin
         case "dragable":
             this.isCanDrag=ParseBool(toks[1]);
             break;
+        case "draglimit":
+            this.draglimit={
+                mode:ParseLimit(toks[1]),
+                x:Number.parseInt(toks[2]),
+                y:Number.parseInt(toks[3]),
+                z:Number.parseInt(toks[4]),
+                w:Number.parseInt(toks[5]),
+            }
+            break;
         case "+x":
             this.add_x=Number.parseInt(toks[1]);
             break;
@@ -1683,6 +1740,7 @@ export class zlUIWin
         this.arrange=Clone(obj.arrange);
         this.autosize=obj.autosize;
         this.hint=obj.hint;
+        this.draglimit=Clone(obj.draglimit);
         this.margin=Clone(obj.margin);
         this.content_margin=Clone(obj.content_margin);
         this.alpha=obj.alpha;
@@ -2467,6 +2525,7 @@ export class zlUIWin
     offset:Vec2=new Vec2;
     autosize:EAutosize=EAutosize.None;    
     hint:string;
+    draglimit:IDragLimit;
 
     alpha_set:number=1;
     alpha_local:number=1;
@@ -5063,6 +5122,7 @@ interface IParticle
     lifeEnd?:number
     size?:number
     rotate?:number
+    rotating?:number
     mass?:number
     object?:zlUIWin
 }
@@ -5100,6 +5160,8 @@ interface IController
     sizeVar:number
     rotate:number
     rotateVar:number
+    rotating:number
+    rotatingVar:number
     mass:number
     massVar:number
     color:Vec4[]
@@ -5126,6 +5188,8 @@ export class zlUIParticle extends zlUIWin
             sizeVar:10,
             rotate:0,
             rotateVar:0,
+            rotating:0,
+            rotatingVar:0,
             mass:1,
             massVar:5,
             color:[],
@@ -5181,6 +5245,12 @@ export class zlUIParticle extends zlUIWin
             break;
         case "rotvar":
             this.controller.rotateVar=Number.parseFloat(toks[1])*DEGTORAD;
+            break;
+        case "rotating":
+            this.controller.rotating=Number.parseFloat(toks[1])*DEGTORAD;
+            break;
+        case "rotatingvar":
+            this.controller.rotatingVar=Number.parseFloat(toks[1])*DEGTORAD;
             break;
         case "mass":
             this.controller.mass=Number.parseFloat(toks[1]);
@@ -5245,6 +5315,7 @@ export class zlUIParticle extends zlUIWin
         pt.pos=new Vec2(this.w * Math.random(), this.h * Math.random());
         pt.size=ctl.size+ctl.sizeVar*Math.random();
         pt.rotate=ctl.rotate+ctl.rotateVar*Math.random();
+        pt.rotating=ctl.rotating+ctl.rotatingVar*Math.random();
         pt.mass=ctl.mass+ctl.massVar*Math.random();
         let rot=ctl.dir+ctl.dirVar*(Math.random()-0.5);
         pt.vec=new Vec2(Math.cos(rot), Math.sin(rot));
@@ -5291,7 +5362,9 @@ export class zlUIParticle extends zlUIWin
                     continue;
                 pt.pos.x+=pt.vec.x*ti;
                 pt.pos.y+=pt.vec.y*ti;
-
+                if(pt.rotating!=0) {
+                    pt.rotate+=pt.rotating*ti;
+                }
                 if(pt.life<pt.lifeEnd) {
 
                     for(let force of this.force) {
@@ -5410,7 +5483,7 @@ export class zlUIParticle extends zlUIWin
     controller:IController;
     force:IForce[]=[];
     particle:IParticle[]=[];
-    blend:IBlend=BLEND_ADD;
+    blend:IBlend=Clone(BLEND_ADD);
 
     image:TexturePack;
     source:zlUIWin;

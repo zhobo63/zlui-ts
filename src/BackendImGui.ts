@@ -13,6 +13,7 @@ export let vec_4=new ImGui.Vec2;
 
 export let vec4_a=new ImGui.Vec4;
 export let mat2_a=new ImGui.Transform;
+export let mat2_b=new ImGui.ImMat2;
 
 export function toImDrawCornerFlags(f:ECornerFlags):ImGui.ImDrawCornerFlags
 {
@@ -732,6 +733,7 @@ export class PaintParticle extends PaintWin
             let col=MultiplyAlpha(pt.color.toColorHex(), obj.alpha);
 
             if(obj.controller.shape==EParticleShape.eQuad) {
+                pt.rotate=0;
                 let len=pt.vec.Legnth();
                 if(len > Math.max(pt.size, 1)) {
                     let inv=1/len;
@@ -764,6 +766,29 @@ export class PaintParticle extends PaintWin
             }
             let px=pt.pos.x+xy.x;
             let py=pt.pos.y+xy.y;
+            if(pt.rotate!=0) {               
+                let c=Math.cos(pt.rotate)*hsize;
+                let s=Math.sin(pt.rotate)*hsize;
+                vec_a.Set(px-c, py-s);
+                vec_b.Set(px+s, py-c);
+                vec_c.Set(px+c, py+s);
+                vec_d.Set(px-s, py+c);
+
+                if(obj.image) {
+                    vec_1.Set(obj.image.uv1.x, obj.image.uv1.y);
+                    vec_2.Set(obj.image.uv2.x, obj.image.uv1.y);
+                    vec_3.Set(obj.image.uv2.x, obj.image.uv2.y);
+                    vec_4.Set(obj.image.uv1.x, obj.image.uv2.y);
+                    drawlist.AddImageQuad(obj.image.texture._texture,
+                        vec_a, vec_b, vec_c, vec_d,
+                        vec_1, vec_2, vec_3, vec_4, col
+                    );
+                }else {
+                    drawlist.AddQuadFilled(vec_a, vec_b, vec_c, vec_d, col);
+                }
+                continue;
+            }
+
             vec_a.Set(px-hsize, py-hsize);
             vec_b.Set(px+hsize, py+hsize);
 

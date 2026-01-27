@@ -1,5 +1,6 @@
 ifnot DarkTheme include dark.ui
 #include login.ui
+include particle.ui
 include padding.ui
 include tree.ui
 
@@ -26,11 +27,12 @@ Clone Combo
 include imagetext.ui
 include labeledit.ui
 include arrange.ui
-include particle.ui
 
 Object DatePicker
 {
     Name DatePicker
+    X 600
+    Y 20
     Color RGBA(23,26,29,255)
 #		ColorHover RGBA(57,61,70,255)
 #		ColorDown RGBA(77,81,90,255)

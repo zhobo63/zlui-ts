@@ -1,4 +1,4 @@
-import { Align, EAnchor, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
+import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -126,6 +126,20 @@ class PaintWin implements IPaint
                 if(obj.isCanDrag && isDragging) {
                     obj.x=x+(_e.x-ox)/obj._world.scale;
                     obj.y=y+(_e.y-oy)/obj._world.scale;
+                    if(obj.draglimit) {
+                        if((obj.draglimit.mode & EDragLimit.Left) && obj.x<obj.draglimit.x) {
+                            obj.x=obj.draglimit.x;
+                        }
+                        if((obj.draglimit.mode & EDragLimit.Right) && obj.x>obj.draglimit.z) {
+                            obj.x=obj.draglimit.z;
+                        }
+                        if((obj.draglimit.mode & EDragLimit.Top) && obj.y<obj.draglimit.y) {
+                            obj.y=obj.draglimit.y;
+                        }
+                        if((obj.draglimit.mode & EDragLimit.Down) && obj.y>obj.draglimit.w) {
+                            obj.y=obj.draglimit.w;
+                        }
+                    }
                     obj.SetCalRect();
                     this.SetPosition(e, obj, obj.x, obj.y);
                 }
@@ -148,6 +162,12 @@ class PaintWin implements IPaint
                 }
                 isDragging=false;
             }
+            // window.onmouseup=(e)=>{
+            //     if(obj.on_mouseup) {
+            //         obj.on_mouseup(e.offsetX, e.offsetY);
+            //     }
+            //     isDragging=false;
+            // }
             if(obj.on_create) {
                 obj.on_create(e);
             }
