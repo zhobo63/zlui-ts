@@ -1,5 +1,4 @@
-
-export const Version="0.1.54";
+export const Version="0.1.55";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -5455,7 +5454,7 @@ export class zlUIParticle extends zlUIWin
                         }else {
                             fr=fr-inx;
                             pt.color.Lerp(this.controller.color[inx],this.controller.color[inx+1], fr);
-                            if(this.blend==BLEND_ADD) {
+                            if(this.blend.src==BLEND_ADD.src && this.blend.dst==BLEND_ADD.dst) {
                                 pt.color.MultiplyAlpha();
                             }
                         }
