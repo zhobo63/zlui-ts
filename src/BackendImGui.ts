@@ -650,7 +650,7 @@ export class PaintImageText extends PaintWin
         for(let image of obj.imageText)
         {
             let imgFont=image.imageFont;
-            let tex=imgFont.texure;            
+            let tex=imgFont.texture;            
             drawlist.AddImage(tex.texture._texture,
                 toImVec2(vec_a, image.screenXY),
                 toImVec2(vec_b, image.screenMax), 
