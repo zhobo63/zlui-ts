@@ -1,4 +1,4 @@
-export const Version="0.1.55";
+export const Version="0.1.56";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -4108,13 +4108,13 @@ export class zlUISlider extends zlUIPanel
     _is_scrollbar_hover:boolean=false;
 }
 
-interface ImageFont
+export interface ImageFont
 {
     width:number;
     height:number;
     offset_x:number;
     offset_y:number;
-    texure:TexturePack;   
+    texture:TexturePack;   
     uv1?:Vec2;
     uv2?:Vec2;
 }
@@ -4130,7 +4130,7 @@ export function ParseImageFont(toks:string[], mgr:zlUIMgr):ImageFont
         height:parseInt(toks[3]),
         offset_x:parseInt(toks[4]),
         offset_y:parseInt(toks[5]),
-        texure:tex,
+        texture:tex,
         uv1:tex.uv1,
         uv2:tex.uv2
     }
@@ -4178,7 +4178,7 @@ export class zlUIImageText extends zlUIWin
                     height:h,
                     offset_x:0,
                     offset_y:0,
-                    texure:tex,
+                    texture:tex,
                     uv1:new Vec2(tex.uv1.x+u*i, tex.uv1.y),
                     uv2:new Vec2(tex.uv1.x+u*(i+1), tex.uv2.y)
                 })
@@ -4199,7 +4199,7 @@ export class zlUIImageText extends zlUIWin
                     height:h,
                     offset_x:0,
                     offset_y:0,
-                    texure:tex,
+                    texture:tex,
                     uv1:new Vec2(tex.uv1.x, tex.uv1.y+v*i),
                     uv2:new Vec2(tex.uv2.x, tex.uv1.y+v*(i+1))
                 })
