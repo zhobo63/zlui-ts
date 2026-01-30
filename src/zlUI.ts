@@ -1,4 +1,4 @@
-export const Version="0.1.57";
+export const Version="0.1.58";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -2502,6 +2502,16 @@ export class zlUIWin
         }
         return ret;
     }
+    FlipW() {
+        for(let ch of this.pChild) {
+            ch.FlipW();
+        }
+    }
+    FlipH() {
+        for(let ch of this.pChild) {
+            ch.FlipH();
+        }
+    }
 
     Name:string;
     isCalRect:boolean=false;
@@ -2643,6 +2653,24 @@ export class zlUIImage extends zlUIWin
         }
         super.Paint();
     }
+
+    FlipW() {
+        if(this.image) {
+            let ux=this.image.uv1.x;
+            this.image.uv1.x=this.image.uv2.x;
+            this.image.uv2.x=ux;
+        }
+        super.FlipW();
+    }
+    FlipH() {
+        if(this.image) {
+            let uy=this.image.uv1.y;
+            this.image.uv1.y=this.image.uv2.y;
+            this.image.uv2.y=uy;
+        }
+        super.FlipH();
+    }
+
 
     set Color(c:Vec4) {this.color=toColorHex(c);}
     get Color():Vec4 {return fromColorHex(this.color);}
@@ -2961,6 +2989,25 @@ export class zlUIPanel extends zlUIImage
                 this.CalTextRemaining();
             }
         }
+    }
+
+    FlipW(): void {
+        if(this.board && this.board.image) {
+            let ux=this.board.image.uv1.x;
+            this.board.image.uv1.x=this.board.image.uv2.x;
+            this.board.image.uv2.x=ux;
+            this.board.vert=null;
+        }        
+        super.FlipW();
+    }
+    FlipH(): void {
+        if(this.board && this.board.image) {
+            let uy=this.board.image.uv1.y;
+            this.board.image.uv1.y=this.board.image.uv2.y;
+            this.board.image.uv2.y=uy;
+            this.board.vert=null;
+        }
+        super.FlipH();
     }
 
     set TextColor(color:Vec4) {this.textColor=toColorHex(color);}
@@ -6475,8 +6522,10 @@ export class zlTrack
                 obj.isVisible=true;
                 break;
             case ETrackCmd.FlipW:
+                obj.FlipW();
+                break
             case ETrackCmd.FlipH:
-                console.log("TODO zlTrack", cmd);
+                obj.FlipH();
                 break;
             case ETrackCmd.SetRotate:
                 obj.rotate=cmd.rotate;
