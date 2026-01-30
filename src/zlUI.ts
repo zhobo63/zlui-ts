@@ -1,4 +1,4 @@
-export const Version="0.1.56";
+export const Version="0.1.57";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -207,7 +207,7 @@ export function stringToColorHex(color:string):number
     return c;
 }
 
-function to_rgba(c:number):string
+export function to_rgba(c:number):string
 {
     const r=c&0xff;
     const g=(c>>8)&0xff;
@@ -216,7 +216,7 @@ function to_rgba(c:number):string
     return `rgba(${r},${g},${b},${a})`;
 }
 
-function to_rgb(c:number):string
+export function to_rgb(c:number):string
 {
     const r=c&0xff;
     const g=(c>>8)&0xff;
@@ -224,7 +224,7 @@ function to_rgb(c:number):string
     return `rgba(${r},${g},${b},255)`;
 }
 
-function to_cssrgba(c:number):string
+export function to_cssrgba(c:number):string
 {
     const r=c&0xff;
     const g=(c>>8)&0xff;
@@ -233,7 +233,7 @@ function to_cssrgba(c:number):string
     return `rgba(${r},${g},${b},${a})`;
 }
 
-function to_cssrgb(c:number):string
+export function to_cssrgb(c:number):string
 {
     const r=c&0xff;
     const g=(c>>8)&0xff;
@@ -934,12 +934,11 @@ export class Rect
             this.max.y=max.y;
         }
     }
-    Set(x:number, y:number, right:number, down:number):void
+    Set(x1:number, y1:number, x2:number, y2:number):void
     {
-        this.xy.x=x;
-        this.xy.y=y;
-        this.max.x=right;
-        this.max.y=down;
+        this.xy.Set(x1,y1);
+        this.max.Set(x2,y2);
+        this.Valid();
     }
 
     Clone():Rect
@@ -972,6 +971,7 @@ export class Rect
     {
         tm.TransformTo(this.xy, target.xy);
         tm.TransformTo(this.max, target.max);
+        target.Valid();
     }
     Intersec(rc:Rect)
     {
@@ -1004,6 +1004,18 @@ export class Rect
     }
     Height():number {
         return this.max.y-this.xy.y;
+    }
+    Valid() {
+        if(this.xy.x>this.max.x) {
+            let x=this.xy.x;
+            this.xy.x=this.max.x;
+            this.max.x=x;
+        }
+        if(this.xy.y>=this.max.y) {
+            let y=this.xy.y;
+            this.xy.y=this.max.y;
+            this.max.y=y;
+        }
     }
 
     get x():number {return this.xy.x;}

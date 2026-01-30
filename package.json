@@ -1,6 +1,6 @@
 {
   "name": "@zhobo63/zlui-ts",
-  "version": "0.1.56",
+  "version": "0.1.57",
   "description": "zlUI is a simple scripted ui system that with a single zlUI.ts file.",
   "main": "./src/zlUI",
   "scripts": {
@@ -11,7 +11,7 @@
     "webpack:prod": "webpack --mode=production --node-env=production",
     "webpack:prod-watch": "webpack --mode=production --node-env=production --watch",
     "watch": "webpack --watch",
-    "publish": "npm publish --access public"
+    "publish:npm": "npm publish --access public"
   },
   "repository": {
     "type": "git",
