@@ -5,43 +5,13 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<link rel="stylesheet" href="css/zlui.css">
-	<style type="text/css">
-		html, body {
-			width: 100%;
-			height: 100%;
-			padding: 0;
-			margin: 0;
-		}
-		canvas {
-			position: fixed;
-			width: 100%;
-			height: 100%;
-			padding: 0;
-			margin: 0;
-			display:block;
-            touch-action: none;
-		}		
-		#ios_scrollup {
-			position: absolute;
-			top: 0px;
-			left:0px;
-			width:100%;
-			height:200%;
-			z-index: 0;
-			background-color: #00000055;
-			color: white;
-	    }
-	</style>
+	<link rel="stylesheet" href="css/app.css">
 	<title>zlUI</title>
 </head>
 <body>
 	<div id='ios_scrollup' style="display: none;">請往上滑動後進入全螢幕畫面。</div>
 	<canvas id="canvas"></canvas>
-	<dialog id="open_dialog">
-		<input type="file" id="open_dialog_input"></input>
-		<br><br>
-		<button type="button" id="open_dialog_cancel">取消</button>
-	</dialog>	
+	<div id='inspector'></div>
 	<script src="js/main.js"></script>
 </body>
 </html>

@@ -233,12 +233,41 @@ input[type="file"]::file-selector-button:hover {
     overflow: auto;
 }
 
+ul, .Tree {
+    list-style-type: none;
+    color: white;
+    user-select: none;
+}
+.Tree {
+    --spacing: 0px;    
+    --radius: 20px;
+    cursor: pointer;
+}
+.Tree li {
+    --data-color: attr(data-color type(<color>));
+    --data-textcolor: attr(data-textcolor type(<color>));
+    --data-colorhover: attr(data-colorhover type(<color>));
+    display: block;
+    position: relative;
+    padding-left: calc(2 * var(--spacing) - var(--radius));
+    color: var(--data-textcolor);
+}
+.Tree ul {
+    margin-left: calc(var(--radius) - var(--spacing));
+    padding-left: 0;
+}
+.Tree summary { 
+    background: var(--data-color); 
+}
+.Tree summary:hover { 
+    background: var(--data-colorhover); 
+}
+
 .icon {
     height: auto;
     width: auto;
     border-style: none;
 }
-
 .xy {
     position: fixed;
 }

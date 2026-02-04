@@ -1,6 +1,7 @@
+import { BackendDOM } from './BackendDOM';
 import { BackendImGui, InspectorUI } from './BackendImGui';
-import {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText} from './zlUI';
-export {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText}
+import {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText, zlUIInspector} from './zlUI';
+export {zlUIMgr, zlUIWin, zlUIImage, zlUIPanel, zlUIButton, zlUIEdit, zlUICheck, zlUICombo, zlUISlider, zlTexturePack, zlTrack, zlTrackGroup, zlTrackMgr, zlUIImageText, zlUIInspector}
 
 export {LoadImage, Panel, Edit, Button, Check, Combo, Inside, ParseBool, ParseText, ParseColor} from "./zlUI"
 export {stringToColorHex, toColorHex, fromColorHex} from "./zlUI"
@@ -27,6 +28,12 @@ class App
 
     async initialize()
     {
+        this.inspector=new zlUIInspector(new zlUIMgr);
+        // this.inspector.mgr.w=400;
+        // this.inspector.mgr.h=600;
+        this.inspector.mgr.backend=new BackendDOM(document.getElementById("inspector"));
+        await this.inspector.mgr.Load("dark.ui", "res/");
+
         this.ui=new zlUIMgr;
         this.ui.backend=new BackendImGui(ImGui.GetBackgroundDrawList());
         await this.ui.Load("main.ui", "res/");
@@ -84,6 +91,13 @@ class App
         }
 
         ImGui.End();
+
+        this.inspector.mgr.any_pointer_down=ui.any_pointer_down;
+        this.inspector.Inspect(ui);
+        let r=this.inspector.mgr.Refresh(io.DeltaTime);
+        if(!r && this.inspector.mgr.is_dirty) {
+            this.inspector.mgr.Paint();
+        }
     }
 
     onResize(width:number, height:number)
@@ -101,8 +115,10 @@ class App
     ui:zlUIMgr;
 
     default_font:ImGui.Font;
-}
 
+    inspector:zlUIInspector;
+}
+    
 let app:App;
 let backgroundColor:ImVec4;
 

@@ -1,4 +1,4 @@
-import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUIWin } from "./zlUI";
+import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -115,17 +115,14 @@ class PaintWin implements IPaint
             //e.style.position="fixed";
             //e.style.position='relative';
             e.style.position='absolute';
-            let x:number, y:number;
-            let ox:number, oy:number;
-            let isDragging=false;
 
             e.onmousemove=(_e)=>{
                 if(obj.on_mousemove) {
                     obj.on_mousemove(_e.offsetX, _e.offsetY);
                 }
-                if(obj.isCanDrag && isDragging) {
-                    obj.x=x+(_e.x-ox)/obj._world.scale;
-                    obj.y=y+(_e.y-oy)/obj._world.scale;
+                if(obj.isCanDrag && this.isDragging) {
+                    obj.x=this.ox+(_e.x-this.ex)/obj._world.scale;
+                    obj.y=this.oy+(_e.y-this.ey)/obj._world.scale;
                     if(obj.draglimit) {
                         if((obj.draglimit.mode & EDragLimit.Left) && obj.x<obj.draglimit.x) {
                             obj.x=obj.draglimit.x;
@@ -143,31 +140,36 @@ class PaintWin implements IPaint
                     obj.SetCalRect();
                     this.SetPosition(e, obj, obj.x, obj.y);
                 }
+                _e.stopPropagation();
             }
-            e.onmousedown=(e)=>{
+            e.onmousedown=(_e)=>{
+                //console.log(`mousedown`, _e, obj, this.isDragging);
                 if(obj.on_mousedown) {
-                    obj.on_mousedown(e.offsetX, e.offsetY);
+                    obj.on_mousedown(_e.offsetX, _e.offsetY);
                 }
                 if(obj.isCanDrag) {
-                    ox=e.x;
-                    oy=e.y;
-                    x=obj.x;
-                    y=obj.y;
-                    isDragging=true;
+                    this.ex=_e.x;
+                    this.ey=_e.y;
+                    this.ox=obj.x;
+                    this.oy=obj.y;
+                    this.isDragging=true;
+
+                    document.addEventListener('mouseup', ()=>{
+                        console.log('document.mouseup', e);
+                        this.isDragging=false;
+                    }, {once: true});
                 }
+                _e.stopPropagation();
             }
-            e.onmouseup=(e)=>{
+            e.onmouseup=(_e)=>{
+                //console.log(`mouseup`, _e, obj);
                 if(obj.on_mouseup) {
-                    obj.on_mouseup(e.offsetX, e.offsetY);
+                    obj.on_mouseup(_e.offsetX, _e.offsetY);
                 }
-                isDragging=false;
+                this.isDragging=false;
+                _e.stopPropagation();
             }
-            // window.onmouseup=(e)=>{
-            //     if(obj.on_mouseup) {
-            //         obj.on_mouseup(e.offsetX, e.offsetY);
-            //     }
-            //     isDragging=false;
-            // }
+
             if(obj.on_create) {
                 obj.on_create(e);
             }
@@ -184,6 +186,7 @@ class PaintWin implements IPaint
     }
 
     SetPosition(e:HTMLElement, obj:UIWin, x:number, y:number) {
+        //console.log(`SetPosition ${obj._uid} ${x} ${y}`, e);
         let scale=obj._world.scale;
         let ox=0;
         let oy=0;
@@ -199,6 +202,7 @@ class PaintWin implements IPaint
     }
 
     SetRect(e:HTMLElement, r:RectDOM) {
+        //console.log(`SetRect`, r, e);
         let scale=this.obj._world.scale;
         let ox=0;
         let oy=0;
@@ -236,6 +240,12 @@ class PaintWin implements IPaint
 
     backend:BackendDOM;
     obj:zlUIWin;
+
+    isDragging:boolean=false;
+    ex:number;
+    ey:number;
+    ox:number;
+    oy:number;
 }
 
 class PaintMgr extends PaintWin
@@ -287,6 +297,10 @@ class PaintPanel extends PaintWin
         this.PaintPanel(e);
     }
 
+    LabelID():string {
+        return `label_${this.obj._uid}`;
+    }
+
     PaintText(e:HTMLElement) {
         let obj=this.obj as zlUIPanel;
         let label_id=`label_${obj._uid}`;
@@ -302,6 +316,11 @@ class PaintPanel extends PaintWin
                 label.id=label_id
                 e.append(label);
             }            
+
+            if(obj.textoffset) {
+                label.style.paddingLeft=`${obj.textoffset.x}px`;
+            }
+
             label.innerText=obj.text;
         }else if(label) {
             label.remove();
@@ -444,31 +463,64 @@ class PaintCheck extends PaintButton
         chk.checked=obj.isChecked;
     }
 
+    PaintText(e: HTMLElement): void {
+        let obj=this.obj as zlUICheck;
+        let span=document.getElementById(this.SpanID()) as HTMLSpanElement;
+        if(obj.text && obj.text.length>0) {
+            let font=obj._owner.GetFont(obj.fontIndex);
+            let fontstyle=`${font.style} ${Math.floor(font.size*obj._world.scale)}px ${font.name}`;
+
+            if(!span) {
+                span=document.createElement('span') as HTMLSpanElement;
+                span.id=this.SpanID();
+                let label=document.getElementById(this.LabelID()) as HTMLLabelElement;
+                label.append(span);
+            }
+            if(obj.textoffset) {
+                span.style.paddingLeft=`${obj.textoffset.x}px`;
+            }
+            span.style.font=fontstyle;
+            span.innerText=obj.text;
+        }else if(span) {
+            span.remove();
+        }
+    }
+
     CheckID():string {
         return `check_${this.obj._uid}`;
+    }
+    SpanID():string {
+        return `span_${this.obj._uid}`;
     }
 
     Create(): HTMLElement {
         let obj = this.obj as UICheck;
-        let e=document.createElement('label');
+        let e=document.createElement('div');
+        e.classList.add('Win');
+        let label=document.createElement('label');
+        label.id=this.LabelID();
         let chk=document.createElement('input');
         this.checkbox=chk;
         chk.id=this.CheckID();
         chk.name=chk.id;
         chk.type='checkbox';
         chk.checked=obj.isChecked;
-        e.append(chk);
+        label.append(chk);
 
         let span=document.createElement('span');
         span.classList.add('CheckMark');
-        e.append(span);
+        if(!obj.isDrawCheck) {
+            span.style.display='none';
+        }
+        label.append(span);
         
-        e.setAttribute('for', chk.id);
+        label.setAttribute('for', chk.id);
 
-        e.classList.add('Win');
-        e.classList.add('Panel');
-        e.classList.add('Button');
-        e.classList.add('Check');
+        label.classList.add('Win');
+        label.classList.add('Panel');
+        label.classList.add('Button');
+        label.classList.add('Check');
+        e.append(label);
 
         chk.onchange=()=>{
             obj.OnClick();
@@ -667,6 +719,90 @@ class PaintSlider extends PaintPanel
     }
 }
 
+class PaintTree extends PaintSlider
+{
+    constructor(backend:BackendDOM)
+    {
+        super(backend);
+    }
+
+    Paint(): void {
+        super.Paint();
+        let obj=this.obj as zlUITree;
+        let e=document.getElementById(`${obj._uid}`);
+        if(obj.treenodeChange) {
+            e.innerHTML="";
+            if(obj.treenode) {                
+                this.CreateTreeNodeList(obj.treenode, e);
+            }
+            obj.treenodeChange=false;
+        }else if(obj.expandTreeNode) {
+            for(let tn of obj.expandTreeNode) {
+                let li=document.getElementById(`li_${tn._uid}`);
+                li.setAttribute('data-textcolor', CSSrgba(tn.textColor, tn.alpha));
+                li.setAttribute('data-colorhover', CSSrgba(tn.colorHover, tn.alpha))
+                if(tn.isChecked) {
+                    li.setAttribute('data-color', CSSrgba(tn.colorDown, tn.alpha))
+                }else {
+                    li.setAttribute('data-color', CSSrgba(tn.colorUp, tn.alpha))
+                }
+            }
+        }
+    }
+
+    CreateTreeNodeList(tnlist:zlUITreeNode[], parent:HTMLElement)
+    {
+        let ul=document.createElement('ul');
+        ul.classList.add('Win');
+        ul.classList.add('Tree');
+        parent.append(ul);
+        for(let tn of tnlist) {
+            this.CreateTreeNode(tn, ul);
+        }
+    }
+
+    CreateTreeNode(tn:zlUITreeNode, parent:HTMLElement): HTMLElement
+    {
+        let li=document.createElement('li');
+        li.id=`li_${tn._uid}`;
+        li.setAttribute('data-textcolor', CSSrgba(tn.textColor, tn.alpha));
+        li.setAttribute('data-colorhover', CSSrgba(tn.colorHover, tn.alpha))
+        li.setAttribute('data-color', CSSrgba(tn.color, tn.alpha))
+        let summary:HTMLElement;
+        let details:HTMLDetailsElement;
+        li.style.lineHeight=`${Math.floor(tn.h*tn._world.scale)}px`;
+        if(tn.treenode?.length>0) {
+            details=document.createElement('details');
+            details.open=tn.open;
+            summary=document.createElement('summary');
+            summary.innerText=tn.text;
+            li.append(details);
+            details.append(summary);
+            this.CreateTreeNodeList(tn.treenode, details);
+        }else {
+            summary=document.createElement('summary');
+            summary.innerText=tn.text;
+            li.append(summary);
+        }
+        parent.append(li)
+        summary.onclick=()=>{
+            if(details)
+                tn.open=details.open;
+            tn.OnClick();
+        }
+        return li;
+    }
+
+    Create(): HTMLElement {
+        let obj=this.obj as zlUITree;
+        let e=super.Create();
+        e.id=`${obj._uid}`
+        e.classList.add('Panel');
+
+        return e;
+    }
+}
+
 export class BackendDOM implements IBackend
 {
     constructor(root:HTMLElement) {
@@ -680,6 +816,7 @@ export class BackendDOM implements IBackend
         this.paint[zlUISlider.CSID]=new PaintSlider(this);
         this.paint[zlUILabelEdit.CSID]=new PaintPanel(this);
         this.paint[zlUIDatePicker.CSID]=new PaintPanel(this);
+        this.paint[zlUITree.CSID]=new PaintTree(this);
         this.root=root;
     }
 

@@ -911,6 +911,9 @@ export enum EDock
     Down=1<<4,
 
     All=Top|Left|Right|Down,
+    LRD=Left|Right|Down,
+    LRT=Left|Right|Top,
+    LR=Left|Right,
 }
 
 export interface IDock
@@ -3712,6 +3715,7 @@ export class zlUICheck extends zlUIButton
         if(this.on_check) {
             this.on_check(this.isChecked);
         }
+        this._owner.is_dirty=true;
     }
     CalRect(parent: zlUIWin): void {
         super.CalRect(parent);
@@ -4423,7 +4427,7 @@ export class zlUITreeNode extends zlUICheck
         super(own);
         this._csid=zlUITreeNode.CSID;
         this.dock={
-            mode:EDock.Left|EDock.Right,
+            mode:EDock.Right,
             x:0,y:0,z:1,w:1
         };
         this.textAnchor={
@@ -4513,6 +4517,7 @@ export class zlUITreeNode extends zlUICheck
     OnClick(): void {
         super.OnClick();
         this.tree.OnSelected(this);
+        this.tree.CalTreeNode();
     }
     GetTreeNode(name:string) :zlUITreeNode {
         for(let tn of this.treenode) {
@@ -4599,11 +4604,7 @@ export class zlUITree extends zlUISlider
 
     CalTreeNode():void
     {
-        for(let i=this.pChild.length-1; i>=0; i--) {
-            if(this.pChild[i]._csid=="TreeNode"){
-                this.pChild.splice(i,1);
-            }
-        }
+        this.pChild=this.pChild.filter(e=>e._csid!="TreeNode");
 
         this.expandTreeNode=[];
         for(let tn of this.treenode){
@@ -4622,7 +4623,8 @@ export class zlUITree extends zlUISlider
                 let font=this._owner.GetFont(tn.fontIndex);
                 let text_height=font.size;
                 let text=tn.text?tn.text:"A";
-                let textSize=font.CalTextSize(font.size, this.w, 0, text, text.length);
+                let isReady = [false];
+                let textSize=font.CalTextSize(font.size, this.w, 0, text, text.length, isReady);
                 text_height=Math.ceil(textSize.y);
                 tn.h=text_height+tn.padding+tn.padding;
             }
@@ -7094,6 +7096,7 @@ export class zlUIMgr extends zlUIWin
             this.drag.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
             this.LimitRect(this.drag);
             this.drag.SetCalRect();
+            this.is_dirty=true;
             if(!isDown) {
                 this.drag=undefined;
             }
@@ -7147,6 +7150,7 @@ export class zlUIMgr extends zlUIWin
     }
 
     Paint(): void {
+        this.is_dirty=false;
         this.paint_count=0;
         super.Paint();
         if(this.drag_drop) {
@@ -7465,6 +7469,7 @@ export class zlUIMgr extends zlUIWin
     calrect_count:number=0;
     paint_count:number=0;
     calrect_object:string[];
+    is_dirty:boolean=false;
 
     backend:IBackend;
 
@@ -7472,3 +7477,95 @@ export class zlUIMgr extends zlUIWin
     uid:number=0;
 }
 
+interface IInspectObject
+{
+    object:zlUIWin;
+    treenode:zlUITreeNode;
+    uid:number;
+}
+
+export class zlUIInspector
+{
+    constructor(mgr:zlUIMgr)
+    {
+        mgr.Name="Inspector";
+        mgr.autosize=EAutosize.All;
+        this.mgr=mgr;        
+        let frame=new zlUIPanel(mgr);
+        frame.w=400;
+        frame.h=600;
+        frame.padding=10;
+        frame.borderColor=0xff463D39;
+        frame.borderWidth=1;
+        frame.isDrawBorder=true;
+        frame.isDrawClient=true;
+        frame.isResizable=true;
+        frame.isCanDrag=true;
+        let caption=new zlUIPanel(mgr);
+        caption.isCanNotify=false;
+        caption.Name="Caption";
+        caption.color=0xff7A4A29;
+        caption.dock={mode:EDock.LRT, x:0, y:0, z:1, w:1};
+        let offset=frame.padding-frame.borderWidth;
+        caption.dockOffset=new Vec4(-offset,-offset,offset,offset);
+        caption.h=30;
+        caption.SetText('Inspector');
+        frame.AddChild(caption);
+
+        let tree=new zlUITree(mgr);
+        tree.padding=10;
+        tree.y=30;
+        tree.dock={mode:EDock.LRD, x:0, y:0, z:1, w:1};
+        frame.AddChild(tree);
+        mgr.AddChild(frame);
+
+        this.mgr=mgr;
+        this.frame=frame;
+        this.tree=tree;
+    }
+
+    InspectWin(ui:zlUIWin, parent:zlUITreeNode):void
+    {
+        let obj=this.obj[ui._uid];
+        if(obj === undefined) {
+            let tn=this.tree.CreateTreeNode(`[${ui._csid}] ${ui.Name}`, parent);
+            obj={object:ui, treenode:tn, uid:ui._uid};
+            this.obj[ui._uid]=obj;
+            this.change=true;
+        }
+        let tn=obj.treenode;
+        tn.textColor=ui.isVisible?0xffc0c0c0:0xff7f7f7f;
+
+        for(let ch of ui.pChild) {
+            this.Inspect(ch, tn);
+        }
+    }
+
+    Inspect(ui:zlUIWin, parent?:zlUITreeNode):void
+    {
+        switch(ui._csid) {
+        case zlUIWin.CSID:
+            this.InspectWin(ui, parent);
+            break;
+        default:
+            this.InspectWin(ui, parent);
+            break;
+        }
+        if(!parent) {
+            // this.mgr.x=this.frame.x;
+            // this.mgr.y=this.frame.y;
+            if(this.change) {
+                this.mgr.is_dirty=true;
+                this.change=false;
+                this.tree.CalTreeNode();
+            }
+        }
+    }
+
+    mgr:zlUIMgr;
+    frame:zlUIPanel;
+    tree:zlUITree;
+    change:boolean=false;
+
+    obj:{[key:number]:IInspectObject}={};
+}
