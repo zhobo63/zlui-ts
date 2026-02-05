@@ -43,7 +43,7 @@ Object DatePicker
     Rounding 5
     Drag true
 
-    DefaultPanel Panel
+    //DefaultPanel Panel
 
     // Param DATEPICKER_TOP
     // {

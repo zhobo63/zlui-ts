@@ -3715,7 +3715,6 @@ export class zlUICheck extends zlUIButton
         if(this.on_check) {
             this.on_check(this.isChecked);
         }
-        this._owner.is_dirty=true;
     }
     CalRect(parent: zlUIWin): void {
         super.CalRect(parent);
@@ -5577,9 +5576,9 @@ export class zlUIDatePicker extends zlUIPanel
         this.h=320;
         this.padding=10;
 
-        // this.Parse(new Parser(`
-
-        //     `));
+        this.color=ParseColor('rgba(23,26,29,255)');
+        this.borderColor=ParseColor('rgba(57,61,70,255)');
+        this.textColor=ParseColor('rgba(255,255,255,255)');
 
         this.pnl_year_month=new zlUIPanel(own);
         this.pnl_year_month.Name="year_month";
@@ -5636,7 +5635,7 @@ export class zlUIDatePicker extends zlUIPanel
             mode:EDock.All,
             x:0.2,y:0,z:0.8,w:1
         }
-        this.ed_year_month.on_edit=()=>{
+        this.ed_year_month.on_change=()=>{
             let date=new Date(`${this.ed_year_month.text}-01`);
             this.OnMonth(date);
         }
@@ -5673,6 +5672,7 @@ export class zlUIDatePicker extends zlUIPanel
             day.isCopyable=false;
             day.h=30;
             day.rounding=4;
+            day.borderWidth=1;
             day.borderColor=ParseColor('rgb(120,120,120)');
             day.SetText(`${i}`)
             this.AddChild(day);
@@ -5699,6 +5699,9 @@ export class zlUIDatePicker extends zlUIPanel
         switch(name) {
         case "date":
             this.SetDate(toks[1]);
+            break;
+        case "defaultpanel":
+
             break;
         default:
             return await super.ParseCmd(name, toks, parser);
@@ -5756,6 +5759,7 @@ export class zlUIDatePicker extends zlUIPanel
             btn_day.isDrawBorder=(i+1)==day;
             btn_day.SetText(`${i+1}`);
         }
+        this._owner.isDirty=true;
     }
 
     SetDate(date:string|Date) {
@@ -7096,7 +7100,6 @@ export class zlUIMgr extends zlUIWin
             this.drag.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
             this.LimitRect(this.drag);
             this.drag.SetCalRect();
-            this.is_dirty=true;
             if(!isDown) {
                 this.drag=undefined;
             }
@@ -7150,7 +7153,7 @@ export class zlUIMgr extends zlUIWin
     }
 
     Paint(): void {
-        this.is_dirty=false;
+        this.isDirty=false;
         this.paint_count=0;
         super.Paint();
         if(this.drag_drop) {
@@ -7469,7 +7472,7 @@ export class zlUIMgr extends zlUIWin
     calrect_count:number=0;
     paint_count:number=0;
     calrect_object:string[];
-    is_dirty:boolean=false;
+    isDirty:boolean=false;
 
     backend:IBackend;
 
@@ -7555,7 +7558,7 @@ export class zlUIInspector
             // this.mgr.x=this.frame.x;
             // this.mgr.y=this.frame.y;
             if(this.change) {
-                this.mgr.is_dirty=true;
+                this.mgr.isDirty=true;
                 this.change=false;
                 this.tree.CalTreeNode();
             }

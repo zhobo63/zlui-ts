@@ -789,6 +789,7 @@ class PaintTree extends PaintSlider
             if(details)
                 tn.open=details.open;
             tn.OnClick();
+            tn._owner.isDirty=true;
         }
         return li;
     }

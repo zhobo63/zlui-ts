@@ -95,7 +95,7 @@ class App
         this.inspector.mgr.any_pointer_down=ui.any_pointer_down;
         this.inspector.Inspect(ui);
         let r=this.inspector.mgr.Refresh(io.DeltaTime);
-        if(!r && this.inspector.mgr.is_dirty) {
+        if(!r && this.inspector.mgr.isDirty) {
             this.inspector.mgr.Paint();
         }
     }
