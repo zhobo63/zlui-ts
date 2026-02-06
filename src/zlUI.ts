@@ -1,4 +1,4 @@
-export const Version="0.1.59";
+export const Version="0.1.60";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -10,16 +10,17 @@ export function SetFLT_MAX(v:number) {
     FLT_MAX=v;
 }
 
-const DEGTORAD = 1.74532925199433E-02;
-const COL_COLOREDIT=ParseColor('rgba(23,26,29,255)')
-const COL_COLOR=ParseColor('rgba(35,39,49,255)')
-const COL_COLORHOVER=ParseColor('rgba(57,61,70,255)')
-const COL_COLORDISABLE=ParseColor('rgba(100,100,100,255)');
-const COL_BORDERCOLOR=ParseColor('rgba(57,61,70,255)')
-const COL_COLORDOWN=ParseColor('rgba(77,81,90,255)')
-const COL_TEXTCOLOR=ParseColor('rgba(200,200,200,255)')
-const COL_TEXTCOLORHOVER=ParseColor('rgba(255,255,255,255)')
-const COL_TEXTCOLORDISABLE=ParseColor('rgba(150,150,150,255)');
+export const DEGTORAD = 1.74532925199433E-02;
+export const COL_COLOREDIT=ParseColor('rgba(23,26,29,255)')
+export const COL_COLOR=ParseColor('rgba(35,39,49,255)')
+export const COL_COLORHOVER=ParseColor('rgba(57,61,70,255)')
+export const COL_COLORDISABLE=ParseColor('rgba(100,100,100,255)');
+export const COL_BORDERCOLOR=ParseColor('rgba(57,61,70,255)')
+export const COL_COLORDOWN=ParseColor('rgba(77,81,90,255)')
+export const COL_TEXTCOLOR=ParseColor('rgba(200,200,200,255)')
+export const COL_TEXTCOLORHOVER=ParseColor('rgba(255,255,255,255)')
+export const COL_TEXTCOLORDISABLE=ParseColor('rgba(150,150,150,255)');
+export const RESIZEBAR_SIZE=10;
 
 //export let Use_ImTransform=false;
 
@@ -1033,6 +1034,8 @@ export class Rect
     xy:Vec2=new Vec2;
     max:Vec2=new Vec2;
 }
+
+let rect_a=new Rect();
 
 function ParseDock(tok:string):EDock
 {
@@ -2399,6 +2402,25 @@ export class zlUIWin
         if(!this.isCanNotify)
             return undefined;
         return (this.IsSlider())?this:undefined;
+    }
+
+    IsResize(pos:Vec2):boolean {
+        if(!this.isResizable)
+            return false;
+        let xy=this._localRect.max;
+        rect_a.Set(xy.x-RESIZEBAR_SIZE, xy.y-RESIZEBAR_SIZE, xy.x, xy.y);
+
+        if(Use_Transform) {
+            if(!this._invWorld)
+                return false;
+            let pt=this._invWorld.Transform(pos);
+            if(!rect_a.Inside(pt))
+                return false;
+        }else {
+            if(!this._screenRect.Inside(pos))
+                return false;
+        }
+        return true;
     }
 
     OnNotify():void { 
@@ -5576,9 +5598,9 @@ export class zlUIDatePicker extends zlUIPanel
         this.h=320;
         this.padding=10;
 
-        this.color=ParseColor('rgba(23,26,29,255)');
-        this.borderColor=ParseColor('rgba(57,61,70,255)');
-        this.textColor=ParseColor('rgba(255,255,255,255)');
+        this.color=COL_COLOREDIT;
+        this.borderColor=COL_BORDERCOLOR;
+        this.textColor=COL_TEXTCOLOR;
 
         this.pnl_year_month=new zlUIPanel(own);
         this.pnl_year_month.Name="year_month";
@@ -7000,6 +7022,7 @@ export class zlUIMgr extends zlUIWin
         let notify=this.GetNotify(this.mouse_pos);
         let isDown=this.any_pointer_down;
         let firstDown=(!this.prevDown && isDown);
+        let cursor=undefined;
         if(firstDown) {
             this.down_index++;
         }
@@ -7029,10 +7052,22 @@ export class zlUIMgr extends zlUIWin
                     }
                 }
             }
+
+            let isResizing=notify.IsResize(this.mouse_pos);
+            if(isResizing) {
+                cursor='nwse-resize';
+            }
+
             if(firstDown)   {
                 this.first_pos_x=this.mouse_pos.x;
                 this.first_pos_y=this.mouse_pos.y;
-                if(notify.isCanDrag) {
+
+                if(notify.isResizable && isResizing) {
+                    this.resizer=notify;
+                    this.drag_x=notify.w;
+                    this.drag_y=notify.h;
+                }
+                else if(notify.isCanDrag) {
                     this.drag=notify;
                     this.drag_x=notify.x;
                     this.drag_y=notify.y;
@@ -7093,7 +7128,19 @@ export class zlUIMgr extends zlUIWin
             this.drag_drop.SetAlpha(0.5);
             this.drag_over=undefined;
         }
-        if(this.drag)   {
+        if(this.resizer) {
+            this.resizer.w=this.drag_x+this.mouse_pos.x-this.first_pos_x;
+            this.resizer.h=this.drag_y+this.mouse_pos.y-this.first_pos_y;
+
+            let limit = RESIZEBAR_SIZE + (this.resizer.borderWidth + this.resizer.padding) * 2;
+            if(this.resizer.w < limit) this.resizer.w=limit;
+            if(this.resizer.h < limit) this.resizer.h=limit;
+            this.resizer.SetCalRect();
+            if(!isDown) {
+                this.resizer=undefined;
+            }
+        }
+        else if(this.drag)   {
             this.drag.x=this.drag_x+this.mouse_pos.x-this.first_pos_x;
             this.drag.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
             this.LimitRect(this.drag);
@@ -7137,6 +7184,10 @@ export class zlUIMgr extends zlUIWin
             this.nextEdit=undefined;
         }
         this.ClearPaintout(this);
+
+        if(cursor) {
+            document.body.style.cursor=cursor;
+        }
         return ret;
     }
 
@@ -7428,6 +7479,7 @@ export class zlUIMgr extends zlUIWin
     drag_y:number;
     first_pos_x:number;
     first_pos_y:number;
+    resizer:zlUIWin;
 
     drag_source:zlUIWin;
     drag_drop:zlUIWin;
@@ -7517,6 +7569,7 @@ export class zlUIInspector
         tree.padding=10;
         tree.y=30;
         tree.dock={mode:EDock.LRD, x:0, y:0, z:1, w:1};
+        tree.dockOffset=new Vec4(0,0,0,-10);
         frame.AddChild(tree);
         mgr.AddChild(frame);
 

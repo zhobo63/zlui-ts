@@ -1,5 +1,5 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, BoardType, Clone, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit } from "./zlUI";
+import { Board, BoardType, RESIZEBAR_SIZE, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
 
 export let vec_a=new ImGui.Vec2;
@@ -270,6 +270,20 @@ export function RenderBorder(drawlist:ImDrawList, xy:Vec2, xy2:Vec2,
         borderWidth);
 }
 
+export function RenderResize(drawlist:ImDrawList, xy:Vec2, size:number,
+    col:number, alpha:number)
+{
+    toImVec2(vec_a, xy);
+    vec_b.Set(xy.x-size, xy.y);
+    vec_c.Set(xy.x, xy.y-size);
+    drawlist.AddTriangleFilled(
+        vec_a,
+        vec_b,
+        vec_c,
+        MultiplyAlpha(col, alpha)
+    );
+}
+
 class ImFont implements IFont
 {
     constructor()
@@ -443,6 +457,9 @@ export class PaintPanel extends PaintImage
             RenderClient(drawlist, obj._localRect.xy, obj._localRect.max,
                 obj.colorHover4, obj.colorHover, obj.alpha,
                 obj.rounding, obj.roundingCorner);
+        }
+        if(obj.isResizable) {
+            RenderResize(drawlist, obj._localRect.max, RESIZEBAR_SIZE, obj.borderColor, obj.alpha);
         }
         if(obj.isDrawBorder)   {
             RenderBorder(drawlist, obj._localRect.xy, obj._localRect.max,

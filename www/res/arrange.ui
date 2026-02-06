@@ -14,7 +14,7 @@ Clone Panel
     //Visible false
     Drag true
     //Sizable true
-    //Resizable true
+    Resize true
     ContentMargin 10 10
 
     Clone Panel
@@ -130,6 +130,7 @@ Clone Panel
     RectWH 460 420 300 300
     Padding 10
     Arrange vertical content
+    Resizable true
 
     Clone Text
     {

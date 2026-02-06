@@ -116,6 +116,23 @@ class PaintWin implements IPaint
             //e.style.position='relative';
             e.style.position='absolute';
 
+            if(obj.isResizable) {
+                e.style.resize='both';
+                e.style.overflow='auto';
+
+                this.resizeobs=new ResizeObserver(entries=>{
+                    for(let entry of entries) {
+                        //console.log(entry);
+                        this.isDragging=false;
+                        obj.w=entry.borderBoxSize[0].inlineSize;
+                        obj.h=entry.borderBoxSize[0].blockSize;
+                        obj.SetCalRect();
+                        obj._owner.isDirty=true;
+                    }
+                })
+                this.resizeobs.observe(e);
+            }
+
             document.addEventListener('mousemove',(_e)=>{
                 this.OnMouseMove(e, obj, _e);
             })
@@ -252,6 +269,8 @@ class PaintWin implements IPaint
     ey:number;
     ox:number;
     oy:number;
+
+    resizeobs:ResizeObserver;
 }
 
 class PaintMgr extends PaintWin
