@@ -1,4 +1,4 @@
-export const Version="0.1.58";
+export const Version="0.1.59";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -4426,7 +4426,7 @@ export class zlUITreeNode extends zlUICheck
         super(own);
         this._csid=zlUITreeNode.CSID;
         this.dock={
-            mode:EDock.Right,
+            mode:EDock.LR,
             x:0,y:0,z:1,w:1
         };
         this.textAnchor={
@@ -5687,6 +5687,7 @@ export class zlUIDatePicker extends zlUIPanel
         }
 
         this.SetDate(new Date());
+        this.SetCalRect();
     }    
 
     static CSID="DatePicker";
@@ -5699,9 +5700,6 @@ export class zlUIDatePicker extends zlUIPanel
         switch(name) {
         case "date":
             this.SetDate(toks[1]);
-            break;
-        case "defaultpanel":
-
             break;
         default:
             return await super.ParseCmd(name, toks, parser);
@@ -7497,7 +7495,7 @@ export class zlUIInspector
         let frame=new zlUIPanel(mgr);
         frame.w=400;
         frame.h=600;
-        frame.padding=10;
+        frame.padding=2;
         frame.borderColor=0xff463D39;
         frame.borderWidth=1;
         frame.isDrawBorder=true;

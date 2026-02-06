@@ -116,31 +116,14 @@ class PaintWin implements IPaint
             //e.style.position='relative';
             e.style.position='absolute';
 
+            document.addEventListener('mousemove',(_e)=>{
+                this.OnMouseMove(e, obj, _e);
+            })
             e.onmousemove=(_e)=>{
                 if(obj.on_mousemove) {
                     obj.on_mousemove(_e.offsetX, _e.offsetY);
                 }
-                if(obj.isCanDrag && this.isDragging) {
-                    obj.x=this.ox+(_e.x-this.ex)/obj._world.scale;
-                    obj.y=this.oy+(_e.y-this.ey)/obj._world.scale;
-                    if(obj.draglimit) {
-                        if((obj.draglimit.mode & EDragLimit.Left) && obj.x<obj.draglimit.x) {
-                            obj.x=obj.draglimit.x;
-                        }
-                        if((obj.draglimit.mode & EDragLimit.Right) && obj.x>obj.draglimit.z) {
-                            obj.x=obj.draglimit.z;
-                        }
-                        if((obj.draglimit.mode & EDragLimit.Top) && obj.y<obj.draglimit.y) {
-                            obj.y=obj.draglimit.y;
-                        }
-                        if((obj.draglimit.mode & EDragLimit.Down) && obj.y>obj.draglimit.w) {
-                            obj.y=obj.draglimit.w;
-                        }
-                    }
-                    obj.SetCalRect();
-                    this.SetPosition(e, obj, obj.x, obj.y);
-                }
-                _e.stopPropagation();
+                this.OnMouseMove(e, obj, _e);
             }
             e.onmousedown=(_e)=>{
                 //console.log(`mousedown`, _e, obj, this.isDragging);
@@ -183,6 +166,29 @@ class PaintWin implements IPaint
     }
     PaintEnd() {
 
+    }
+
+    OnMouseMove(e:HTMLElement, obj:UIWin, _e:MouseEvent) {
+        if(obj.isCanDrag && this.isDragging) {
+            obj.x=this.ox+(_e.x-this.ex)/obj._world.scale;
+            obj.y=this.oy+(_e.y-this.ey)/obj._world.scale;
+            if(obj.draglimit) {
+                if((obj.draglimit.mode & EDragLimit.Left) && obj.x<obj.draglimit.x) {
+                    obj.x=obj.draglimit.x;
+                }
+                if((obj.draglimit.mode & EDragLimit.Right) && obj.x>obj.draglimit.z) {
+                    obj.x=obj.draglimit.z;
+                }
+                if((obj.draglimit.mode & EDragLimit.Top) && obj.y<obj.draglimit.y) {
+                    obj.y=obj.draglimit.y;
+                }
+                if((obj.draglimit.mode & EDragLimit.Down) && obj.y>obj.draglimit.w) {
+                    obj.y=obj.draglimit.w;
+                }
+            }
+            obj.SetCalRect();
+            this.SetPosition(e, obj, obj.x, obj.y);
+        }
     }
 
     SetPosition(e:HTMLElement, obj:UIWin, x:number, y:number) {
