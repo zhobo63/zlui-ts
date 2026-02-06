@@ -123,7 +123,7 @@ class PaintWin implements IPaint
                 this.resizeobs=new ResizeObserver(entries=>{
                     for(let entry of entries) {
                         //console.log(entry);
-                        this.isDragging=false;
+                        this.isDragging=undefined;
                         obj.w=entry.borderBoxSize[0].inlineSize;
                         obj.h=entry.borderBoxSize[0].blockSize;
                         obj.SetCalRect();
@@ -152,11 +152,11 @@ class PaintWin implements IPaint
                     this.ey=_e.y;
                     this.ox=obj.x;
                     this.oy=obj.y;
-                    this.isDragging=true;
+                    this.isDragging=obj._uid;
 
                     document.addEventListener('mouseup', ()=>{
                         console.log('document.mouseup', e);
-                        this.isDragging=false;
+                        this.isDragging=undefined;
                     }, {once: true});
                 }
                 _e.stopPropagation();
@@ -166,7 +166,7 @@ class PaintWin implements IPaint
                 if(obj.on_mouseup) {
                     obj.on_mouseup(_e.offsetX, _e.offsetY);
                 }
-                this.isDragging=false;
+                this.isDragging=undefined;
                 _e.stopPropagation();
             }
 
@@ -186,7 +186,7 @@ class PaintWin implements IPaint
     }
 
     OnMouseMove(e:HTMLElement, obj:UIWin, _e:MouseEvent) {
-        if(obj.isCanDrag && this.isDragging) {
+        if(obj.isCanDrag && this.isDragging == obj._uid) {
             obj.x=this.ox+(_e.x-this.ex)/obj._world.scale;
             obj.y=this.oy+(_e.y-this.ey)/obj._world.scale;
             if(obj.draglimit) {
@@ -264,7 +264,7 @@ class PaintWin implements IPaint
     backend:BackendDOM;
     obj:zlUIWin;
 
-    isDragging:boolean=false;
+    isDragging:number;
     ex:number;
     ey:number;
     ox:number;
