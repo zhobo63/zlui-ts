@@ -117,6 +117,15 @@ class PaintWin implements IPaint
             e.style.position='absolute';
 
             if(obj.isResizable) {
+
+                let resizer=document.createElement('div');
+                resizer.classList.add("Resizer");
+                resizer.onmousedown=(_e)=>{
+                    this.isDragging=undefined;
+                    _e.stopPropagation();
+                }
+                e.append(resizer);
+
                 e.style.resize='both';
                 e.style.overflow='auto';
 

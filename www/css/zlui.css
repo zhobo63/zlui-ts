@@ -263,6 +263,25 @@ ul, .Tree {
     background: var(--data-colorhover); 
 }
 
+*::-webkit-resizer {
+    background: none;
+    border: none;
+}
+
+.Resizer {
+    --barsize:8px;
+    position: absolute;
+    width: 0;
+    height: 0;
+    cursor: nwse-resize;
+    background: none;
+    bottom: 0;
+    right: 0;
+
+    border-bottom: var(--barsize) solid var(--data-bordercolor, rgba(57,61,70,1));
+    border-left: var(--barsize) solid transparent;
+}
+
 .icon {
     height: auto;
     width: auto;
