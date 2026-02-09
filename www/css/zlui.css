@@ -22,6 +22,11 @@
     border-radius: 4px;
 }
 
+*::-webkit-resizer {
+    background: none;
+    border: none;
+}
+
 select,
 ::picker(select) {
     appearance: base-select;
@@ -261,11 +266,6 @@ ul, .Tree {
 }
 .Tree summary:hover { 
     background: var(--data-colorhover); 
-}
-
-*::-webkit-resizer {
-    background: none;
-    border: none;
 }
 
 .Resizer {

@@ -1,4 +1,4 @@
-import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -121,6 +121,7 @@ class PaintWin implements IPaint
                 let resizer=document.createElement('div');
                 resizer.classList.add("Resizer");
                 resizer.onmousedown=(_e)=>{
+                    console.log('resizer.onmousedown', _e);
                     this.isDragging=undefined;
                     _e.stopPropagation();
                 }
@@ -152,11 +153,15 @@ class PaintWin implements IPaint
                 this.OnMouseMove(e, obj, _e);
             }
             e.onmousedown=(_e)=>{
-                //console.log(`mousedown`, _e, obj, this.isDragging);
+                console.log(`mousedown`, _e, obj, this.isDragging);
                 if(obj.on_mousedown) {
                     obj.on_mousedown(_e.offsetX, _e.offsetY);
                 }
                 if(obj.isCanDrag) {
+                    if(obj.isResizable) {
+                        if(_e.offsetX>obj.w-RESIZEBAR_SIZE && _e.offsetY>obj.h-RESIZEBAR_SIZE)
+                            return;
+                    }
                     this.ex=_e.x;
                     this.ey=_e.y;
                     this.ox=obj.x;
@@ -327,16 +332,15 @@ class PaintPanel extends PaintWin
         super.Paint();
         let e=document.getElementById(`${obj._uid}`) as HTMLDivElement;
     
-        this.PaintText(e);
-        this.PaintPanel(e);
+        this.PaintText(e, obj);
+        this.PaintPanel(e, obj);
     }
 
     LabelID():string {
         return `label_${this.obj._uid}`;
     }
 
-    PaintText(e:HTMLElement) {
-        let obj=this.obj as zlUIPanel;
+    PaintText(e:HTMLElement, obj:zlUIPanel) {
         let label_id=`label_${obj._uid}`;
         let label=document.getElementById(label_id) as HTMLLabelElement;
         if(this.has_label && obj.text && obj.text.length>0) {
@@ -360,8 +364,8 @@ class PaintPanel extends PaintWin
             label.remove();
         }
     }
-    PaintPanel(e:HTMLDivElement) {
-        let obj=this.obj as zlUIPanel;
+
+    PaintPanel(e:HTMLDivElement, obj:zlUIPanel) {
         e.setAttribute('data-color', CSSrgba(obj.color, obj.alpha));
         e.setAttribute('data-bordercolor', CSSrgba(obj.borderColor, obj.alpha));
         e.setAttribute('data-textcolor', CSSrgba(obj.textColor, obj.alpha));
@@ -377,7 +381,8 @@ class PaintPanel extends PaintWin
         if(obj.isDrawClient) {
 
         }else {
-            e.style.backgroundColor="rgba(0,0,0,0)";
+            e.setAttribute('data-color', 'rgba(0,0,0,0)');
+            //e.style.backgroundColor="rgba(0,0,0,0)";
         }
     }
 
@@ -531,6 +536,8 @@ class PaintCheck extends PaintButton
         let obj = this.obj as UICheck;
         let e=document.createElement('div');
         e.classList.add('Win');
+        e.classList.add('Panel');
+        e.classList.add('Button');
         let label=document.createElement('label');
         label.id=this.LabelID();
         let chk=document.createElement('input');
@@ -549,11 +556,12 @@ class PaintCheck extends PaintButton
         label.append(span);
         
         label.setAttribute('for', chk.id);
-
         label.classList.add('Win');
         label.classList.add('Panel');
         label.classList.add('Button');
         label.classList.add('Check');
+        label.setAttribute('data-color', 'rgba(0,0,0,0)');
+        label.setAttribute('data-bordercolor', 'rgba(0,0,0,0)');
         e.append(label);
 
         chk.onchange=()=>{

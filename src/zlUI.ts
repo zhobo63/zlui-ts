@@ -5767,7 +5767,9 @@ export class zlUIDatePicker extends zlUIPanel
         this.ed_year_month.SetText(`${year}-${(month+1).toString().padStart(2, '0')}`);
         let first_day=GetFirstDayOfMonth(year, month);
         let days=DayOfMonth[month];
-
+        if(month==1 && IsLeapYear(year)) {
+            days=29;
+        }
         for(let i=0;i<zlUIDatePicker.BTN_DAY_COUNT;i++) {
             let btn_day=this.btn_day[i];
             btn_day.isVisible=false;
