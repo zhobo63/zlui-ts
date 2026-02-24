@@ -1,0 +1,24 @@
+
+
+Object Button
+{
+
+    Name btn_home
+    RectWH 50 50 80 80
+    Image res/btn_base_background.png
+    //Enable false
+
+    Object Image
+    {   
+        RectWH 0 0 80 80
+        Image res/txt_home.png
+        Notify false
+    }
+}
+
+Object Image
+{
+    Name img_home
+    RectWH 200 50 80 80
+    Image res/btn_base_background.png
+}

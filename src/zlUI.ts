@@ -1,4 +1,4 @@
-export const Version="0.1.60";
+export const Version="0.1.61";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -90,6 +90,7 @@ export interface IBackend
     Paint:(obj:zlUIWin)=>void;
     PaintEnd:(obj:zlUIWin)=>void;
     SetParent:(obj:zlUIWin)=>void;
+    GetTexture:(name:string)=>TexturePack;
 
     paint:{[key:string]:IPaint};
 }
@@ -514,6 +515,7 @@ export function ParseScaleMode(tok:string):ScaleMode
 
 export interface TexturePack
 {
+    name:string;
     x1:number;
     y1:number;
     x2:number;
@@ -2659,6 +2661,7 @@ export class zlUIImage extends zlUIWin
     SetUrl(url:string,callback:(obj:zlUIWin)=>void):void {
         this._owner.backend.CreateTexture(url).then((tex)=>{
             this.image={
+                name:url,
                 x1:0,
                 y1:0,
                 x2:tex._width,
@@ -2673,7 +2676,7 @@ export class zlUIImage extends zlUIWin
 
     Paint():void
     {
-        if(this.image && this.image.texture._texture && !this.image.uv1) {
+        if(this.image && this.image?.texture?._texture && !this.image.uv1) {
             this.image= UpdateTexturePack(this.image);
         }
         super.Paint();
@@ -3600,6 +3603,7 @@ export class zlUIButton extends zlUIPanel
     SetUrl(url:string, callback:(obj:zlUIWin)=>void):void {
         this._owner.backend.CreateTexture(url).then((tex)=>{
             this.imageUp={
+                name:url,
                 x1:0,
                 y1:0,
                 x2:tex._width,
@@ -4363,7 +4367,7 @@ export class zlUIImageText extends zlUIWin
         let th=0;
         for(let c of this.text) {
             let ascii=this.ascii[c];
-            if(!ascii)
+            if(ascii===undefined)
                 continue;
             let imageFont=this.image_font[ascii];
             if(!imageFont)
@@ -5839,6 +5843,7 @@ export class zlTexturePack
         case 'subimage':
             let k=toks[1].toLowerCase();
             this.cache[k]={
+                name:k,
                 x1:Number.parseInt(toks[2]),
                 y1:Number.parseInt(toks[3]),
                 x2:Number.parseInt(toks[4]),
@@ -5853,6 +5858,7 @@ export class zlTexturePack
         this.textures.push(this.current);
         let k=file.toLowerCase();
         this.cache[k]={
+            name:file,
             x1:0,
             y1:0,
             x2:this.current._width,
@@ -7253,7 +7259,7 @@ export class zlUIMgr extends zlUIWin
     GetTexture(name:string):TexturePack
     {
         if(!this.texture)
-            return undefined;
+            return this.backend.GetTexture(name);
         let img=this.texture.cache[name.toLowerCase()];
         if(!img) {
             console.log("texture not found " + name);

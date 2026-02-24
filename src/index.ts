@@ -33,6 +33,7 @@ class App
         // this.inspector.mgr.h=600;
         this.inspector.mgr.backend=new BackendDOM(document.getElementById("inspector"));
         await this.inspector.mgr.Load("dark.ui", "res/");
+        await this.inspector.mgr.Load("button.ui", "res/");
 
         this.ui=new zlUIMgr;
         this.ui.backend=new BackendImGui(ImGui.GetBackgroundDrawList());

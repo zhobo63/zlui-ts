@@ -127,6 +127,11 @@ input[type="file"]::file-selector-button:hover {
     }
 }
 
+.Image {
+    --data-alpha: attr(data-alpha);
+    filter: opacity(var(--data-alpha))
+}
+
 .Panel {
     --data-color: attr(data-color type(<color>));
     --data-bordercolor: attr(data-bordercolor type(<color>));
@@ -165,6 +170,17 @@ input[type="file"]::file-selector-button:hover {
 .Button::selection {
     background: none;
 }
+.ButtonImage:hover {
+    filter: brightness(1.2);
+}
+.ButtonImage:active {
+    filter: brightness(1.5);
+}
+.ButtonImage:disabled {
+    filter: brightness(0.5);
+    cursor: not-allowed;
+}
+
 .Edit {
     --data-color: attr(data-color type(<color>));
     --data-bordercolor: attr(data-bordercolor type(<color>));

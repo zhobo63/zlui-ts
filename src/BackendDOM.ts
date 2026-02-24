@@ -1,4 +1,4 @@
-import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, UICheck, UIMgr, UIWin, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin } from "./zlUI";
+import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, TexturePack, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUIImage, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -199,7 +199,7 @@ class PaintWin implements IPaint
 
     }
 
-    OnMouseMove(e:HTMLElement, obj:UIWin, _e:MouseEvent) {
+    OnMouseMove(e:HTMLElement, obj:zlUIWin, _e:MouseEvent) {
         if(obj.isCanDrag && this.isDragging == obj._uid) {
             obj.x=this.ox+(_e.x-this.ex)/obj._world.scale;
             obj.y=this.oy+(_e.y-this.ey)/obj._world.scale;
@@ -222,13 +222,13 @@ class PaintWin implements IPaint
         }
     }
 
-    SetPosition(e:HTMLElement, obj:UIWin, x:number, y:number) {
+    SetPosition(e:HTMLElement, obj:zlUIWin, x:number, y:number) {
         //console.log(`SetPosition ${obj._uid} ${x} ${y}`, e);
         let scale=obj._world.scale;
         let ox=0;
         let oy=0;
 
-        if(this.backend.parent?._csid==UIMgr.CSID) {
+        if(this.backend.parent?._csid==zlUIMgr.CSID) {
             ox=obj._owner.x;
             oy=obj._owner.y;
         }
@@ -244,7 +244,7 @@ class PaintWin implements IPaint
         let ox=0;
         let oy=0;
 
-        if(this.backend.parent?._csid==UIMgr.CSID) {
+        if(this.backend.parent?._csid==zlUIMgr.CSID) {
             ox=this.obj._owner.x;
             oy=this.obj._owner.y;
         }
@@ -296,7 +296,7 @@ class PaintMgr extends PaintWin
 
     Paint()
     {
-        let obj=this.obj as UIMgr;
+        let obj=this.obj as zlUIMgr;
         this.backend.visible_map={};
         this.backend.parent=undefined;
         this.SetRect(this.backend.root, {x:obj._localPos.x, y:obj._localPos.y, w:obj.w, h:obj.h})
@@ -315,6 +315,42 @@ class PaintMgr extends PaintWin
         for(let uid in this.backend.visible_map) {
             this.backend.prev_visible_map[uid]=true;
         }
+    }
+}
+
+class PaintImage extends PaintWin
+{
+    constructor(backend:BackendDOM)
+    {
+        super(backend);
+    }
+
+    Paint(): void {
+        let obj=this.obj as zlUIImage;
+        super.Paint();
+        if(obj.image) {
+            let img=document.getElementById(`img_${obj._uid}`) as HTMLImageElement;
+            img.setAttribute('data-alpha', `${obj.alpha}`);
+        }
+    }
+
+    Create(): HTMLElement {
+        let e=document.createElement('div');
+        e.classList.add('Win');
+        let obj=this.obj as zlUIImage;
+        if(obj.image) {
+            let img=document.createElement('img') as HTMLImageElement;
+            img.classList.add('Image');
+            img.onload=()=>{
+                console.log(img);
+            }
+            img.id=`img_${obj._uid}`;
+            img.width=obj.w;
+            img.height=obj.h;
+            img.src=obj.image.name;
+            e.appendChild(img);
+        }
+        return e;
     }
 }
 
@@ -446,6 +482,14 @@ class PaintPanel extends PaintWin
         let e=document.createElement('div');
         e.classList.add('Win');
         e.classList.add('Panel'); 
+        // if(obj.image) {
+        //     let img=document.createElement('img') as HTMLImageElement;
+        //     img.id=`img_${obj._uid}`
+        //     img.width=obj.w;
+        //     img.height=obj.h;
+        //     img.src=obj.image.name;
+        //     e.appendChild(img);
+        // }
         return e;
     }
 
@@ -467,14 +511,28 @@ class PaintButton extends PaintPanel
         e.setAttribute('data-colorhover', CSSrgba(obj.colorHover, obj.alpha));
         e.setAttribute('data-textcolorhover', CSSrgba(obj.textColorHover, obj.alpha));
         e.setAttribute('data-colordown', CSSrgba(obj.colorDown, obj.alpha));
+        e.disabled=!obj.isEnable;
     }
 
     Create(): HTMLElement {
-        let e=document.createElement('button');
+        let e=document.createElement('button') as HTMLButtonElement;
         e.classList.add('Win');
         e.classList.add('Panel');
-        e.classList.add('Button');
         let obj=this.obj as zlUIButton;
+        e.type="button";
+
+        if(obj.image) {
+            let img=document.createElement('img') as HTMLImageElement;
+            img.id=`img_${obj._uid}`;
+            img.src=obj.image.name;
+            img.width=obj.w;
+            img.height=obj.h;
+            e.appendChild(img);
+            e.classList.add('ButtonImage');
+        }else {
+            e.classList.add('Button');
+        }
+
         if(obj.on_click) {
             e.onclick=(e)=>{
                 obj.OnClick();
@@ -533,7 +591,7 @@ class PaintCheck extends PaintButton
     }
 
     Create(): HTMLElement {
-        let obj = this.obj as UICheck;
+        let obj = this.obj as zlUICheck;
         let e=document.createElement('div');
         e.classList.add('Win');
         e.classList.add('Panel');
@@ -851,6 +909,7 @@ export class BackendDOM implements IBackend
     constructor(root:HTMLElement) {
         this.paint[zlUIWin.CSID]=new PaintWin(this);
         this.paint[zlUIMgr.CSID]=new PaintMgr(this);
+        this.paint[zlUIImage.CSID]=new PaintImage(this);
         this.paint[zlUIPanel.CSID]=new PaintPanel(this);
         this.paint[zlUIButton.CSID]=new PaintButton(this);
         this.paint[zlUICheck.CSID]=new PaintCheck(this);
@@ -868,6 +927,17 @@ export class BackendDOM implements IBackend
         let tex=new TextureDOM;
         return tex;
     }
+    GetTexture(name: string): TexturePack {
+        return {
+            name:name,
+            x1:0,
+            y1:0,
+            x2:0,
+            y2:0,
+            texture:null
+        }
+    }
+
     CreateFont(name:string, size:number, style:string):IFont {
         let font=new FontDOM;
         font.name=name;

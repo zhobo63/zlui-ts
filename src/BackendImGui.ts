@@ -919,6 +919,13 @@ export class BackendImGui implements IBackend
         return tex;
     }
 
+    GetTexture(name: string): TexturePack {
+        return {
+            name:name,
+            x1:0,x2:0,y1:0,y2:0,texture:null
+        };
+    }
+
     CreateFont(name: string, size: number, style: string):IFont
     {
         let font:ImFont=new ImFont;
