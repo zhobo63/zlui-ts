@@ -129,7 +129,8 @@ input[type="file"]::file-selector-button:hover {
 
 .Image {
     --data-alpha: attr(data-alpha);
-    filter: opacity(var(--data-alpha))
+    filter: opacity(var(--data-alpha));
+    background-size: 100% 100%;
 }
 
 .Panel {
@@ -141,22 +142,29 @@ input[type="file"]::file-selector-button:hover {
     color: var(--data-textcolor);
 }
 
-/* .Button {
-    --data-color: attr(data-color type(<color>));
-    --data-bordercolor: attr(data-bordercolor type(<color>));
-    --data-textcolor: attr(data-textcolor type(<color>));
-    display: block;
-    background-color: var(--data-color, rgba(35,39,49,1));
-    border-color: var(--data-bordercolor, rgba(57,61,70,1));
-    color: var(--data-textcolor, rgba(200,200,200,1));
-    border-style: solid;
-    border-width: 1px;
-    border-radius: 4px;
-    height: 30px;
-    width: 120px;
-    line-height: 30px;
-    text-align: center;
-} */
+.NineGrid {
+    --data-border-left: attr(data-border-left px);
+    --data-border-top: attr(data-border-top px);
+    --data-border-right: attr(data-border-right px);
+    --data-border-bottom: attr(data-border-bottom px);
+    --data-border-slice-left: attr(data-border-left type(<number>));
+    --data-border-slice-top: attr(data-border-top type(<number>));
+    --data-border-slice-right: attr(data-border-right type(<number>));
+    --data-border-slice-bottom: attr(data-border-bottom type(<number>));
+    border:solid #fff;
+    border-image-slice: var(--data-border-slice-top) var(--data-border-slice-right) var(--data-border-slice-bottom) var(--data-border-slice-left);
+    border-image-width: var(--data-border-top) var(--data-border-right) var(--data-border-bottom) var(--data-border-left);
+    border-image-repeat: repeat;
+    box-sizing: border-box;
+
+    background-clip: content-box;
+    background-position: center;
+    background-size: 200% 200%;
+    background-repeat: no-repeat;
+    background-origin: border-box;
+    overflow: hidden;
+}
+
 .Button:hover {
     --data-colorhover: attr(data-colorhover type(<color>));
     --data-textcolorhover: attr(data-textcolorhover type(<color>));

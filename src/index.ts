@@ -169,7 +169,8 @@ window.addEventListener('DOMContentLoaded', async () =>{
     }
 
     const canvas:HTMLCanvasElement=document.getElementById('canvas') as HTMLCanvasElement;
-    ImGui_Impl.Init(canvas);
+    let gl = canvas.getContext("webgl2", { alpha: true }) || canvas.getContext("webgl", { alpha: true });
+    ImGui_Impl.Init(gl);
 
     console.log("FontScale", ImGui_Impl.font_scale);
     console.log("CanvasScale", ImGui_Impl.canvas_scale);
@@ -193,7 +194,7 @@ window.addEventListener('DOMContentLoaded', async () =>{
         if(app) {app.onResize(canvas.scrollWidth, canvas.scrollHeight);}
     };
 
-    backgroundColor=new ImVec4(23/255,26/255,29/255,1);
+    backgroundColor=new ImVec4(23/255,26/255,29/255,0);
    
     window.requestAnimationFrame(_loop);
 });

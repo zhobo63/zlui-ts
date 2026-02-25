@@ -1,24 +1,50 @@
 
+LoadImage btn_base_background.png
+LoadImage txt_home.png
+LoadImage panel_lobby_infobox.png 31 31
 
 Object Button
 {
-
     Name btn_home
-    RectWH 50 50 80 80
-    Image res/btn_base_background.png
-    //Enable false
+    RectWH 1000 50 80 80
+    Image btn_base_background.png
 
     Object Image
     {   
         RectWH 0 0 80 80
-        Image res/txt_home.png
+        Image txt_home.png
         Notify false
     }
+}
+
+Clone btn_home
+{
+    Name btn_home_disable
+    Y 140
+    Enable false
 }
 
 Object Image
 {
     Name img_home
-    RectWH 200 50 80 80
-    Image res/btn_base_background.png
+    RectWH 1100 50 80 80
+    Image btn_base_background.png
 }
+
+Object Panel
+{
+    Name pnl_board_image
+    RectWH 1000 250 160 80
+    Board panel_lobby_infobox.png 10 10 20 20 image
+    DrawClient false
+    Text 伸縮
+}
+
+Object Panel
+{
+    Name pnl_board_9grid
+    RectWH 1000 340 160 80
+    Board panel_lobby_infobox.png 10 10 20 20
+    DrawClient false
+    Text 九宮格
+}    

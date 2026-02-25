@@ -1,4 +1,4 @@
-export const Version="0.1.61";
+export const Version="0.1.62";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -82,7 +82,7 @@ export interface IPaint
 
 export interface IBackend
 {
-    CreateTexture:(url:string)=>Promise<ITexture>;
+    CreateTexture:(url:string, w:number, h:number)=>Promise<ITexture>;
     CreateFont:(name:string, size:number, style:string)=>IFont;
     DefaultFont:()=>IFont;
     PushClipRect:(rect:Rect)=>void;
@@ -2659,7 +2659,7 @@ export class zlUIImage extends zlUIWin
     }
 
     SetUrl(url:string,callback:(obj:zlUIWin)=>void):void {
-        this._owner.backend.CreateTexture(url).then((tex)=>{
+        this._owner.backend.CreateTexture(url, 0, 0).then((tex)=>{
             this.image={
                 name:url,
                 x1:0,
@@ -3601,7 +3601,7 @@ export class zlUIButton extends zlUIPanel
         }
     }
     SetUrl(url:string, callback:(obj:zlUIWin)=>void):void {
-        this._owner.backend.CreateTexture(url).then((tex)=>{
+        this._owner.backend.CreateTexture(url, 0, 0).then((tex)=>{
             this.imageUp={
                 name:url,
                 x1:0,
@@ -5837,7 +5837,10 @@ export class zlTexturePack
     {
         switch(name) {
         case 'image':
-            this.current=await this.owner.backend.CreateTexture(this.owner.path + toks[1]).then(r=>{return r;})
+            this.current=await this.owner.backend.CreateTexture(
+                this.owner.path + toks[1], 
+                Number.parseInt(toks[2]), 
+                Number.parseInt(toks[3])).then(r=>{return r;})
             this.textures.push(this.current);
             break;
         case 'subimage':
@@ -5853,8 +5856,8 @@ export class zlTexturePack
             break;
         }
     }
-    async LoadImage(file:string) {
-        this.current=await this.owner.backend.CreateTexture(this.owner.path + file).then(r=>{return r;});
+    async LoadImage(file:string, w:number, h:number) {
+        this.current=await this.owner.backend.CreateTexture(this.owner.path + file, w, h).then(r=>{return r;});
         this.textures.push(this.current);
         let k=file.toLowerCase();
         this.cache[k]={
@@ -6913,7 +6916,7 @@ export class zlUIMgr extends zlUIWin
             await this.LoadTexturePack(toks[1], this.path);
             break;
         case "loadimage":
-            await this.LoadImage(toks[1], this.path);
+            await this.LoadImage(toks[1], Number.parseInt(toks[2]), Number.parseInt(toks[3]));
             break;
         case "include":
             await this.Load(toks[1], this.path);
@@ -7000,11 +7003,11 @@ export class zlUIMgr extends zlUIWin
         });
         return await this.texture.Parse(new Parser(t));
     }
-    async LoadImage(file:string, path:string) {
+    async LoadImage(file:string, w:number, h:number) {
         if(!this.texture)   {
             this.texture=new zlTexturePack(this);
         }
-        await this.texture.LoadImage(file);
+        await this.texture.LoadImage(file, w, h);
     }
 
     Create(name:string):zlUIWin

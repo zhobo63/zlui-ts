@@ -1,4 +1,4 @@
-import { Align, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, TexturePack, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUIImage, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUIWin } from "./zlUI";
+import { Align, BoardType, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, TexturePack, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUIImage, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -275,6 +275,22 @@ class PaintWin implements IPaint
         return e;
     }
 
+    CreateImage(obj:zlUIWin, image:TexturePack, onload?:(img:TexturePack)=>void): HTMLImageElement {
+        let img=document.createElement('img') as HTMLImageElement;
+        img.onload=()=>{
+            image.texture._width=img.width;
+            image.texture._height=img.height;
+            if(onload)
+                onload(image);
+            console.log("BackendDOM CreateImage", img, image);
+        }
+        img.id=`img_${obj._uid}`;
+        img.width=obj.w;
+        img.height=obj.h;
+        img.src=`${obj._owner.path}${image.name}`;
+        return img;
+    }
+
     backend:BackendDOM;
     obj:zlUIWin;
 
@@ -339,15 +355,8 @@ class PaintImage extends PaintWin
         e.classList.add('Win');
         let obj=this.obj as zlUIImage;
         if(obj.image) {
-            let img=document.createElement('img') as HTMLImageElement;
+            let img=this.CreateImage(obj, obj.image);
             img.classList.add('Image');
-            img.onload=()=>{
-                console.log(img);
-            }
-            img.id=`img_${obj._uid}`;
-            img.width=obj.w;
-            img.height=obj.h;
-            img.src=obj.image.name;
             e.appendChild(img);
         }
         return e;
@@ -405,11 +414,20 @@ class PaintPanel extends PaintWin
         e.setAttribute('data-color', CSSrgba(obj.color, obj.alpha));
         e.setAttribute('data-bordercolor', CSSrgba(obj.borderColor, obj.alpha));
         e.setAttribute('data-textcolor', CSSrgba(obj.textColor, obj.alpha));
+        e.setAttribute('data-alpha', `${obj.alpha}`);
         let borderRadius=`${obj.rounding}px`;
         if(e.style.borderRadius!=borderRadius) {
             e.style.borderRadius=borderRadius;
         }
-        if(obj.isDrawBorder) {
+        if(obj.drawBoard?.type == BoardType.NineGrid) {
+            let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
+            let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
+            e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
+            e.setAttribute('data-border-right', `${x2}`);
+            e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
+            e.setAttribute('data-border-bottom', `${y2}`);
+        }
+        else if(obj.isDrawBorder) {
             e.style.border=`${obj.borderWidth}px solid ${CSSrgba(obj.borderColor, obj.alpha)}`;
         }else {
             e.style.border="none";
@@ -482,14 +500,19 @@ class PaintPanel extends PaintWin
         let e=document.createElement('div');
         e.classList.add('Win');
         e.classList.add('Panel'); 
-        // if(obj.image) {
-        //     let img=document.createElement('img') as HTMLImageElement;
-        //     img.id=`img_${obj._uid}`
-        //     img.width=obj.w;
-        //     img.height=obj.h;
-        //     img.src=obj.image.name;
-        //     e.appendChild(img);
-        // }
+        if(obj.drawBoard) {
+            switch(obj.drawBoard.type) {
+            case BoardType.Image:
+                e.classList.add('Image');
+                e.style.backgroundImage=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
+                break;
+            case BoardType.NineGrid:
+                e.classList.add('NineGrid');
+                e.style.borderImageSource=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
+                e.style.backgroundImage=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
+                break;
+            }
+        }
         return e;
     }
 
@@ -522,13 +545,9 @@ class PaintButton extends PaintPanel
         e.type="button";
 
         if(obj.image) {
-            let img=document.createElement('img') as HTMLImageElement;
-            img.id=`img_${obj._uid}`;
-            img.src=obj.image.name;
-            img.width=obj.w;
-            img.height=obj.h;
-            e.appendChild(img);
+            let img=this.CreateImage(obj, obj.image);
             e.classList.add('ButtonImage');
+            e.appendChild(img);
         }else {
             e.classList.add('Button');
         }
@@ -922,9 +941,11 @@ export class BackendDOM implements IBackend
         this.root=root;
     }
 
-    async CreateTexture(url:string):Promise<ITexture>
+    async CreateTexture(url:string, w:number, h:number):Promise<ITexture>
     {
         let tex=new TextureDOM;
+        tex._width=w;
+        tex._height=h;
         return tex;
     }
     GetTexture(name: string): TexturePack {
