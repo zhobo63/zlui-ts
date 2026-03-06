@@ -1,4 +1,4 @@
-import { Align, BoardType, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, TexturePack, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUIImage, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUIWin } from "./zlUI";
+import { Align, BoardType, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, TexturePack, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUIImage, zlUIImageText, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -18,6 +18,10 @@ class TextureDOM implements ITexture
     _texture:WebGLTexture;
     _width:number;
     _height:number;
+    _wrapS:number;
+    _wrapT:number;
+    _minFilter:number;
+    _magFilter:number;    
 }
 
 class FontDOM implements IFont
@@ -89,6 +93,8 @@ class PaintWin implements IPaint
         let e=document.getElementById(`${obj._uid}`);
         if(!e) {
             e=this.Create() ;
+            if(!e)
+                return;
             e.id=`${obj._uid}`;
             if(obj.hint) {
                 e.setAttribute("tip", obj.hint);
@@ -232,8 +238,8 @@ class PaintWin implements IPaint
             ox=obj._owner.x;
             oy=obj._owner.y;
         }
-        let left=`${Math.floor(obj.x*scale+ox)}px`;
-        let top=`${Math.floor(obj.y*scale+oy)}px`;
+        let left=`${Math.floor(x*scale+ox)}px`;
+        let top=`${Math.floor(y*scale+oy)}px`;
         e.style.left=left;
         e.style.top=top;
     }
@@ -278,15 +284,19 @@ class PaintWin implements IPaint
     CreateImage(obj:zlUIWin, image:TexturePack, onload?:(img:TexturePack)=>void): HTMLImageElement {
         let img=document.createElement('img') as HTMLImageElement;
         img.onload=()=>{
+            if(!image.texture) {
+                image.texture=new TextureDOM;
+            }
             image.texture._width=img.width;
             image.texture._height=img.height;
             if(onload)
                 onload(image);
             console.log("BackendDOM CreateImage", img, image);
         }
+        let scale=this.obj._world.scale;
         img.id=`img_${obj._uid}`;
-        img.width=obj.w;
-        img.height=obj.h;
+        img.width=obj.w*scale;
+        img.height=obj.h*scale;
         img.src=`${obj._owner.path}${image.name}`;
         return img;
     }
@@ -345,17 +355,20 @@ class PaintImage extends PaintWin
         let obj=this.obj as zlUIImage;
         super.Paint();
         if(obj.image) {
+            let e=document.getElementById(`${obj._uid}`) as HTMLDivElement;
             let img=document.getElementById(`img_${obj._uid}`) as HTMLImageElement;
             img.setAttribute('data-alpha', `${obj.alpha}`);
+            img.width=e.clientWidth;
+            img.height=e.clientHeight;
         }
     }
 
     Create(): HTMLElement {
-        let e=document.createElement('div');
-        e.classList.add('Win');
+        let e:HTMLElement=super.Create();
         let obj=this.obj as zlUIImage;
         if(obj.image) {
             let img=this.CreateImage(obj, obj.image);
+            img.id=`img_${obj._uid}`;
             img.classList.add('Image');
             e.appendChild(img);
         }
@@ -420,12 +433,13 @@ class PaintPanel extends PaintWin
             e.style.borderRadius=borderRadius;
         }
         if(obj.drawBoard?.type == BoardType.NineGrid) {
-            let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
-            let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
-            e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
-            e.setAttribute('data-border-right', `${x2}`);
-            e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
-            e.setAttribute('data-border-bottom', `${y2}`);
+            // let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
+            // let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
+            e.setAttribute('data-border-width', `${obj.borderWidth}`);
+            // e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
+            // e.setAttribute('data-border-right', `${x2}`);
+            // e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
+            // e.setAttribute('data-border-bottom', `${y2}`);
         }
         else if(obj.isDrawBorder) {
             e.style.border=`${obj.borderWidth}px solid ${CSSrgba(obj.borderColor, obj.alpha)}`;
@@ -535,6 +549,11 @@ class PaintButton extends PaintPanel
         e.setAttribute('data-textcolorhover', CSSrgba(obj.textColorHover, obj.alpha));
         e.setAttribute('data-colordown', CSSrgba(obj.colorDown, obj.alpha));
         e.disabled=!obj.isEnable;
+
+        if(obj.image) {
+            let img=document.getElementById(`img_${obj._uid}`) as HTMLImageElement;
+            this.SetRect(img, {x:obj._localPos.x, y:obj._localPos.y, w:obj.w, h:obj.h});
+        }
     }
 
     Create(): HTMLElement {
@@ -916,11 +935,52 @@ class PaintTree extends PaintSlider
     Create(): HTMLElement {
         let obj=this.obj as zlUITree;
         let e=super.Create();
-        e.id=`${obj._uid}`
         e.classList.add('Panel');
-
         return e;
     }
+}
+
+class PaintImageText extends PaintWin
+{
+    constructor(backend:BackendDOM) {
+        super(backend);
+    }
+
+    Paint(): void {
+        super.Paint();
+
+        let obj=this.obj as zlUIImageText;
+        let scale=obj._world.scale;
+        let id=0;
+        for(let im of obj.imageText) {
+            let img=document.getElementById(`img_${obj._uid}_${id}`) as HTMLImageElement;
+            this.SetPosition(img, obj, im.x, im.y);
+            img.width=im.imageFont.width*scale;
+            img.height=im.imageFont.height*scale;
+            id++;
+        }
+    }
+
+    Create(): HTMLElement {
+        let e=super.Create();
+        let obj=this.obj as zlUIImageText;
+        let scale=obj._world.scale;
+        let id=0;
+        for(let im of obj.imageText) {
+            let img=this.CreateImage(obj, im.imageFont.texture);
+            img.id=`img_${obj._uid}_${id}`;
+            img.classList.add('Win');
+            img.classList.add('Image');
+            img.style.position='absolute';
+            this.SetPosition(img, obj, im.x, im.y);
+            img.width=im.imageFont.width*scale;
+            img.height=im.imageFont.height*scale;
+            e.appendChild(img);
+            id++;
+        }
+        return e;
+    }
+
 }
 
 export class BackendDOM implements IBackend
@@ -938,14 +998,17 @@ export class BackendDOM implements IBackend
         this.paint[zlUILabelEdit.CSID]=new PaintPanel(this);
         this.paint[zlUIDatePicker.CSID]=new PaintPanel(this);
         this.paint[zlUITree.CSID]=new PaintTree(this);
+        this.paint[zlUIImageText.CSID]=new PaintImageText(this);
         this.root=root;
     }
 
-    async CreateTexture(url:string, w:number, h:number):Promise<ITexture>
+    async CreateTexture(url:string, toks:string[]):Promise<ITexture>
     {
         let tex=new TextureDOM;
-        tex._width=w;
-        tex._height=h;
+        if(toks) {
+            tex._width=Number.parseInt(toks[2]);
+            tex._height=Number.parseInt(toks[3]);
+        }
         return tex;
     }
     GetTexture(name: string): TexturePack {
@@ -981,8 +1044,10 @@ export class BackendDOM implements IBackend
     }
     Paint(obj:zlUIWin) {
         let paint=this.paint[obj._csid];
-        if(paint === undefined)
+        if(paint === undefined) {
+            console.warn("BackendDOM TODO", obj._csid);
             return;
+        }
         paint.obj=obj;
         paint.Paint();
         paint.obj=null;

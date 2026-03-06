@@ -1,4 +1,4 @@
-export const Version="0.1.62";
+export const Version="0.1.63";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -82,7 +82,7 @@ export interface IPaint
 
 export interface IBackend
 {
-    CreateTexture:(url:string, w:number, h:number)=>Promise<ITexture>;
+    CreateTexture:(url:string, toks:string[])=>Promise<ITexture>;
     CreateFont:(name:string, size:number, style:string)=>IFont;
     DefaultFont:()=>IFont;
     PushClipRect:(rect:Rect)=>void;
@@ -113,7 +113,10 @@ export interface ITexture
     _texture:WebGLTexture;
     _width:number;
     _height:number;
-
+    _wrapS:number;
+    _wrapT:number;
+    _minFilter:number;
+    _magFilter:number;
     Destroy:()=>void;
 }
 
@@ -191,11 +194,11 @@ export function Inside(pos:Vec2, min:Vec2, max:Vec2):boolean
    return (pos.x>=min.x&&pos.x<=max.x&&pos.y>=min.y&&pos.y<=max.y)?true:false;
 }
 
-export function stringToColorHex(color:string):number
+function stringToColorHexChannel(color:string, n:number):number
 {
     let c=0;
-    for(let i=0;i<color.length;i++) {
-        let ci=color.charCodeAt(i);
+    for(let i=0;i<2;i++) {
+        let ci=color.charCodeAt(n+i);
         let s=0;
         if(ci>=48&&ci<=57) {
             s=ci-48;
@@ -207,6 +210,29 @@ export function stringToColorHex(color:string):number
         c=(c<<4)+s;
     }
     return c;
+}
+
+export function stringToColorHex(color:string):number
+{
+    let r:number;
+    let g:number;
+    let b:number;
+    let a:number;
+    if(color.startsWith("0x")) {
+        color=color.slice(2);
+        a=stringToColorHexChannel(color, 0);
+        b=stringToColorHexChannel(color, 2);
+        g=stringToColorHexChannel(color, 4);
+        r=stringToColorHexChannel(color, 6);        
+    }
+    else if(color.startsWith("#")) {
+        color=color.slice(1);
+        r=stringToColorHexChannel(color, 0);
+        g=stringToColorHexChannel(color, 2);
+        b=stringToColorHexChannel(color, 4);
+        a=color.length==6?255:stringToColorHexChannel(color, 6);
+    }
+    return ((a<<24)|(b<<16)|(g<<8)|r)>>>0;
 }
 
 export function to_rgba(c:number):string
@@ -321,7 +347,9 @@ export function ParseColor(s:string):number
         (Number.parseInt(toks[2])<<16)|
         (255<<24);
     }else if(s.match(/0x[A-Fa-f0-9]{8}/g))    {
-        c=stringToColorHex(s.slice(2));
+        c=stringToColorHex(s);
+    }else if(s.match(/#[A-Fa-f0-9]{8}/g) || s.match(/#[A-Fa-f0-9]{6}/g))    {
+        c=stringToColorHex(s);
     }
     else {
         c=Number.parseInt(s);
@@ -527,6 +555,8 @@ export interface TexturePack
 
 export function UpdateTexturePack(image:TexturePack):TexturePack
 {
+    if(!image.texture)
+        return image;
     image.uv1=new Vec2(
         image.x1/image.texture._width,
         image.y1/image.texture._height);
@@ -828,6 +858,7 @@ export enum BoardType
 {
     NineGrid,
     Image,
+    Tile,
     Max
 }
 
@@ -836,6 +867,8 @@ function ParseBoardType(tok:string): BoardType
     switch(tok) {
     case 'image':
         return BoardType.Image;
+    case 'tile':
+        return BoardType.Tile;
     default:
         return BoardType.NineGrid;
     }
@@ -848,7 +881,7 @@ export interface Board
     x2:number;
     y2:number;
     image:TexturePack;
-    type:number;
+    type:number;    //BorderType
     color?:number;
     vert?:Vec2[];
     uv?:Vec2[];
@@ -1472,6 +1505,8 @@ export class zlUIWin
                 obj.line=parser.current;
                 this.AddChild(obj);
                 await obj.Parse(parser);
+            }else {
+                console.error("Object not valid", toks[1]);
             }
             break; }
         case 'clone': {
@@ -1485,7 +1520,7 @@ export class zlUIWin
                 this.AddChild(obj);
                 await obj.Parse(parser);
             }else {
-                console.log("Clone " + toks[1] + " not found", this._owner)
+                console.error("Clone " + toks[1] + " not found", this._owner)
             }
             break; }
         case 'param': {
@@ -1493,7 +1528,7 @@ export class zlUIWin
             if(obj) {
                 await obj.Parse(parser);
             }else {
-                console.log("Param " + toks[1] + " not found")
+                console.error("Param " + toks[1] + " not found")
             }
             break; }
         case "name":
@@ -2438,12 +2473,14 @@ export class zlUIWin
     GetUI(name:string):zlUIWin
     {
         name=name.toLowerCase();
-        if(this.isDisable)
+        if(this.isDisable) {
             return undefined;
+        }
         if(this.Name && this.Name==name)
             return this;
-        if(!this.pChild)
+        if(!this.pChild) {
             return undefined;
+        }
         for(let ch of this.pChild)    {
             let found=ch.GetUI(name);
             if(found)
@@ -2504,6 +2541,7 @@ export class zlUIWin
             }
         }
     }
+    SetColor(color:string) {}
     OnDragStart(drag:zlUIWin) {
         if(this.on_dragstart) {
             this.on_dragstart(drag);
@@ -2634,6 +2672,10 @@ export class zlUIImage extends zlUIWin
         case "roundingcorner":
             this.roundingCorner=ParseCorner(toks[1]);
             break;    
+        case "blend":
+            this.blend.src=ParseBlend(toks[1]);
+            this.blend.dst=ParseBlend(toks[2]);
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -2647,6 +2689,7 @@ export class zlUIImage extends zlUIWin
         this.color=o.color;
         this.rounding=o.rounding;
         this.roundingCorner=o.roundingCorner;
+        this.blend=Clone(o.blend);
     }
     Clone():zlUIWin
     {
@@ -2657,9 +2700,12 @@ export class zlUIImage extends zlUIWin
     SetImage(name: string): void {
         this.image=this._owner.GetTexture(name);
     }
+    SetColor(color:string) {
+        this.color=ParseColor(color);
+    }
 
     SetUrl(url:string,callback:(obj:zlUIWin)=>void):void {
-        this._owner.backend.CreateTexture(url, 0, 0).then((tex)=>{
+        this._owner.backend.CreateTexture(url, null).then((tex)=>{
             this.image={
                 name:url,
                 x1:0,
@@ -2668,6 +2714,7 @@ export class zlUIImage extends zlUIWin
                 y2:tex._height,
                 texture:tex,
             }
+            UpdateTexturePack(this.image);
             if(callback) {
                 callback(this);
             }
@@ -2684,6 +2731,7 @@ export class zlUIImage extends zlUIWin
 
     FlipW() {
         if(this.image) {
+            UpdateTexturePack(this.image);
             let ux=this.image.uv1.x;
             this.image.uv1.x=this.image.uv2.x;
             this.image.uv2.x=ux;
@@ -2707,6 +2755,7 @@ export class zlUIImage extends zlUIWin
     color:number=0xffffffff;
     rounding:number=0;
     roundingCorner:ECornerFlags=ECornerFlags.All;
+    blend:IBlend=Clone(BLEND_ALPHA);
 }
 
 export {zlUIPanel as UIPanel}
@@ -3601,7 +3650,7 @@ export class zlUIButton extends zlUIPanel
         }
     }
     SetUrl(url:string, callback:(obj:zlUIWin)=>void):void {
-        this._owner.backend.CreateTexture(url, 0, 0).then((tex)=>{
+        this._owner.backend.CreateTexture(url, null).then((tex)=>{
             this.imageUp={
                 name:url,
                 x1:0,
@@ -4210,6 +4259,9 @@ export interface ImageFont
 export function ParseImageFont(toks:string[], mgr:zlUIMgr):ImageFont
 {
     let tex=mgr.GetTexture(toks[1]);
+    if(!tex) {
+        return null;
+    }
     if(!tex.uv1) {
         UpdateTexturePack(tex);
     }
@@ -4226,6 +4278,8 @@ export function ParseImageFont(toks:string[], mgr:zlUIMgr):ImageFont
 
 interface ImageText
 {
+    x:number
+    y:number
     screenXY:Vec2;
     screenMax:Vec2;
     imageFont:ImageFont;
@@ -4376,6 +4430,8 @@ export class zlUIImageText extends zlUIWin
             th=Math.max(th, imageFont.height);
 
             this.imageText.push({
+                x:0,
+                y:0,
                 screenXY:new Vec2,
                 screenMax:new Vec2,
                 imageFont:imageFont,
@@ -4383,11 +4439,17 @@ export class zlUIImageText extends zlUIWin
         }
         this.text_width=tw;
         this.text_height=th;
-        let x=this._localRect.xy.x+(this.w-tw)*this.textAnchor.x;
-        let y=this._localRect.xy.y+(this.h-th)*this.textAnchor.y;
+        let lx=this._localRect.xy.x;
+        let ly=this._localRect.xy.y;
+        let x=(this.w-tw)*this.textAnchor.x;
+        let y=(this.h-th)*this.textAnchor.y;
         for(let im of this.imageText) {
             let tx=x+im.imageFont.offset_x;
             let ty=y+im.imageFont.offset_y;
+            im.x=tx;
+            im.y=ty;
+            tx+=lx;
+            ty+=ly;
             im.screenXY.Set(tx,ty);
             im.screenMax.Set(tx+im.imageFont.width, ty+im.imageFont.height);
             x+=im.imageFont.width+this.font_space;
@@ -5838,9 +5900,7 @@ export class zlTexturePack
         switch(name) {
         case 'image':
             this.current=await this.owner.backend.CreateTexture(
-                this.owner.path + toks[1], 
-                Number.parseInt(toks[2]), 
-                Number.parseInt(toks[3])).then(r=>{return r;})
+                this.owner.path + toks[1], toks).then(r=>{return r;})
             this.textures.push(this.current);
             break;
         case 'subimage':
@@ -5856,20 +5916,25 @@ export class zlTexturePack
             break;
         }
     }
-    async LoadImage(file:string, w:number, h:number) {
-        this.current=await this.owner.backend.CreateTexture(this.owner.path + file, w, h).then(r=>{return r;});
-        this.textures.push(this.current);
+    async LoadImage(file:string, toks:string[]):Promise<ITexture> {
         let k=file.toLowerCase();
+        if(this.owner.on_loadimage) {
+            file=this.owner.on_loadimage(file);
+        }
+        let current=await this.owner.backend.CreateTexture(this.owner.path + file, toks).then(r=>{return r;});
+        this.textures.push(current);
         this.cache[k]={
             name:file,
             x1:0,
             y1:0,
-            x2:this.current._width,
-            y2:this.current._height,
+            x2:current._width,
+            y2:current._height,
             uv1:Vec2.ZERO,
             uv2:Vec2.ONE,
-            texture:this.current
+            texture:current
         };
+        this.current=current;
+        return current;
     }
 
     owner:zlUIMgr;
@@ -6896,6 +6961,7 @@ export class zlUIMgr extends zlUIWin
     on_createui: ((this: zlUIWin, name: string) => any) | null; 
     on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
+    on_loadimage: (file:string)=>string;
 
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
@@ -6916,7 +6982,7 @@ export class zlUIMgr extends zlUIWin
             await this.LoadTexturePack(toks[1], this.path);
             break;
         case "loadimage":
-            await this.LoadImage(toks[1], Number.parseInt(toks[2]), Number.parseInt(toks[3]));
+            await this.LoadImage(toks[1], toks);
             break;
         case "include":
             await this.Load(toks[1], this.path);
@@ -7003,11 +7069,12 @@ export class zlUIMgr extends zlUIWin
         });
         return await this.texture.Parse(new Parser(t));
     }
-    async LoadImage(file:string, w:number, h:number) {
+    async LoadImage(file:string, toks:string[]):Promise<ITexture> {
         if(!this.texture)   {
             this.texture=new zlTexturePack(this);
         }
-        await this.texture.LoadImage(file, w, h);
+        let tex=await this.texture.LoadImage(file, toks);
+        return tex;
     }
 
     Create(name:string):zlUIWin
@@ -7265,8 +7332,8 @@ export class zlUIMgr extends zlUIWin
             return this.backend.GetTexture(name);
         let img=this.texture.cache[name.toLowerCase()];
         if(!img) {
-            console.log("texture not found " + name);
-            return undefined;
+            //console.log("texture not found " + name);
+            return this.backend.GetTexture(name);
         }
         return img;
     }
@@ -7327,6 +7394,7 @@ export class zlUIMgr extends zlUIWin
         this.AddChild(ui);
         this.popup=ui;
         this.popup_down_index=this.down_index;
+        this.isDirty=true;
     }
     ClosePopup():void
     {
@@ -7339,6 +7407,7 @@ export class zlUIMgr extends zlUIWin
             this.popup=undefined;
         }
         this.combo=undefined;
+        this.isDirty=true;
     }
     ShowHint(hint:string, pt:Vec2):void
     {

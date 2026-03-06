@@ -143,17 +143,21 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .NineGrid {
-    --data-border-left: attr(data-border-left px);
+    --data-border-width: attr(data-border-width px);
+    --data-border-slice: attr(data-border-width type(<number>));
+    /* --data-border-left: attr(data-border-left px);
     --data-border-top: attr(data-border-top px);
     --data-border-right: attr(data-border-right px);
     --data-border-bottom: attr(data-border-bottom px);
     --data-border-slice-left: attr(data-border-left type(<number>));
     --data-border-slice-top: attr(data-border-top type(<number>));
     --data-border-slice-right: attr(data-border-right type(<number>));
-    --data-border-slice-bottom: attr(data-border-bottom type(<number>));
-    border:solid #fff;
-    border-image-slice: var(--data-border-slice-top) var(--data-border-slice-right) var(--data-border-slice-bottom) var(--data-border-slice-left);
-    border-image-width: var(--data-border-top) var(--data-border-right) var(--data-border-bottom) var(--data-border-left);
+    --data-border-slice-bottom: attr(data-border-bottom type(<number>)); */
+    border:var(--data-border-width) solid transparent;
+    /* border-image-slice: var(--data-border-slice-top) var(--data-border-slice-right) var(--data-border-slice-bottom) var(--data-border-slice-left); */
+    /* border-image-width: var(--data-border-top) var(--data-border-right) var(--data-border-bottom) var(--data-border-left); */
+    border-image-slice: var(--data-border-slice);
+    border-image-width: var(--data-border-width);
     border-image-repeat: repeat;
     box-sizing: border-box;
 
@@ -162,7 +166,7 @@ input[type="file"]::file-selector-button:hover {
     background-size: 200% 200%;
     background-repeat: no-repeat;
     background-origin: border-box;
-    overflow: hidden;
+    overflow: none;
 }
 
 .Button:hover {

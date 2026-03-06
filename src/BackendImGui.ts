@@ -1,6 +1,7 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, BoardType, RESIZEBAR_SIZE, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit } from "./zlUI";
+import { Board, BoardType, RESIZEBAR_SIZE, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit, BLEND_ALPHA } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
+import { gl } from "@zhobo63/imgui-ts/src/imgui_impl";
 
 export let vec_a=new ImGui.Vec2;
 export let vec_b=new ImGui.Vec2;
@@ -203,6 +204,32 @@ export function RenderBoard(drawlist:ImDrawList, board:Board, r:Rect, col:number
     }
 }
 
+export function RenderTile(drawlist:ImDrawList, board:Board, r:Rect, col:number)
+{
+    let uv1=board.image.uv1;
+    let uv2=board.image.uv2;
+    if(uv1.x==0 && uv1.y==0 && uv2.x==1 && uv2.y==1) {
+        vec_a.Set(r.xy.x,r.xy.y);
+        vec_b.Set(r.max.x, r.max.y);
+        vec_c.Set(0,0);
+        vec_d.Set(r.Width()/board.x1, r.Height()/board.y1);
+        drawlist.AddImage(board.image.texture._texture,
+            vec_a, vec_b, vec_c, vec_d, col);
+        return;
+    }
+
+    vec_c.Set(uv1.x, uv1.y);
+    vec_d.Set(uv2.x, uv2.y)
+    for(let y=r.xy.y;y<r.max.y;y+=board.y1) {
+        for(let x=r.xy.x;x<r.max.x;x+=board.x1) {
+            vec_a.Set(x,y);
+            vec_b.Set(x+board.x1, y+board.y1);
+            drawlist.AddImage(board.image.texture._texture,
+                vec_a, vec_b, vec_c, vec_d, col);
+        }
+    }
+}
+
 export function RenderClient(drawlist:ImDrawList, xy:Vec2, xy2:Vec2, 
     col4:number[], col:number, alpha:number,
     rounding:number, corner:ECornerFlags)
@@ -382,10 +409,16 @@ export class PaintImage extends PaintWin
     {
         let obj:zlUIImage=this.obj as zlUIImage;
         if(obj.image && obj.image.texture._texture)  {            
+            this.blend.src=obj.blend.src;
+            this.blend.dst=obj.blend.dst;
+            this.drawlist.SetBlend(this.blend);
             RenderImage(this.drawlist, obj.image, obj._localRect, 
                 MultiplyAlpha(obj.color, obj.alpha), obj.rounding, obj.roundingCorner);
+            this.drawlist.SetBlend(BLEND_ALPHA);
         }        
     }
+
+    blend:ImGui.Blend=new ImGui.Blend;
 }
 
 export class PaintPanel extends PaintImage
@@ -409,6 +442,9 @@ export class PaintPanel extends PaintImage
             break;
         case BoardType.Image:
             RenderImage(this.drawlist, board.image, obj._localRect, MultiplyAlpha(board.color, obj.alpha), obj.rounding, obj.roundingCorner);
+            break;
+        case BoardType.Tile:
+            RenderTile(this.drawlist, board, obj._localRect, MultiplyAlpha(board.color, obj.alpha));
             break;
         }
     }
@@ -885,7 +921,7 @@ export class BackendImGui implements IBackend
         this.paint[zlUIMgr.CSID]=new PaintMgr(this);
     }
 
-    async CreateTexture(url:string):Promise<ITexture>
+    async CreateTexture(url:string, toks:string[]):Promise<ITexture>
     {
         let filepart=url.split(".");
         let ext=filepart[1];
@@ -894,6 +930,16 @@ export class BackendImGui implements IBackend
             url=`${filepart[0]}.astc`;
         }
         let tex=new ImGui_Impl.Texture;
+        if(toks) {
+            for(let tok of toks) {
+                switch(tok) {
+                case 'repeat':
+                    tex._wrapS=gl.REPEAT;
+                    tex._wrapT=gl.REPEAT;
+                    break;
+                }
+            }
+        }
         switch(ext) {
         case "jpg":
         case "png":
