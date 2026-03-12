@@ -121,7 +121,6 @@ class PaintWin implements IPaint
             //e.style.position="fixed";
             //e.style.position='relative';
             e.style.position='absolute';
-
             if(obj.isResizable) {
 
                 let resizer=document.createElement('div');
@@ -198,8 +197,16 @@ class PaintWin implements IPaint
             console.log("[BackendDOM] PaintWin same uid", obj);
         }
         this.backend.visible_map[obj._uid]=true;
-
+        if(obj.css_style) {
+            for(let style in obj.css_style) {
+                (<any>e.style)[style]=obj.css_style[style];
+            }
+        }
         this.SetRect(e, {x:obj._localPos.x, y:obj._localPos.y, w:obj.w, h:obj.h});
+        if(obj.rotate!=0) {
+            let deg=Math.floor(obj.rotate/Math.PI*180);
+            e.style.transform=`rotate(${deg}deg)`;
+        }
     }
     PaintEnd() {
 
@@ -356,21 +363,26 @@ class PaintImage extends PaintWin
         super.Paint();
         if(obj.image) {
             let e=document.getElementById(`${obj._uid}`) as HTMLDivElement;
-            let img=document.getElementById(`img_${obj._uid}`) as HTMLImageElement;
-            img.setAttribute('data-alpha', `${obj.alpha}`);
-            img.width=e.clientWidth;
-            img.height=e.clientHeight;
+            e.setAttribute('data-color', CSSrgba(obj.color, obj.alpha));
+            e.setAttribute('data-alpha', `${obj.alpha}`);
+            // let img=document.getElementById(`img_${obj._uid}`) as HTMLImageElement;
+            // img.width=e.clientWidth;
+            // img.height=e.clientHeight;
         }
     }
 
     Create(): HTMLElement {
         let e:HTMLElement=super.Create();
+        e.style.border="none";
+        e.style.borderRadius="0px";
         let obj=this.obj as zlUIImage;
         if(obj.image) {
-            let img=this.CreateImage(obj, obj.image);
-            img.id=`img_${obj._uid}`;
-            img.classList.add('Image');
-            e.appendChild(img);
+            e.classList.add('Image');
+            e.style.backgroundImage=`url(${obj._owner.path}${obj.image.name})`;
+            // let img=this.CreateImage(obj, obj.image);
+            // img.id=`img_${obj._uid}`;
+            // img.classList.add('Image');
+            // e.appendChild(img);
         }
         return e;
     }
@@ -433,9 +445,9 @@ class PaintPanel extends PaintWin
             e.style.borderRadius=borderRadius;
         }
         if(obj.drawBoard?.type == BoardType.NineGrid) {
+            e.setAttribute('data-border-width', `${obj.borderWidth}`);
             // let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
             // let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
-            e.setAttribute('data-border-width', `${obj.borderWidth}`);
             // e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
             // e.setAttribute('data-border-right', `${x2}`);
             // e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
@@ -514,6 +526,11 @@ class PaintPanel extends PaintWin
         let e=document.createElement('div');
         e.classList.add('Win');
         e.classList.add('Panel'); 
+        if(obj.image) {
+            e.classList.add('Image');
+            e.style.backgroundImage=`linear-gradient(var(--data-color), var(--data-color)),url(${obj._owner.path}${obj.image.name})`;
+            //e.style.backgroundImage=`url(${obj._owner.path}${obj.image.name})`;
+        }
         if(obj.drawBoard) {
             switch(obj.drawBoard.type) {
             case BoardType.Image:
@@ -569,6 +586,19 @@ class PaintButton extends PaintPanel
             e.appendChild(img);
         }else {
             e.classList.add('Button');
+        }
+        if(obj.drawBoard) {
+            switch(obj.drawBoard.type) {
+            case BoardType.Image:
+                e.classList.add('Image');
+                e.style.backgroundImage=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
+                break;
+            case BoardType.NineGrid:
+                e.classList.add('NineGrid');
+                e.style.borderImageSource=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
+                e.style.backgroundImage=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
+                break;
+            }
         }
 
         if(obj.on_click) {
@@ -948,10 +978,41 @@ class PaintImageText extends PaintWin
 
     Paint(): void {
         super.Paint();
+        this.PaintImageText();
+    }
 
+    PaintImageText() {
         let obj=this.obj as zlUIImageText;
-        let scale=obj._world.scale;
+        let e=document.getElementById(`${obj._uid}`);
+        let text=e.getAttribute("imagetext");
         let id=0;
+        if(text!==obj.text) {
+            for(id=0;true;id++) {
+                let img=document.getElementById(`img_${obj._uid}_${id}`);
+                if(!img)
+                    break;
+                img.remove();
+            }
+            id=0;
+
+            let scale=obj._world.scale;
+            for(let im of obj.imageText) {
+                let img=this.CreateImage(obj, im.imageFont.texture);
+                img.id=`img_${obj._uid}_${id}`;
+                img.classList.add('Win');
+                img.classList.add('Image');
+                img.style.position='absolute';
+                this.SetPosition(img, obj, im.x, im.y);
+                img.width=im.imageFont.width*scale;
+                img.height=im.imageFont.height*scale;
+                e.appendChild(img);
+                id++;
+            }
+
+            e.setAttribute("imagetext", obj.text);
+        }
+        id=0;
+        let scale=obj._world.scale;
         for(let im of obj.imageText) {
             let img=document.getElementById(`img_${obj._uid}_${id}`) as HTMLImageElement;
             this.SetPosition(img, obj, im.x, im.y);
@@ -961,25 +1022,25 @@ class PaintImageText extends PaintWin
         }
     }
 
-    Create(): HTMLElement {
-        let e=super.Create();
-        let obj=this.obj as zlUIImageText;
-        let scale=obj._world.scale;
-        let id=0;
-        for(let im of obj.imageText) {
-            let img=this.CreateImage(obj, im.imageFont.texture);
-            img.id=`img_${obj._uid}_${id}`;
-            img.classList.add('Win');
-            img.classList.add('Image');
-            img.style.position='absolute';
-            this.SetPosition(img, obj, im.x, im.y);
-            img.width=im.imageFont.width*scale;
-            img.height=im.imageFont.height*scale;
-            e.appendChild(img);
-            id++;
-        }
-        return e;
-    }
+    // Create(): HTMLElement {
+    //     let e=super.Create();
+    //     let obj=this.obj as zlUIImageText;
+    //     let scale=obj._world.scale;
+    //     let id=0;
+    //     for(let im of obj.imageText) {
+    //         let img=this.CreateImage(obj, im.imageFont.texture);
+    //         img.id=`img_${obj._uid}_${id}`;
+    //         img.classList.add('Win');
+    //         img.classList.add('Image');
+    //         img.style.position='absolute';
+    //         this.SetPosition(img, obj, im.x, im.y);
+    //         img.width=im.imageFont.width*scale;
+    //         img.height=im.imageFont.height*scale;
+    //         e.appendChild(img);
+    //         id++;
+    //     }
+    //     return e;
+    // }
 
 }
 

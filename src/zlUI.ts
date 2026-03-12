@@ -1,4 +1,4 @@
-export const Version="0.1.63";
+export const Version="0.1.64";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -1729,6 +1729,13 @@ export class zlUIWin
         case "alpha":
             this.alpha=Number.parseFloat(toks[1]);
             break;
+        case "css":
+            if(this.css_style===undefined) {
+                this.css_style={};
+            }
+            let param=toks[toks.length-1];
+            this.css_style[toks[1]]=param.slice(toks[1].length+1);
+            break;
         case "include": {
             let path=this._owner.path;
             let file=toks[1];
@@ -1806,6 +1813,7 @@ export class zlUIWin
         this.originOffset=Clone(obj.originOffset);
         this.dragType=obj.dragType;
         this.dropType=obj.dropType;
+        this.css_style=Clone(obj.css_style);
 
         this.pChild=[];
         for(let ch of obj.pChild) {
@@ -2641,6 +2649,7 @@ export class zlUIWin
     _prevous_visible_child:number=0;
 
     user_data:any;
+    css_style:{[key:string]:string};
 }
 
 export {zlUIImage as UIImage}
@@ -6718,7 +6727,7 @@ export class zlTrack
                 obj.SetCalRect();
                 break;
             case ETrackCmd.PlayTrack:
-                obj._owner.PlayTrack(cmd.name, cmd.count);
+                obj._owner.PlayTrack(cmd.name, cmd.count, undefined);
                 break;
             case ETrackCmd.StopTrack:
                 obj._owner.StopTrack(cmd.name);
@@ -6776,7 +6785,7 @@ export {zlTrackGroup as TrackGroup}
 
 export class zlTrackGroup
 {
-    on_play_over:((this:zlTrackGroup)=>any)|null;
+    on_end:()=>void;
 
     constructor(own:zlUIMgr)
     {
@@ -6886,9 +6895,10 @@ export class zlTrackMgr
         return parser.current;
     }
 
-    Play(name:string, loop:number)
+    Play(name:string, loop:number, end:()=>void)
     {
         let trk=this.track[name];
+        trk.on_end=end;
         trk.Play(loop);
         this.run_track.push(trk);
     }
@@ -6902,6 +6912,13 @@ export class zlTrackMgr
             work=true;
             if(!trk.is_play) {
                 remove=true;
+                if(trk.on_end) {
+                    trk.on_end();
+                    trk.on_end=undefined;
+                }
+                if(this._owner.on_track_end) {
+                    this._owner.on_track_end(trk);
+                }
             }
         }
         if(remove) {
@@ -6962,6 +6979,7 @@ export class zlUIMgr extends zlUIWin
     on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
     on_loadimage: (file:string)=>string;
+    on_track_end: (track:zlTrackGroup)=>void;
 
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
@@ -7015,7 +7033,7 @@ export class zlUIMgr extends zlUIWin
             document.fonts.add(fontface);
             break; }
         case "playtrack":
-            this.track.Play(toks[1], Number.parseInt(toks[2]));
+            this.track.Play(toks[1], Number.parseInt(toks[2]), undefined);
             break;
         case "trackgroup":
             this.track.Parse(parser);
@@ -7498,9 +7516,9 @@ export class zlUIMgr extends zlUIWin
     {
         return this.track.track[name];
     }
-    PlayTrack(name:string, loop:number)
+    PlayTrack(name:string, loop:number, end:()=>void)
     {
-        this.track.Play(name,loop);
+        this.track.Play(name,loop,end);
     }
     StopTrack(name:string)
     {
