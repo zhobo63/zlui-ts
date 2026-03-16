@@ -1,4 +1,4 @@
-export const Version="0.1.64";
+export const Version="0.1.65";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -258,7 +258,7 @@ export function to_cssrgba(c:number):string
     const g=(c>>8)&0xff;
     const b=(c>>16)&0xff;
     const a=((c>>>24)&0xff)/255;
-    return `rgba(${r},${g},${b},${a})`;
+    return `rgba(${r},${g},${b},${a.toPrecision(4)})`;
 }
 
 export function to_cssrgb(c:number):string
@@ -1734,7 +1734,8 @@ export class zlUIWin
                 this.css_style={};
             }
             let param=toks[toks.length-1];
-            this.css_style[toks[1]]=param.slice(toks[1].length+1);
+            let css=param.split(":");
+            this.css_style[css[0]]=css[1];
             break;
         case "include": {
             let path=this._owner.path;

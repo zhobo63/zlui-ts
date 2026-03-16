@@ -6,7 +6,7 @@ function CSSrgba(c:number, alpha:number):string
     const g=(c>>8)&0xff;
     const b=(c>>16)&0xff;
     const a=((c>>>24)&0xff)/255.0*alpha;
-    return `rgba(${r},${g},${b},${a})`;
+    return `rgba(${r},${g},${b},${a.toPrecision(4)})`;
 }
 
 class TextureDOM implements ITexture
@@ -440,21 +440,22 @@ class PaintPanel extends PaintWin
         e.setAttribute('data-bordercolor', CSSrgba(obj.borderColor, obj.alpha));
         e.setAttribute('data-textcolor', CSSrgba(obj.textColor, obj.alpha));
         e.setAttribute('data-alpha', `${obj.alpha}`);
+        e.setAttribute('data-border-width', `${obj.borderWidth}`);
         let borderRadius=`${obj.rounding}px`;
         if(e.style.borderRadius!=borderRadius) {
             e.style.borderRadius=borderRadius;
         }
         if(obj.drawBoard?.type == BoardType.NineGrid) {
-            e.setAttribute('data-border-width', `${obj.borderWidth}`);
-            // let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
-            // let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
-            // e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
-            // e.setAttribute('data-border-right', `${x2}`);
-            // e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
-            // e.setAttribute('data-border-bottom', `${y2}`);
+            let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
+            let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
+            e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
+            e.setAttribute('data-border-right', `${x2}`);
+            e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
+            e.setAttribute('data-border-bottom', `${y2}`);
         }
         else if(obj.isDrawBorder) {
-            e.style.border=`${obj.borderWidth}px solid ${CSSrgba(obj.borderColor, obj.alpha)}`;
+            //e.style.border=`solid ${CSSrgba(obj.borderColor, obj.alpha)}`;
+            e.style.borderStyle='solid';
         }else {
             e.style.border="none";
         }
@@ -540,7 +541,7 @@ class PaintPanel extends PaintWin
             case BoardType.NineGrid:
                 e.classList.add('NineGrid');
                 e.style.borderImageSource=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
-                e.style.backgroundImage=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
+                // e.style.backgroundImage=`url(${obj._owner.path}${obj.drawBoard.image.name})`;
                 break;
             }
         }

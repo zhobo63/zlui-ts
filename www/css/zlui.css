@@ -1,3 +1,5 @@
+/* ver 0.1.65 */
+
 @font-face {
     font-family: "FontAwesome6Free";
     font-style: normal;
@@ -129,6 +131,7 @@ input[type="file"]::file-selector-button:hover {
 
 .Image {
     --data-alpha: attr(data-alpha);
+    --data-color: attr(data-color type(<color>));
     filter: opacity(var(--data-alpha));
     background-size: 100% 100%;
 }
@@ -137,36 +140,28 @@ input[type="file"]::file-selector-button:hover {
     --data-color: attr(data-color type(<color>));
     --data-bordercolor: attr(data-bordercolor type(<color>));
     --data-textcolor: attr(data-textcolor type(<color>));
+    --data-border-width: attr(data-border-width px);
     display: block;
     background-color: var(--data-color, rgba(23,26,29,1));
     color: var(--data-textcolor);
+    border-width: var(--data-border-width, 0px);
+    border-color: var(--data-bordercolor);
 }
 
 .NineGrid {
-    --data-border-width: attr(data-border-width px);
-    --data-border-slice: attr(data-border-width type(<number>));
-    /* --data-border-left: attr(data-border-left px);
+    --data-border-left: attr(data-border-left px);
     --data-border-top: attr(data-border-top px);
     --data-border-right: attr(data-border-right px);
     --data-border-bottom: attr(data-border-bottom px);
     --data-border-slice-left: attr(data-border-left type(<number>));
     --data-border-slice-top: attr(data-border-top type(<number>));
     --data-border-slice-right: attr(data-border-right type(<number>));
-    --data-border-slice-bottom: attr(data-border-bottom type(<number>)); */
-    border:var(--data-border-width) solid transparent;
-    /* border-image-slice: var(--data-border-slice-top) var(--data-border-slice-right) var(--data-border-slice-bottom) var(--data-border-slice-left); */
-    /* border-image-width: var(--data-border-top) var(--data-border-right) var(--data-border-bottom) var(--data-border-left); */
-    border-image-slice: var(--data-border-slice);
-    border-image-width: var(--data-border-width);
+    --data-border-slice-bottom: attr(data-border-bottom type(<number>));
+    border-style: solid;
+    border-color: transparent;
+    border-image-slice: var(--data-border-slice-top) var(--data-border-slice-right) var(--data-border-slice-bottom) var(--data-border-slice-left) fill;
+    border-image-width: var(--data-border-top) var(--data-border-right) var(--data-border-bottom) var(--data-border-left);
     border-image-repeat: repeat;
-    box-sizing: border-box;
-
-    background-clip: content-box;
-    background-position: center;
-    background-size: 200% 200%;
-    background-repeat: no-repeat;
-    background-origin: border-box;
-    overflow: none;
 }
 
 .Button:hover {
@@ -182,6 +177,25 @@ input[type="file"]::file-selector-button:hover {
 .Button::selection {
     background: none;
 }
+.Button:disabled {
+    --data-colordisable: attr(data-colordisable type(<color>));
+    --data-textcolordisable: attr(data-textcolordisable type(<color>));
+    background-color: var(--data-colordisable);
+    color: var(--data-textcolordisable, #787878);
+    cursor: not-allowed;
+}
+
+.Button:hover {
+    filter: brightness(1.2);
+}
+.Button:active {
+    filter: brightness(1.5);
+}
+.Button:disabled {
+    filter: brightness(0.5);
+    cursor: not-allowed;
+}
+
 .ButtonImage:hover {
     filter: brightness(1.2);
 }
