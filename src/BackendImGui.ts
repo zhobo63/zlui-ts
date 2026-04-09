@@ -602,7 +602,7 @@ export class PaintButton extends PaintPanel
 
     PaintClient(): void {
         let obj=this.obj as zlUIButton;
-        if(obj.isDrawClient && obj.color4)   {
+        if(obj.isDrawClient)   {
             RenderClient(this.drawlist, obj._localRect.xy, obj._localRect.max,
                 obj.color4, obj.color, obj.alpha, 
                 obj.rounding, obj.roundingCorner);

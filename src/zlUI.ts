@@ -1728,13 +1728,8 @@ export class zlUIWin
             }
             break;
         case "origin":
-            this.origin=new Vec2(Number.parseFloat(toks[1]),
-                Number.parseFloat(toks[2]));
-            break;
-        case "originoffset":
-            this.originOffset=new Vec2(
-                Number.parseInt(toks[1]),
-                Number.parseInt(toks[2]));            
+            this.origin.x=Number.parseFloat(toks[1]);
+            this.origin.y=Number.parseFloat(toks[2]);
             break;
         case "scale":
             this.scale=Number.parseFloat(toks[1]);
@@ -1842,7 +1837,6 @@ export class zlUIWin
         this.rotate=obj.rotate;
         this.scale=obj.scale;
         this.origin=Clone(obj.origin);
-        this.originOffset=Clone(obj.originOffset);
         this.dragType=obj.dragType;
         this.dropType=obj.dropType;
         this.css_style=Clone(obj.css_style);
@@ -2187,14 +2181,10 @@ export class zlUIWin
             }    
         }
         if(Use_Transform) {
-            let ox=this.w*this.origin.x+this.offset.x;
-            let oy=this.h*this.origin.y+this.offset.y;
-            if(this.originOffset) {
-                ox+=this.originOffset.x;
-                oy+=this.originOffset.y;
-            }
-            let x=Math.round(-px+ox+x1);
-            let y=Math.round(-py+oy+y1);
+            let ox=this.w*this.origin.x;
+            let oy=this.h*this.origin.y;
+            let x=Math.round(-px+ox+x1+this.offset.x);
+            let y=Math.round(-py+oy+y1+this.offset.y);
             this._local.translate.Set(x,y);
             x1=-ox;
             y1=-oy;
@@ -2661,7 +2651,6 @@ export class zlUIWin
     rotate:number=0;
     scale:number=1;
     origin:Vec2=new Vec2(0.5, 0.5);
-    originOffset!:Vec2;
 
     dragType?:number;
     dropType?:number;
