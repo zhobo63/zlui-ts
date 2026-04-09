@@ -1,5 +1,5 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, BoardType, RESIZEBAR_SIZE, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit, BLEND_ALPHA } from "./zlUI";
+import { Board, BoardType, RESIZEBAR_SIZE, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit, BLEND_ALPHA, zlUIAni } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
 import { gl } from "@zhobo63/imgui-ts/src/imgui_impl";
 
@@ -97,19 +97,23 @@ export function RenderArrow(drawlist:ImDrawList, pos:Vec2, color:number,dir:ImGu
 export function RenderImage(drawlist:ImDrawList, image: TexturePack, 
     r:Rect, col:number, rounding:number, corner:ECornerFlags)
 {
-    drawlist.AddImageRounded(
-        image.texture._texture, 
-        toImVec2(vec_a, r.xy), 
-        toImVec2(vec_b, r.max),
-        toImVec2(vec_c, image.uv1), 
-        toImVec2(vec_d, image.uv2),
-        col,
-        rounding, toImDrawCornerFlags(corner));
+    if(image.texture && image.uv1 && image.uv2) {
+        drawlist.AddImageRounded(
+            image.texture._texture, 
+            toImVec2(vec_a, r.xy), 
+            toImVec2(vec_b, r.max),
+            toImVec2(vec_c, image.uv1), 
+            toImVec2(vec_d, image.uv2),
+            col,
+            rounding, toImDrawCornerFlags(corner));
+    }
 }
 
 export function RenderBoard(drawlist:ImDrawList, board:Board, r:Rect, col:number)
 {
-    if(!board.vert)   {
+    if(!(board.image.texture && board.image.uv1 && board.image.uv2))
+        return;
+    if(!(board.vert && board.visible && board.uv))   {
         const iw=board.image.x2-board.image.x1;
         const ih=board.image.y2-board.image.y1;
         const x1=r.xy.x;
@@ -121,34 +125,36 @@ export function RenderBoard(drawlist:ImDrawList, board:Board, r:Rect, col:number
         const y3=r.max.y-(ih-board.y2);
         const y4=r.max.y;
 
-        board.vert=[];
-        board.vert.push(new Vec2(x1, y1));
-        board.vert.push(new Vec2(x2, y1));
-        board.vert.push(new Vec2(x3, y1));
-        board.vert.push(new Vec2(x4, y1));
-        board.vert.push(new Vec2(x1, y2));
-        board.vert.push(new Vec2(x2, y2));
-        board.vert.push(new Vec2(x3, y2));
-        board.vert.push(new Vec2(x4, y2));
-        board.vert.push(new Vec2(x1, y3));
-        board.vert.push(new Vec2(x2, y3));
-        board.vert.push(new Vec2(x3, y3));
-        board.vert.push(new Vec2(x4, y3));
-        board.vert.push(new Vec2(x1, y4));
-        board.vert.push(new Vec2(x2, y4));
-        board.vert.push(new Vec2(x3, y4));
-        board.vert.push(new Vec2(x4, y4));
+        board.vert=[
+            new Vec2(x1, y1),
+            new Vec2(x2, y1),
+            new Vec2(x3, y1),
+            new Vec2(x4, y1),
+            new Vec2(x1, y2),
+            new Vec2(x2, y2),
+            new Vec2(x3, y2),
+            new Vec2(x4, y2),
+            new Vec2(x1, y3),
+            new Vec2(x2, y3),
+            new Vec2(x3, y3),
+            new Vec2(x4, y3),
+            new Vec2(x1, y4),
+            new Vec2(x2, y4),
+            new Vec2(x3, y4),
+            new Vec2(x4, y4),
+        ];
 
-        board.visible=[];
-        board.visible.push((x2-x1)>0 && (y2-y1)>0);
-        board.visible.push((x3-x2)>0 && (y2-y1)>0);
-        board.visible.push((x4-x3)>0 && (y2-y1)>0);
-        board.visible.push((x2-x1)>0 && (y3-y2)>0);
-        board.visible.push((x3-x2)>0 && (y3-y2)>0);
-        board.visible.push((x4-x3)>0 && (y3-y2)>0);
-        board.visible.push((x2-x1)>0 && (y4-y3)>0);
-        board.visible.push((x3-x2)>0 && (y4-y3)>0);
-        board.visible.push((x4-x3)>0 && (y4-y3)>0);
+        board.visible=[
+            ((x2-x1)>0 && (y2-y1)>0),
+            ((x3-x2)>0 && (y2-y1)>0),
+            ((x4-x3)>0 && (y2-y1)>0),
+            ((x2-x1)>0 && (y3-y2)>0),
+            ((x3-x2)>0 && (y3-y2)>0),
+            ((x4-x3)>0 && (y3-y2)>0),
+            ((x2-x1)>0 && (y4-y3)>0),
+            ((x3-x2)>0 && (y4-y3)>0),
+            ((x4-x3)>0 && (y4-y3)>0),
+        ];
 
         const sw=1.0/board.image.texture._width;
         const sh=1.0/board.image.texture._height;
@@ -160,23 +166,24 @@ export function RenderBoard(drawlist:ImDrawList, board:Board, r:Rect, col:number
         const v2=board.image.uv1.y+board.y1*sh;
         const v3=board.image.uv1.y+board.y2*sh;
         const v4=board.image.uv2.y;
-        board.uv=[];
-        board.uv.push(new Vec2(u1, v1));
-        board.uv.push(new Vec2(u2, v1));
-        board.uv.push(new Vec2(u3, v1));
-        board.uv.push(new Vec2(u4, v1));
-        board.uv.push(new Vec2(u1, v2));
-        board.uv.push(new Vec2(u2, v2));
-        board.uv.push(new Vec2(u3, v2));
-        board.uv.push(new Vec2(u4, v2));
-        board.uv.push(new Vec2(u1, v3));
-        board.uv.push(new Vec2(u2, v3));
-        board.uv.push(new Vec2(u3, v3));
-        board.uv.push(new Vec2(u4, v3));
-        board.uv.push(new Vec2(u1, v4));
-        board.uv.push(new Vec2(u2, v4));
-        board.uv.push(new Vec2(u3, v4));
-        board.uv.push(new Vec2(u4, v4));
+        board.uv=[
+            new Vec2(u1, v1),
+            new Vec2(u2, v1),
+            new Vec2(u3, v1),
+            new Vec2(u4, v1),
+            new Vec2(u1, v2),
+            new Vec2(u2, v2),
+            new Vec2(u3, v2),
+            new Vec2(u4, v2),
+            new Vec2(u1, v3),
+            new Vec2(u2, v3),
+            new Vec2(u3, v3),
+            new Vec2(u4, v3),
+            new Vec2(u1, v4),
+            new Vec2(u2, v4),
+            new Vec2(u3, v4),
+            new Vec2(u4, v4),
+        ];
     }
 
     for(let i=0;i<3;i++)    {
@@ -206,6 +213,8 @@ export function RenderBoard(drawlist:ImDrawList, board:Board, r:Rect, col:number
 
 export function RenderTile(drawlist:ImDrawList, board:Board, r:Rect, col:number)
 {
+    if(!(board.image.texture && board.image.uv1 && board.image.uv2))
+        return;
     let uv1=board.image.uv1;
     let uv2=board.image.uv2;
     if(uv1.x==0 && uv1.y==0 && uv2.x==1 && uv2.y==1) {
@@ -231,7 +240,7 @@ export function RenderTile(drawlist:ImDrawList, board:Board, r:Rect, col:number)
 }
 
 export function RenderClient(drawlist:ImDrawList, xy:Vec2, xy2:Vec2, 
-    col4:number[], col:number, alpha:number,
+    col4:number[]|undefined, col:number, alpha:number,
     rounding:number, corner:ECornerFlags)
 {
     if(col4) {
@@ -268,11 +277,15 @@ export function RenderCheck(drawlist:ImDrawList, xy:Vec2, max:Vec2,
     }
 }
 
-export function RenderText(drawlist:ImDrawList, font:IFont, text:string,
+export function RenderText(drawlist:ImDrawList, font:IFont|undefined, text:string,
     pos:Vec2, wrap_width:number, color:number, clip:Vec4)
 {
+    if(!font)
+        return;
     let textPos=toImVec2(vec_a, pos);
     let imfont=(font as ImFont).font;
+    if(!imfont)
+        return;
     let textClip=toImVec4(vec4_a, clip);
     if(Use_Transform) {
         imfont.RenderText(drawlist, font.size, textPos, 
@@ -319,32 +332,35 @@ class ImFont implements IFont
     }
 
     AddFontRange(start:number, end:number) {
-        this.font.AddFontRange(start, end);
+        this.font?.AddFontRange(start, end);
     }
     MergeFont(font:IFont) {
-        this.font.MergeFont((font as ImFont).font);
+        let imfont=font as ImFont;
+        if(imfont.font) {
+            this.font?.MergeFont(imfont.font);
+        }
     }
     CalTextSize(size: number, max_width: number, wrap_width: number, text_begin: string,
-        text_end: number | null,
-        isready:boolean[]) :IVec2
+        text_end?: number,
+        isready?:boolean[]) :IVec2
     {
         let isReady:ImGui.ImScalar<boolean>=[false];
-        let fz=this.font.CalcTextSizeA(size, max_width, wrap_width, text_begin, text_end, null, isReady);
+        let fz=this.font?.CalcTextSizeA(size, max_width, wrap_width, text_begin, text_end, null, isReady);
         if(isready) {
             isready[0]=isReady[0];
         }
         return {
-            x:fz.x,
-            y:fz.y
+            x:fz?fz.x:0,
+            y:fz?fz.y:0
         };
     }    
     CSS():string {
         return `${this.style} ${this.size}px ${this.name}`;
     }
-    name:string;
-    style:string;
-    size:number;
-    font:ImGui.Font;
+    name!:string;
+    style!:string;
+    size!:number;
+    font?:ImGui.Font;
 }
 
 export class PaintWin implements IPaint
@@ -360,15 +376,15 @@ export class PaintWin implements IPaint
         if(this.obj._owner.notify==this.obj) {
             if(this.backend.is_move && obj.on_mousemove) {
                 let pt=obj.ToLocal(obj._owner.mouse_pos);
-                obj.on_mousemove(pt.x, pt.y);
+                if(pt) obj.on_mousemove(pt.x, pt.y);
             }
             if(this.backend.is_down && obj.on_mousedown) {
                 let pt=obj.ToLocal(obj._owner.mouse_pos);
-                obj.on_mousedown(pt.x, pt.y);
+                if(pt) obj.on_mousedown(pt.x, pt.y);
             }
             if(this.backend.is_up && obj.on_mouseup) {
                 let pt=obj.ToLocal(obj._owner.mouse_pos);
-                obj.on_mouseup(pt.x, pt.y);
+                if(pt) obj.on_mouseup(pt.x, pt.y);
             }
         }
     }
@@ -382,7 +398,7 @@ export class PaintWin implements IPaint
     }
 
     backend:BackendImGui;
-    obj:zlUIWin;
+    obj!:zlUIWin;
 }
 
 export class PaintImage extends PaintWin
@@ -408,7 +424,7 @@ export class PaintImage extends PaintWin
     PaintImage() 
     {
         let obj:zlUIImage=this.obj as zlUIImage;
-        if(obj.image && obj.image.texture._texture)  {            
+        if(obj.image && obj.image.texture?._texture)  {            
             this.blend.src=obj.blend.src;
             this.blend.dst=obj.blend.dst;
             this.drawlist.SetBlend(this.blend);
@@ -430,7 +446,7 @@ export class PaintPanel extends PaintImage
 
     PaintBoard(board:Board)
     {
-        if(!board.image.texture._texture)
+        if(!(board.image.texture?._texture && board.color))
             return;
         if(!board.image.uv1)    {
             board.image=UpdateTexturePack(board.image);
@@ -468,7 +484,7 @@ export class PaintPanel extends PaintImage
             if(obj._textRemaining>0) {
                 text=text.substring(0,obj._textRemaining)+"…";
             }
-            let font=obj._owner.GetFont(obj.fontIndex);
+            let font=obj.font;
             let wrap=obj.isMultiline?wrap_width:0;
             let color=obj.textColor;
             if(obj.textColorHover && obj._owner.hover==obj) {
@@ -536,7 +552,7 @@ export class PaintEdit extends PaintPanel
                 obj.color4, obj.color, obj.alpha, 
                 obj.rounding, obj.roundingCorner);
         }        
-        if(obj.type=='range' && obj.range) {
+        if(obj.type=='range' && obj.range && obj.value) {
             let lr=obj._localRect;
             let range=obj.range;
             let per=(obj.value-range.min_value)/(range.max_value-range.min_value);
@@ -555,14 +571,15 @@ export class PaintEdit extends PaintPanel
     {
         let obj=this.obj as zlUIEdit;
         if(obj.text)   {
-            let text=(typeof obj.text === "string") ? obj.text:""+obj.text;
-            let font=obj._owner.GetFont(obj.fontIndex);
+            //let text=(typeof obj.text === "string") ? obj.text:""+obj.text;
+            let text=`${obj.text}`;
+            let font=obj.font;
             if(obj.isPassword) {
-                if(!obj.passwordText || obj.text.length!=obj.passwordText.length)  {
+                if((!obj.passwordText || obj.text.length!=obj.passwordText.length) && obj.password_char)  {
                     obj.passwordText=obj.text;
                     obj.passwordText=obj.passwordText.replace(/./g, obj.password_char)
                 }
-                text=obj.passwordText;
+                text=obj.passwordText?obj.passwordText:"";
             }else {
             }
             let wrap=obj.isMultiline?obj.w:0;
@@ -585,7 +602,7 @@ export class PaintButton extends PaintPanel
 
     PaintClient(): void {
         let obj=this.obj as zlUIButton;
-        if(obj.isDrawClient)   {
+        if(obj.isDrawClient && obj.color4)   {
             RenderClient(this.drawlist, obj._localRect.xy, obj._localRect.max,
                 obj.color4, obj.color, obj.alpha, 
                 obj.rounding, obj.roundingCorner);
@@ -666,8 +683,8 @@ export class PaintSlider extends PaintPanel
             let drawlist=this.drawlist;
             let vstart=(Use_Transform)?drawlist.GetVertexSize():0;
             let scroll=obj.GetScrollType();
-            let barxy:Vec2;
-            let barxy2:Vec2;
+            let barxy:Vec2|undefined;
+            let barxy2:Vec2|undefined;
             if(scroll.isScrollH)  {
                 barxy=obj._scrollHxy;
                 barxy2=obj._scrollHxy2;
@@ -676,7 +693,9 @@ export class PaintSlider extends PaintPanel
                 barxy=obj._scrollWxy;
                 barxy2=obj._scrollWxy2;
             }
-            if(obj._is_scrollbar_hover) {
+            if(!(barxy && barxy2)) {
+            }
+            else if(obj._is_scrollbar_hover) {
                 RenderClient(drawlist, barxy, barxy2, obj.scrollbarColorHover4, obj.scrollbarColorHover, obj.alpha, 4, ECornerFlags.All);
             }else {
                 RenderClient(drawlist, barxy, barxy2, obj.scrollbarColor4, obj.scrollbarColor, obj.alpha, 4, ECornerFlags.All);
@@ -700,15 +719,19 @@ export class PaintImageText extends PaintWin
         let obj=this.obj as zlUIImageText;
         let drawlist=this.drawlist;
         let col=MultiplyAlpha(obj.color, obj.alpha);
-        for(let image of obj.imageText)
-        {
-            let imgFont=image.imageFont;
-            let tex=imgFont.texture;            
-            drawlist.AddImage(tex.texture._texture,
-                toImVec2(vec_a, image.screenXY),
-                toImVec2(vec_b, image.screenMax), 
-                toImVec2(vec_c, imgFont.uv1),
-                toImVec2(vec_d, imgFont.uv2), col);
+        if(obj.imageText) {
+            for(let image of obj.imageText)
+            {
+                let imgFont=image.imageFont;
+                let tex=imgFont.texture;            
+                if(tex.texture && imgFont.uv1 && imgFont.uv2) {
+                    drawlist.AddImage(tex.texture._texture,
+                        toImVec2(vec_a, image.screenXY),
+                        toImVec2(vec_b, image.screenMax), 
+                        toImVec2(vec_c, imgFont.uv1),
+                        toImVec2(vec_d, imgFont.uv2), col);
+                }
+            }
         }
     }
     Paint():void 
@@ -726,6 +749,63 @@ export class PaintImageText extends PaintWin
         }
         super.Paint();
     }
+}
+
+export class PaintAni extends PaintWin
+{
+    constructor(backend:BackendImGui)
+    {
+        super(backend);
+    }
+
+    Paint():void 
+    {
+        if(Use_Transform) {
+            let obj=this.obj;
+            if(obj._world) {
+                let drawlist=this.drawlist;
+                const vstart=drawlist.GetVertexSize();
+                this.PaintAni();
+                drawlist.Transform(toImTransform(mat2_a, obj._world), vstart);
+            }
+        }else {
+            this.PaintAni();
+        }
+        super.Paint();
+    }
+    PaintAni():void 
+    {
+        let obj=this.obj as zlUIAni;
+        let image=obj.imagelist[obj.image_current];
+        if(!(image && image.image.texture && image.image.uv1 && image.image.uv2))
+            return;
+        this.blend.src=obj.blend.src;
+        this.blend.dst=obj.blend.dst;
+        this.drawlist.SetBlend(this.blend);
+
+        let lr=obj._localRect;
+        this.xy.x=lr.xy.x+obj.pos.x-image.offset.x;
+        this.xy.y=lr.xy.y+obj.pos.y-image.offset.y;
+        this.xy2.x=this.xy.x+image.size.x;
+        this.xy2.y=this.xy.y+image.size.y;
+
+        let col=MultiplyAlpha(obj.color, obj.alpha);
+        this.drawlist.AddImageRounded(
+            image.image.texture._texture, 
+            toImVec2(vec_a, this.xy), 
+            toImVec2(vec_b, this.xy2),
+            toImVec2(vec_c, image.image.uv1), 
+            toImVec2(vec_d, image.image.uv2),
+            col,
+            obj.rounding, toImDrawCornerFlags(obj.roundingCorner));
+
+
+        this.drawlist.SetBlend(BLEND_ALPHA);
+    }
+
+    xy:Vec2=new Vec2;
+    xy2:Vec2=new Vec2;
+    blend:ImGui.Blend=new ImGui.Blend;
 }
 
 export class PaintTreeNodeOpen extends PaintCheck
@@ -780,10 +860,14 @@ export class PaintParticle extends PaintWin
         
         let xy=obj._localRect.xy;
         for(let pt of obj.particle) {
-            if(pt.life<0)
+            if(pt.life<0 || pt.life>pt.lifeEnd)
                 continue;
             let hsize=pt.size*0.5;
             let col=MultiplyAlpha(pt.color.toColorHex(), obj.alpha);
+            let image=pt.image;
+            if(image) {
+                hsize*=image.scale;
+            }
 
             if(obj.controller.shape==EParticleShape.eQuad) {
                 pt.rotate=0;
@@ -801,12 +885,12 @@ export class PaintParticle extends PaintWin
                     vec_b.Set(pt.pos.x-cvec_x, pt.pos.y-cvec_y);
                     vec_c.Set(p2_x-cvec_x,p2_y-cvec_y);
                     vec_d.Set(p2_x+cvec_x,p2_y+cvec_y);
-                    if(obj.image) {
-                        vec_1.Set(obj.image.uv1.x, obj.image.uv1.y);
-                        vec_2.Set(obj.image.uv2.x, obj.image.uv1.y);
-                        vec_3.Set(obj.image.uv2.x, obj.image.uv2.y);
-                        vec_4.Set(obj.image.uv1.x, obj.image.uv2.y);
-                        drawlist.AddImageQuad(obj.image.texture._texture,
+                    if(obj.image && image?.uv1 && image.uv2 && image.texture) {
+                        vec_1.Set(image.uv1.x, image.uv1.y);
+                        vec_2.Set(image.uv2.x, image.uv1.y);
+                        vec_3.Set(image.uv2.x, image.uv2.y);
+                        vec_4.Set(image.uv1.x, image.uv2.y);
+                        drawlist.AddImageQuad(image.texture._texture,
                             vec_a, vec_b, vec_c, vec_d,
                             vec_1, vec_2, vec_3, vec_4, col
                         );
@@ -827,12 +911,12 @@ export class PaintParticle extends PaintWin
                 vec_c.Set(px+c, py+s);
                 vec_d.Set(px-s, py+c);
 
-                if(obj.image) {
-                    vec_1.Set(obj.image.uv1.x, obj.image.uv1.y);
-                    vec_2.Set(obj.image.uv2.x, obj.image.uv1.y);
-                    vec_3.Set(obj.image.uv2.x, obj.image.uv2.y);
-                    vec_4.Set(obj.image.uv1.x, obj.image.uv2.y);
-                    drawlist.AddImageQuad(obj.image.texture._texture,
+                if(obj.image && image?.uv1 && image.uv2 && image.texture) {
+                    vec_1.Set(image.uv1.x, image.uv1.y);
+                    vec_2.Set(image.uv2.x, image.uv1.y);
+                    vec_3.Set(image.uv2.x, image.uv2.y);
+                    vec_4.Set(image.uv1.x, image.uv2.y);
+                    drawlist.AddImageQuad(image.texture._texture,
                         vec_a, vec_b, vec_c, vec_d,
                         vec_1, vec_2, vec_3, vec_4, col
                     );
@@ -845,11 +929,11 @@ export class PaintParticle extends PaintWin
             vec_a.Set(px-hsize, py-hsize);
             vec_b.Set(px+hsize, py+hsize);
 
-            if(obj.image) {
-                drawlist.AddImage(obj.image.texture._texture,
+            if(obj.image && image?.texture && image.uv1 && image.uv2) {
+                drawlist.AddImage(image.texture._texture,
                     vec_a,vec_b,
-                    toImVec2(vec_c, obj.image.uv1),
-                    toImVec2(vec_d, obj.image.uv2), col
+                    toImVec2(vec_c, image.uv1),
+                    toImVec2(vec_d, image.uv2), col
                 )            
             }else {
                 drawlist.AddRectFilled(
@@ -899,7 +983,7 @@ export class BackendImGui implements IBackend
 {
     constructor(drawlist:ImDrawList)
     {
-        this.has_astc=ImGui_Impl.gl.getExtension("WEBGL_compressed_texture_astc")?true:false;
+        this.has_astc=ImGui_Impl.gl?.getExtension("WEBGL_compressed_texture_astc")?true:false;
         this.drawlist=drawlist;
         SetFLT_MAX(ImGui.FLT_MAX);
 
@@ -915,6 +999,7 @@ export class BackendImGui implements IBackend
         this.paint[zlUITreeNode.CSID]=new PaintCheck(this);
         this.paint[zlUITree.CSID]=new PaintSlider(this);
         this.paint[zlUIImageText.CSID]=new PaintImageText(this);
+        this.paint[zlUIAni.CSID]=new PaintAni(this);
         this.paint[zlUITreeNodeOpen.CSID]=new PaintTreeNodeOpen(this);
         this.paint[zlUILabelEdit.CSID]=new PaintPanel(this);
         this.paint[zlUIParticle.CSID]=new PaintParticle(this);
@@ -924,7 +1009,7 @@ export class BackendImGui implements IBackend
     async CreateTexture(url:string, toks:string[]):Promise<ITexture>
     {
         let filepart=url.split(".");
-        let ext=filepart[1];
+        let ext=filepart[filepart.length-1];
         if(this.has_astc && this.enable_astc) {
             ext="astc";
             url=`${filepart[0]}.astc`;
@@ -934,8 +1019,8 @@ export class BackendImGui implements IBackend
             for(let tok of toks) {
                 switch(tok) {
                 case 'repeat':
-                    tex._wrapS=gl.REPEAT;
-                    tex._wrapT=gl.REPEAT;
+                    tex._wrapS=WebGLRenderingContext.REPEAT;
+                    tex._wrapT=WebGLRenderingContext.REPEAT;
                     break;
                 }
             }
@@ -961,14 +1046,14 @@ export class BackendImGui implements IBackend
             })
             break;
         }
-        console.log("LoadImage", url, tex);
+        //console.log("LoadImage", url, tex);
         return tex;
     }
 
     GetTexture(name: string): TexturePack {
         return {
             name:name,
-            x1:0,x2:0,y1:0,y2:0,texture:null
+            x1:0,x2:0,y1:0,y2:0,texture:undefined,scale:1,
         };
     }
 
@@ -1016,7 +1101,7 @@ export class BackendImGui implements IBackend
 
         paint.obj=obj;
         paint.Paint();
-        paint.obj=null;
+        paint.obj=undefined;
     }
     PaintEnd(obj: zlUIWin) 
     {
@@ -1037,10 +1122,10 @@ export class BackendImGui implements IBackend
     has_astc:boolean;
     enable_astc:boolean=false;
 
-    font:ImFont;
+    font?:ImFont;
     drawlist:ImGui.ImDrawList;
 
-    parent:zlUIWin;
+    parent?:zlUIWin;
 }
 
 export const ImColor_Gray: ImGui.ImVec4 = new ImGui.ImVec4(0.5, 0.5, 0.5, 1)

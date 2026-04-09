@@ -15,13 +15,13 @@ class TextureDOM implements ITexture
 
     }
 
-    _texture:WebGLTexture;
-    _width:number;
-    _height:number;
-    _wrapS:number;
-    _wrapT:number;
-    _minFilter:number;
-    _magFilter:number;    
+    _texture!:WebGLTexture;
+    _width!:number;
+    _height!:number;
+    _wrapS!:number;
+    _wrapT!:number;
+    _minFilter!:number;
+    _magFilter!:number;    
 }
 
 class FontDOM implements IFont
@@ -34,8 +34,8 @@ class FontDOM implements IFont
     AddFontRange(start:number, end:number) {}
     MergeFont(font:IFont) {}
     CalTextSize(size: number, max_width: number, wrap_width: number, text_begin: string,
-            text_end: number | null,
-            isready:boolean[]) :IVec2
+            text_end?: number,
+            isready?:boolean[]) :IVec2
     {
         let id='FontDOM_CalTextSize';
         let e=document.getElementById(id);
@@ -61,15 +61,17 @@ class FontDOM implements IFont
         //     client:{w:e.clientWidth, h:e.clientHeight},
         //     scroll:{w:e.scrollWidth, h:e.scrollHeight},
         // })
-        
-        isready[0]=true;
+        if(isready)
+            isready[0]=true;
         return {x:e.offsetWidth,y:e.offsetHeight};
     }
-    CSS():string {return `${this.style} ${this.size}px ${this.name}`;}
+    CSS():string {
+        return `${this.style} ${this.size}px ${this.name}`;
+    }
 
-    name:string;
-    style:string;
-    size:number;
+    name!:string;
+    style!:string;
+    size!:number;
 }
 
 interface RectDOM
@@ -99,12 +101,24 @@ class PaintWin implements IPaint
             if(obj.hint) {
                 e.setAttribute("tip", obj.hint);
             }
-            e.setAttribute('data-name', obj.Name);
-            
-            let parent=document.getElementById(`${this.backend.parent._uid}`);
+            if(obj.Name)
+                e.setAttribute('data-name', obj.Name);
 
+            let parent=document.getElementById(`${this.backend.parent?._uid}`);
             if(parent) {
-                parent.append(e);
+                let before=undefined;
+                for(let ch of parent.children) {
+                    let id=Number.parseInt(ch.id);
+                    if(id>obj._uid) {
+                        before=ch;
+                        break;
+                    }
+                }
+                if(before) {
+                    parent.insertBefore(e, before);
+                }else {
+                    parent.append(e);                
+                }
             }else if(this.backend.root) {
                 this.backend.root.append(e);
             }else {
@@ -212,7 +226,7 @@ class PaintWin implements IPaint
 
     }
 
-    OnMouseMove(e:HTMLElement, obj:zlUIWin, _e:MouseEvent) {
+    OnMouseMove(e:HTMLElement|null, obj:zlUIWin, _e:MouseEvent) {
         if(obj.isCanDrag && this.isDragging == obj._uid) {
             obj.x=this.ox+(_e.x-this.ex)/obj._world.scale;
             obj.y=this.oy+(_e.y-this.ey)/obj._world.scale;
@@ -235,7 +249,7 @@ class PaintWin implements IPaint
         }
     }
 
-    SetPosition(e:HTMLElement, obj:zlUIWin, x:number, y:number) {
+    SetPosition(e:HTMLElement|null, obj:zlUIWin, x:number, y:number) {
         //console.log(`SetPosition ${obj._uid} ${x} ${y}`, e);
         let scale=obj._world.scale;
         let ox=0;
@@ -247,8 +261,10 @@ class PaintWin implements IPaint
         }
         let left=`${Math.floor(x*scale+ox)}px`;
         let top=`${Math.floor(y*scale+oy)}px`;
-        e.style.left=left;
-        e.style.top=top;
+        if(e) {
+            e.style.left=left;
+            e.style.top=top;
+        }
     }
 
     SetRect(e:HTMLElement, r:RectDOM) {
@@ -309,15 +325,15 @@ class PaintWin implements IPaint
     }
 
     backend:BackendDOM;
-    obj:zlUIWin;
+    obj!:zlUIWin;
 
-    isDragging:number;
-    ex:number;
-    ey:number;
-    ox:number;
-    oy:number;
+    isDragging?:number;
+    ex!:number;
+    ey!:number;
+    ox!:number;
+    oy!:number;
 
-    resizeobs:ResizeObserver;
+    resizeobs?:ResizeObserver;
 }
 
 class PaintMgr extends PaintWin
@@ -413,11 +429,15 @@ class PaintPanel extends PaintWin
     PaintText(e:HTMLElement, obj:zlUIPanel) {
         let label_id=`label_${obj._uid}`;
         let label=document.getElementById(label_id) as HTMLLabelElement;
-        if(this.has_label && obj.text && obj.text.length>0) {
-            let font=obj._owner.GetFont(obj.fontIndex);
-            let fontstyle=`${font.style} ${Math.floor(font.size*obj._world.scale)}px ${font.name}`;
-            e.style.font=fontstyle;
-
+        if(this.has_label && obj.text && obj.text.length>0 && obj.font) {
+            let font=obj.font;
+            let fontSize=Math.floor(font.size*obj._world.scale);
+            //let fontstyle=`${font.style} ${fontSize}px ${font.name}`;
+            //e.style.font=fontstyle;
+            e.style.fontSize=`${fontSize}px`;
+            e.style.fontFamily=font.name;
+            e.style.fontStyle=font.style;
+            
             this.textAlign(e);
             if(!label) {
                 label=document.createElement('label') as HTMLLabelElement;
@@ -446,12 +466,14 @@ class PaintPanel extends PaintWin
             e.style.borderRadius=borderRadius;
         }
         if(obj.drawBoard?.type == BoardType.NineGrid) {
-            let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
-            let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
-            e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
-            e.setAttribute('data-border-right', `${x2}`);
-            e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
-            e.setAttribute('data-border-bottom', `${y2}`);
+            if(obj.drawBoard.image.texture) {
+                let x2=obj.drawBoard.image.texture._width-obj.drawBoard.x2;
+                let y2=obj.drawBoard.image.texture._height-obj.drawBoard.y2;
+                e.setAttribute('data-border-left', `${obj.drawBoard.x1}`);
+                e.setAttribute('data-border-right', `${x2}`);
+                e.setAttribute('data-border-top', `${obj.drawBoard.y1}`);
+                e.setAttribute('data-border-bottom', `${y2}`);
+            }
         }
         else if(obj.isDrawBorder) {
             //e.style.border=`solid ${CSSrgba(obj.borderColor, obj.alpha)}`;
@@ -607,7 +629,7 @@ class PaintButton extends PaintPanel
                 obj.OnClick();
             }
         }else {
-            e.onclick=undefined;
+            e.onclick=null;
         }
         return e;
     }
@@ -632,9 +654,10 @@ class PaintCheck extends PaintButton
     PaintText(e: HTMLElement): void {
         let obj=this.obj as zlUICheck;
         let span=document.getElementById(this.SpanID()) as HTMLSpanElement;
-        if(obj.text && obj.text.length>0) {
-            let font=obj._owner.GetFont(obj.fontIndex);
-            let fontstyle=`${font.style} ${Math.floor(font.size*obj._world.scale)}px ${font.name}`;
+        if(obj.text && obj.text.length>0 && obj.font) {
+            let font=obj.font;
+            let fontSize=Math.floor(font.size*obj._world.scale);
+            //let fontstyle=`${font.style} ${fontSize}px ${font.name}`;
 
             if(!span) {
                 span=document.createElement('span') as HTMLSpanElement;
@@ -645,7 +668,10 @@ class PaintCheck extends PaintButton
             if(obj.textoffset) {
                 span.style.paddingLeft=`${obj.textoffset.x}px`;
             }
-            span.style.font=fontstyle;
+            //span.style.font=fontstyle;
+            span.style.fontSize=`${fontSize}px`;
+            span.style.fontFamily=font.name;
+            span.style.fontStyle=font.style;
             span.innerText=obj.text;
         }else if(span) {
             span.remove();
@@ -697,7 +723,7 @@ class PaintCheck extends PaintButton
         return e;
     }
 
-    checkbox:HTMLInputElement;
+    checkbox!:HTMLInputElement;
 }
 
 class PaintCombo extends PaintButton
@@ -837,7 +863,10 @@ class PaintEdit extends PaintPanel
             switch(obj.type) {
             case 'file':
                 if(obj.on_file) {
-                    obj.on_file((<HTMLInputElement>e).files[0]);
+                    let files=(<HTMLInputElement>e).files;
+                    if(files) {
+                        obj.on_file(files[0]);
+                    }
                 }
                 return;
             }
@@ -868,6 +897,7 @@ class PaintSlider extends PaintPanel
         let obj=this.obj as zlUISlider;
         let e=document.createElement('div');
         e.classList.add('Win');
+        e.classList.add('Panel');
         //e.classList.add('Slider');
 
         switch(obj.scrollType) {
@@ -899,6 +929,8 @@ class PaintTree extends PaintSlider
         super.Paint();
         let obj=this.obj as zlUITree;
         let e=document.getElementById(`${obj._uid}`);
+        if(!e)
+            return;
         if(obj.treenodeChange) {
             e.innerHTML="";
             if(obj.treenode) {                
@@ -908,12 +940,14 @@ class PaintTree extends PaintSlider
         }else if(obj.expandTreeNode) {
             for(let tn of obj.expandTreeNode) {
                 let li=document.getElementById(`li_${tn._uid}`);
-                li.setAttribute('data-textcolor', CSSrgba(tn.textColor, tn.alpha));
-                li.setAttribute('data-colorhover', CSSrgba(tn.colorHover, tn.alpha))
-                if(tn.isChecked) {
-                    li.setAttribute('data-color', CSSrgba(tn.colorDown, tn.alpha))
-                }else {
-                    li.setAttribute('data-color', CSSrgba(tn.colorUp, tn.alpha))
+                if(li) {
+                    li.setAttribute('data-textcolor', CSSrgba(tn.textColor, tn.alpha));
+                    li.setAttribute('data-colorhover', CSSrgba(tn.colorHover, tn.alpha))
+                    if(tn.isChecked) {
+                        li.setAttribute('data-color', CSSrgba(tn.colorDown, tn.alpha))
+                    }else {
+                        li.setAttribute('data-color', CSSrgba(tn.colorUp, tn.alpha))
+                    }
                 }
             }
         }
@@ -924,6 +958,7 @@ class PaintTree extends PaintSlider
         let ul=document.createElement('ul');
         ul.classList.add('Win');
         ul.classList.add('Tree');
+        ul.style.height="100%";
         parent.append(ul);
         for(let tn of tnlist) {
             this.CreateTreeNode(tn, ul);
@@ -985,6 +1020,8 @@ class PaintImageText extends PaintWin
     PaintImageText() {
         let obj=this.obj as zlUIImageText;
         let e=document.getElementById(`${obj._uid}`);
+        if(!e)
+            return;
         let text=e.getAttribute("imagetext");
         let id=0;
         if(text!==obj.text) {
@@ -997,6 +1034,7 @@ class PaintImageText extends PaintWin
             id=0;
 
             let scale=obj._world.scale;
+            if(obj.imageText)
             for(let im of obj.imageText) {
                 let img=this.CreateImage(obj, im.imageFont.texture);
                 img.id=`img_${obj._uid}_${id}`;
@@ -1014,6 +1052,7 @@ class PaintImageText extends PaintWin
         }
         id=0;
         let scale=obj._world.scale;
+        if(obj.imageText)
         for(let im of obj.imageText) {
             let img=document.getElementById(`img_${obj._uid}_${id}`) as HTMLImageElement;
             this.SetPosition(img, obj, im.x, im.y);
@@ -1080,7 +1119,7 @@ export class BackendDOM implements IBackend
             y1:0,
             x2:0,
             y2:0,
-            texture:null
+            scale:1,
         }
     }
 
@@ -1094,7 +1133,7 @@ export class BackendDOM implements IBackend
     DefaultFont():IFont
     {
         if(!this.font) {
-
+            this.font=this.CreateFont("Arial",16,"normal");
         }
         return this.font;
     }
@@ -1112,7 +1151,7 @@ export class BackendDOM implements IBackend
         }
         paint.obj=obj;
         paint.Paint();
-        paint.obj=null;
+        paint.obj=undefined;
     }
     PaintEnd(obj:zlUIWin) {
         let paint=this.paint[obj._csid];
@@ -1120,7 +1159,7 @@ export class BackendDOM implements IBackend
             return;
         paint.obj=obj;
         paint.PaintEnd();
-        paint.obj=null;
+        paint.obj=undefined;
     }
 
     SetParent(obj: zlUIWin) {
@@ -1128,8 +1167,8 @@ export class BackendDOM implements IBackend
     }
  
     paint:{[key:string]:IPaint} = {};
-    font:FontDOM;
-    parent:zlUIWin;
+    font?:FontDOM;
+    parent?:zlUIWin;
     root:HTMLElement;
     visible_map:{[key:number]:boolean} = {};
     prev_visible_map:{[key:number]:boolean} = {};

@@ -1,4 +1,4 @@
-export const Version="0.1.65";
+export const Version="0.1.66";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -36,8 +36,6 @@ color4
 
 UIImageText:
 color4
-
-UIAni
 
 UIPanel:
 textwrap
@@ -77,7 +75,7 @@ export interface IPaint
     Paint:()=>void;
     PaintEnd:()=>void;
 
-    obj:zlUIWin;
+    obj?:zlUIWin;
 }
 
 export interface IBackend
@@ -95,11 +93,24 @@ export interface IBackend
     paint:{[key:string]:IPaint};
 }
 
+export interface IStroke
+{
+    width:number
+    color:number
+}
+export interface IShadow
+{
+    offset:number
+    color:number
+}
+
 export interface IFont
 {
     name:string;
     style:string;
     size:number;
+    stroke?:IStroke;
+    shadow?:IShadow;
     userdata?:any;
 
     AddFontRange:(start:number, end:number)=>void;
@@ -161,7 +172,7 @@ export function Edit(win:zlUIWin, text:string, on_change:(txt:string)=>any, chil
     return obj;
 }
 
-export function Button(win:zlUIWin, text:string, on_click:(obj:zlUIWin)=>any, child?:string):zlUIButton
+export function Button(win:zlUIWin, text:string|undefined, on_click:(obj:zlUIWin)=>any, child?:string):zlUIButton
 {
     let obj:zlUIButton=(child?win.GetUI(child):win) as zlUIButton;
     if(text !== undefined) {
@@ -214,10 +225,10 @@ function stringToColorHexChannel(color:string, n:number):number
 
 export function stringToColorHex(color:string):number
 {
-    let r:number;
-    let g:number;
-    let b:number;
-    let a:number;
+    let r:number=0;
+    let g:number=0;
+    let b:number=0;
+    let a:number=0;
     if(color.startsWith("0x")) {
         color=color.slice(2);
         a=stringToColorHexChannel(color, 0);
@@ -316,10 +327,10 @@ export function ParseBool(tok:string):boolean
     return b;
 }
 
-export function ParseText(s:string):string
+export function ParseText(s?:string):string
 {
     if(!s)
-        return s;
+        return "";
     let r=/\\u([\d\w]{4})/gi;
     s = s.replace(r, function (match, grp) {
         return String.fromCharCode(parseInt(grp, 16)); } );    
@@ -548,7 +559,8 @@ export interface TexturePack
     y1:number;
     x2:number;
     y2:number;
-    texture:ITexture;
+    texture?:ITexture;
+    scale:number;
     uv1?:Vec2;
     uv2?:Vec2;
 }
@@ -564,6 +576,23 @@ export function UpdateTexturePack(image:TexturePack):TexturePack
         image.x2/image.texture._width,
         image.y2/image.texture._height);
     return image;
+}
+
+function FlipW(image:TexturePack)
+{
+    if(image.uv1 && image.uv2) {
+        let x1=image.uv1.x;
+        image.uv1.x=image.uv2.x;
+        image.uv2.x=x1;
+    }
+}
+function FlipH(image:TexturePack)
+{
+    if(image.uv1 && image.uv2) {
+        let y1=image.uv1.y;
+        image.uv1.y=image.uv2.y;
+        image.uv2.y=y1;
+    }
 }
 
 export interface IVec2
@@ -1263,10 +1292,10 @@ export class Bezier
 
     }
 
-    GetPoint(t:number):Vec2
+    GetPoint(t:number):Vec2|undefined
     {
         if(!this.controlPoints||this.controlPoints.length==0)
-            return null;
+            return undefined;
         if(t>1) t=1;
         const segs=Math.floor(this.controlPoints.length/4);
         t=t*segs;
@@ -1293,8 +1322,10 @@ export class Bezier
         this.controlPoints=[];
         if(toks[0].startsWith("(")) {
             for(let i=0;i<toks.length;i++) {
-                let tok=toks[i].match(/\d*/g).filter(e=>e);
-                this.controlPoints.push(new Vec2(parseFloat(tok[0]), parseFloat(tok[1])));
+                let tok=toks[i].match(/\d*/g)?.filter(e=>e);
+                if(tok) {
+                    this.controlPoints.push(new Vec2(parseFloat(tok[0]), parseFloat(tok[1])));
+                }
             }
         }else {
             for(let i=0;i<toks.length;i+=2) {
@@ -1307,7 +1338,7 @@ export class Bezier
         return this.controlPoints.length>=4;
     }
 
-    controlPoints:Vec2[];
+    controlPoints!:Vec2[];
 }
 
 export class Parser
@@ -1318,12 +1349,12 @@ export class Parser
         this.current=0;
     }
 
-    CurrentLine():string 
+    CurrentLine():string|undefined
     {
         return (this.current<this.lines.length)?
             this.lines[this.current]:undefined;
     }
-    NextLine():string
+    NextLine():string|undefined
     {
         this.current++;
         return this.CurrentLine();
@@ -1353,14 +1384,14 @@ export class Parser
 
     lines:string[];
     current:number;
-    toks:string[];
+    toks!:string[];
 }
 
 export {zlUIWin as UIWin}
 
 export class zlUIWin
 {
-    constructor(own:zlUIMgr) {
+    constructor(own?:zlUIMgr) {
         if(own) {
             this._owner=own;
             this._uid=own.GetUId();
@@ -1372,19 +1403,19 @@ export class zlUIWin
         return new zlUIWin(own);
     }
 
-    on_size: ((this:zlUIWin) => any)|null;
-    on_notify: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
-    on_change: ((this: zlUIWin, text: string) => any) | null; 
-    on_hover: ((this:zlUIWin, obj:zlUIWin) => any) | null;
-    on_dragstart: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
-    on_dragover: ((this: zlUIWin, obj: zlUIWin, drag: zlUIWin) => boolean) | null; 
-    on_drop: ((this: zlUIWin, obj: zlUIWin, drop: zlUIWin) => boolean) | null; 
-    on_calrect: ()=>any|null;
-    on_click: (obj: zlUIWin)=>void|null;
-    on_mousemove: (x:number,y:number)=>void|null;
-    on_mousedown: (x:number,y:number)=>void|null;
-    on_mouseup: (x:number,y:number)=>void|null;
-    on_create: (element:HTMLElement)=>void|null;
+    on_size?: ((this:zlUIWin) => any);
+    on_notify?: ((this: zlUIWin, obj: zlUIWin) => any); 
+    on_change?: ((this: zlUIWin, text: string) => any); 
+    on_hover?: ((this:zlUIWin, obj:zlUIWin) => any);
+    on_dragstart?: ((this: zlUIWin, obj: zlUIWin) => any); 
+    on_dragover?: ((this: zlUIWin, obj: zlUIWin, drag: zlUIWin) => boolean); 
+    on_drop?: ((this: zlUIWin, obj: zlUIWin, drop: zlUIWin) => boolean); 
+    on_calrect?: (()=>any);
+    on_click?: ((obj: zlUIWin)=>void);
+    on_mousemove?: ((x:number,y:number)=>void);
+    on_mousedown?: ((x:number,y:number)=>void);
+    on_mouseup?: ((x:number,y:number)=>void);
+    on_create?: ((element:HTMLElement)=>void);
 
     ClearCallback(child:boolean):void {
         this.on_size=undefined;
@@ -1603,14 +1634,14 @@ export class zlUIWin
                     (this.autosize & EAutosize.TextHeight)))   
                 {
                     console.warn(this._csid + ":" + this.Name + " Dock with autosize may conflict");
-                    this.autosize=undefined;
+                    this.autosize=EAutosize.None;
                 }
                 else if((this.dock.mode & (EDock.Left|EDock.Right)) && 
                     ((this.autosize & EAutosize.Width) ||
                     (this.autosize & EAutosize.TextWidth)))   
                 {
                     console.warn(this._csid + ":" + this.Name + " Dock with autosize may conflict");
-                    this.autosize=undefined;
+                    this.autosize=EAutosize.None;
                 }
             }
             break;
@@ -1958,8 +1989,6 @@ export class zlUIWin
             if(!ch.isVisible)   {
                 continue;
             }
-            // if(!obj.IsVisible(ch))
-            //     continue;
             mgr.backend.SetParent(this);
             ch.Paint();
         }
@@ -1993,10 +2022,11 @@ export class zlUIWin
         else if(ui.y+ui.h>this.h) ui.y=this.h-ui.h;
     }
 
-    CalRect(parent:zlUIWin):void 
+    CalRect(parent:zlUIWin|undefined):void 
     {
         this._owner.calrect_count++;
-        this._owner.calrect_object.push(this.Name);
+        if(this.Name)
+            this._owner.calrect_object?.push(this.Name);
 
         let x1=this.x;
         let y1=this.y;
@@ -2211,8 +2241,9 @@ export class zlUIWin
             let next=0;
             switch(this.arrange.mode) {
             case EArrange.Item: {
-                w=(this.w-this.padding-this.padding)/this.arrange.item_per_row;
-                h=(this.h-this.padding-this.padding)/this.arrange.item_per_row;
+                let item_per_row=(this.arrange && this.arrange.item_per_row) ? this.arrange.item_per_row:1;
+                w=(this.w-this.padding-this.padding)/item_per_row;
+                h=(this.h-this.padding-this.padding)/item_per_row;
                 for(let i=0;i<this.pChild.length;i++)   {
                     let ch=this.pChild[i];
                     if(!ch.isVisible)
@@ -2226,24 +2257,24 @@ export class zlUIWin
                     if(chx!=ch.x || chy!=ch.y) {
                         ch.SetCalRect();
                     }
-
-                    next++;
-    
+                    next++;    
                     switch(this.arrange.direction) {
                     case EDirection.Vertical:
                         x+=w;
-                        if(next>=this.arrange.item_per_row) {
+                        if(next>=item_per_row) {
                             next=0;
                             x=this.padding;
-                            y+=this.arrange.item_size.y;
+                            if(this.arrange.item_size)
+                                y+=this.arrange.item_size.y;
                         }
                         break;
                     case EDirection.Horizontal:
                         y+=h;
-                        if(next>=this.arrange.item_per_row) {
+                        if(next>=item_per_row) {
                             next=0;
                             y=this.padding;
-                            x+=this.arrange.item_size.x;
+                            if(this.arrange.item_size)
+                                x+=this.arrange.item_size.x;
                         }
                         break;
                     }
@@ -2349,9 +2380,9 @@ export class zlUIWin
         }        
     }
 
-    ToLocal(pos:Vec2):Vec2
+    ToLocal(pos:Vec2):Vec2|undefined
     {
-        let pt:Vec2=undefined;
+        let pt:Vec2;
         if(Use_Transform) {
             if(!this._invWorld)
                 return undefined;
@@ -2368,7 +2399,7 @@ export class zlUIWin
         return pt;
     }
 
-    GetNotify(pos:Vec2):zlUIWin
+    GetNotify(pos:Vec2):zlUIWin|undefined
     {
         if(this.isDisable)
             return undefined;
@@ -2397,7 +2428,7 @@ export class zlUIWin
             return undefined;
         return this;
     }
-    GetUIWin(pos:Vec2, csid:string):zlUIWin
+    GetUIWin(pos:Vec2, csid:string):zlUIWin|undefined
     {
         if(this.isDisable)
             return undefined;
@@ -2423,7 +2454,7 @@ export class zlUIWin
             return undefined;
         return (this._csid==csid)?this:undefined;        
     }
-    GetUISlider(pos:Vec2):zlUIWin
+    GetUISlider(pos:Vec2):zlUIWin|undefined
     {
         if(this.isDisable)
             return undefined;
@@ -2479,7 +2510,7 @@ export class zlUIWin
             this.on_click(this);
         }
     }
-    GetUI(name:string):zlUIWin
+    GetUI(name:string):zlUIWin|undefined
     {
         name=name.toLowerCase();
         if(this.isDisable) {
@@ -2503,15 +2534,16 @@ export class zlUIWin
             this.pChild=[];
         this.pChild.push(obj);
     }
-    GetLastChild():zlUIWin
+    GetLastChild():zlUIWin|undefined
     {
         if(this.pChild.length>0)    {
             return this.pChild[this.pChild.length-1];
         }
         return undefined;
     }
-    HasChild(obj:zlUIWin):boolean
+    HasChild(obj?:zlUIWin):boolean
     {
+        if(!obj) return false;
         for(let i=0;i<this.pChild.length;i++)   {
             let ch=this.pChild[i];
             if(ch===obj)
@@ -2587,7 +2619,7 @@ export class zlUIWin
         }
     }
 
-    Name:string;
+    Name?:string;
     isCalRect:boolean=false;
     isDisable:boolean=false; //完全停用 disable: GetUI GetNotify
     isVisible:boolean=true;
@@ -2607,20 +2639,20 @@ export class zlUIWin
     h:number=0;
     line:number=0;
     align:Align=Align.None;
-    add_x:number;
-    add_y:number;
+    add_x?:number;
+    add_y?:number;
     borderWidth:number=0;
     padding:number=0;
     margin:Vec2=new Vec2;
     content_margin:Vec2=new Vec2;
-    anchor:IAnchor;
-    dock:IDock;
-    dockOffset:Vec4;
-    arrange:IArrange;
+    anchor?:IAnchor;
+    dock?:IDock;
+    dockOffset?:Vec4;
+    arrange?:IArrange;
     offset:Vec2=new Vec2;
     autosize:EAutosize=EAutosize.None;    
-    hint:string;
-    draglimit:IDragLimit;
+    hint?:string;
+    draglimit?:IDragLimit;
 
     alpha_set:number=1;
     alpha_local:number=1;
@@ -2629,17 +2661,17 @@ export class zlUIWin
     rotate:number=0;
     scale:number=1;
     origin:Vec2=new Vec2(0.5, 0.5);
-    originOffset:Vec2;
+    originOffset!:Vec2;
 
-    dragType:number;
-    dropType:number;
+    dragType?:number;
+    dropType?:number;
 
     _csid:string;
-    _uid:number;
-    _owner:zlUIMgr;
+    _uid:number=0;
+    _owner!:zlUIMgr;
     _localPos:Vec2=new Vec2;
     _localRect:Rect=new Rect;
-    _screenRect:Rect=undefined;
+    _screenRect!:Rect;
     _clipRect:Rect=new Rect;
     _is_size_change:boolean=false;
     _isPaintout:boolean=false;
@@ -2650,7 +2682,7 @@ export class zlUIWin
     _prevous_visible_child:number=0;
 
     user_data:any;
-    css_style:{[key:string]:string};
+    css_style?:{[key:string]:string};
 }
 
 export {zlUIImage as UIImage}
@@ -2715,7 +2747,7 @@ export class zlUIImage extends zlUIWin
     }
 
     SetUrl(url:string,callback:(obj:zlUIWin)=>void):void {
-        this._owner.backend.CreateTexture(url, null).then((tex)=>{
+        this._owner.backend.CreateTexture(url, []).then((tex)=>{
             this.image={
                 name:url,
                 x1:0,
@@ -2723,6 +2755,7 @@ export class zlUIImage extends zlUIWin
                 x2:tex._width,
                 y2:tex._height,
                 texture:tex,
+                scale:1,
             }
             UpdateTexturePack(this.image);
             if(callback) {
@@ -2742,17 +2775,14 @@ export class zlUIImage extends zlUIWin
     FlipW() {
         if(this.image) {
             UpdateTexturePack(this.image);
-            let ux=this.image.uv1.x;
-            this.image.uv1.x=this.image.uv2.x;
-            this.image.uv2.x=ux;
+            FlipW(this.image);
         }
         super.FlipW();
     }
     FlipH() {
         if(this.image) {
-            let uy=this.image.uv1.y;
-            this.image.uv1.y=this.image.uv2.y;
-            this.image.uv2.y=uy;
+            UpdateTexturePack(this.image);
+            FlipH(this.image);
         }
         super.FlipH();
     }
@@ -2761,11 +2791,34 @@ export class zlUIImage extends zlUIWin
     set Color(c:Vec4) {this.color=toColorHex(c);}
     get Color():Vec4 {return fromColorHex(this.color);}
 
-    image:TexturePack;
+    image?:TexturePack;
     color:number=0xffffffff;
     rounding:number=0;
     roundingCorner:ECornerFlags=ECornerFlags.All;
     blend:IBlend=Clone(BLEND_ALPHA);
+}
+
+export function ParseFont(toks:string[], mgr:zlUIMgr):IFont
+{
+    let fontName=toks[1];
+    let fontSize=0;
+    let fontStyle="";
+    for(let i=2;i<toks.length-1;i++) {
+        let tok=toks[i];
+        switch(tok) {
+        case "size":
+            fontSize=Number.parseInt(toks[i+1]);
+            i++;
+            break;
+        case "style":
+            fontStyle=toks[i+1];
+            i++;
+            break;
+        }
+    }
+    let font=mgr.CreateFont(fontName, fontSize, fontStyle);
+
+    return font;
 }
 
 export {zlUIPanel as UIPanel}
@@ -2818,7 +2871,11 @@ export class zlUIPanel extends zlUIImage
             this.textColorHover=ParseColor(toks[1]);
             break;
         case "font":
-            this.fontIndex=Number.parseInt(toks[1]);
+            if(isNaN(toks[1] as any)) {
+                this.font=ParseFont(toks, this._owner);
+            }else {
+                this.font=this._owner.GetFont(Number.parseInt(toks[1]));
+            }
             break;
         case "board":
             this.board=ParseBoard(toks, this._owner);
@@ -2860,10 +2917,10 @@ export class zlUIPanel extends zlUIImage
         }
         return true;
     }
-    CloneBoard(obj:Board):Board
+    CloneBoard(obj?:Board):Board|undefined
     {
         if(!obj)
-            return null;
+            return undefined;
         let b:Board={
             x1:obj.x1,
             y1:obj.y1,
@@ -2885,7 +2942,7 @@ export class zlUIPanel extends zlUIImage
         this.textAlignW=o.textAlignW;
         this.textAlignH=o.textAlignH;
         this.isMultiline=o.isMultiline;
-        this.fontIndex=o.fontIndex;
+        this.font=o.font;
         this.isDrawClient=o.isDrawClient;
         this.isDrawBorder=o.isDrawBorder;
         this.isDrawHover=o.isDrawHover;
@@ -2916,6 +2973,7 @@ export class zlUIPanel extends zlUIImage
         if(this._textSize)
             this._textSize.x=0;        
         this.isCalRect=true;
+        this._owner.isDirty=true;
         if(this.on_change)  {
             this.on_change(text);
         }
@@ -2938,14 +2996,16 @@ export class zlUIPanel extends zlUIImage
             this._textRemaining=0;
             return;
         }
+        if(!this.font)
+            return;
         let isReady = [false];
-        let font=this._owner.GetFont(this.fontIndex);
+        let font=this.font;
         let a=0;
         let c=this.text.length;
         let b=c>>1;
         while(b>0 && a!=b) {
             let text=this.text.substring(0,b)+"…";
-            let text_size=font.CalTextSize(font.size, FLT_MAX, 0, text, null, isReady);
+            let text_size=font.CalTextSize(font.size, FLT_MAX, 0, text, undefined, isReady);
             if(this._textPos.x+text_size.x>this._textClip.z) {
                 c=b;
             }else {
@@ -2961,13 +3021,16 @@ export class zlUIPanel extends zlUIImage
     {
         super.CalRect(parent);
         if(this.board)  {
-            this.board.vert=null;
+            this.board.vert=undefined;
             this.board.color=this.color;
             this.drawBoard=this.board;
         }
         if(this.text)   {
             let wrap_width=this.w-this.padding-this.padding;
-            let font=this._owner.GetFont(this.fontIndex);
+            if(!this.font) {
+                this.font=this._owner.GetFont(0);
+            }
+            let font=this.font;
             let wrap=this.isMultiline?wrap_width:0;
             let text=this.CalRectText();
             if(typeof text !== "string") {
@@ -2975,7 +3038,7 @@ export class zlUIPanel extends zlUIImage
                 this.text=text;
             }
             let isReady = [false];
-            let size=font.CalTextSize(font.size, FLT_MAX, wrap, text, null, isReady);
+            let size=font.CalTextSize(font.size, FLT_MAX, wrap, text, undefined, isReady);
             this._textRemaining=0;
             size.x=Math.ceil(size.x);
             size.y=Math.ceil(size.y);
@@ -3027,6 +3090,9 @@ export class zlUIPanel extends zlUIImage
             case Align.Right:
                 x=this._textRect.z-size.x-this.padding;
                 break
+            default:
+                x=this._textRect.x;
+                break;
             }
             switch(this.textAlignH)  {
             case Align.Top:
@@ -3037,6 +3103,9 @@ export class zlUIPanel extends zlUIImage
                 break;
             case Align.Down:
                 y=this._textRect.w-size.y-this.padding;
+                break;
+            default:
+                y=this._textRect.y;
                 break;
             }
             if(this.textAnchor) {
@@ -3080,19 +3149,15 @@ export class zlUIPanel extends zlUIImage
 
     FlipW(): void {
         if(this.board && this.board.image) {
-            let ux=this.board.image.uv1.x;
-            this.board.image.uv1.x=this.board.image.uv2.x;
-            this.board.image.uv2.x=ux;
-            this.board.vert=null;
+            FlipW(this.board.image);
+            this.board.vert=undefined;
         }        
         super.FlipW();
     }
     FlipH(): void {
         if(this.board && this.board.image) {
-            let uy=this.board.image.uv1.y;
-            this.board.image.uv1.y=this.board.image.uv2.y;
-            this.board.image.uv2.y=uy;
-            this.board.vert=null;
+            FlipH(this.board.image);
+            this.board.vert=undefined;
         }
         super.FlipH();
     }
@@ -3107,25 +3172,25 @@ export class zlUIPanel extends zlUIImage
     textAlignW:Align=Align.Center;
     textAlignH:Align=Align.Center;
     isMultiline:boolean=false;
-    fontIndex:number=0;
+    font?:IFont;
     isDrawClient:boolean=true;
     isDrawBorder:boolean=false;
     isDrawHover:boolean=false;
     borderColor:number=COL_BORDERCOLOR;
     colorHover:number=COL_COLORHOVER;
-    board:Board;
-    drawBoard:Board;
-    textAnchor:IAnchor;
-    textoffset:Vec2;
+    board?:Board;
+    drawBoard?:Board;
+    textAnchor?:IAnchor;
+    textoffset?:Vec2;
 
-    color4:number[];
-    colorHover4:number[];
+    color4?:number[];
+    colorHover4?:number[];
 
     //underline variant no copy needed
-    _textRect:IVec4;
-    _textPos:Vec2;
-    _textSize:Vec2;
-    _textClip:Vec4;
+    _textRect!:IVec4;
+    _textPos!:Vec2;
+    _textSize!:Vec2;
+    _textClip!:Vec4;
     _textRemaining:number=0;
 }
 
@@ -3157,8 +3222,10 @@ export class Input
         input.addEventListener('blur', (e)=>{this.onLostFocus(e)})
         input.addEventListener('keydown', (e)=>{this.onKeydown(e as KeyboardEvent)})
         input.onchange=(e)=>{
-            if(type=='file' && this.on_file) {
-                this.on_file((input as HTMLInputElement).files[0]);
+            if(type=='file' && this.on_file) {                
+                let inp=input as HTMLInputElement;
+                if(inp.files)
+                    this.on_file(inp.files[0]);
             }
         }
         input.onmousemove=(e)=>{
@@ -3172,9 +3239,9 @@ export class Input
         this.setVisible(false);
     }
 
-    on_input: ((this: Input, text: string) => any) | null; 
-    on_visible: ((this: Input, visible: boolean) => any) | null; 
-    on_file: (file:File)=>void|null;
+    on_input?: ((this: Input, text: string) => any); 
+    on_visible?: ((this: Input, visible: boolean) => any); 
+    on_file?: (file:File)=>void;
 
     onLostFocus(e:Event)
     {
@@ -3234,7 +3301,7 @@ export class Input
     }
 
     _dom_input:HTMLInputElement|HTMLTextAreaElement;
-    _id:number;
+    _id!:number;
     isVisible:boolean=false;
     isTab:boolean=false;
 }
@@ -3292,13 +3359,15 @@ function NotifyEdit(obj:zlUIPanel, text:string, type:string, accept:string,
         e.accept=accept;
     }
     e.style.textAlign=textAlign;
-    let font=obj._owner.GetFont(obj.fontIndex);
-    inp.setText(text, obj._uid, font);
     inp.setRect(x,y,w,h);
-    e.style.font=font.CSS();
+    if(obj.font) {
+        let font=obj.font;
+        inp.setText(text, obj._uid, font);
+        e.style.font=font.CSS();
+    }
     e.style.backgroundColor=to_cssrgb(obj.color);
     e.style.color=to_cssrgb(obj.textColor);
-    e.oninput=undefined;
+    e.oninput=null;
     return inp;
 }
 
@@ -3325,10 +3394,10 @@ interface IEditable
 
 export class zlUIEdit extends zlUIPanel implements IEditable
 {
-    on_edit: ((this: zlUIWin, obj: zlUIEdit) => any) | null; 
-	on_before_edit: ((this: zlUIWin, txt: string) => string) | null;
-    on_file: (file:File)=>void|null;
-    on_value: ((this:zlUIWin, value:number)=>any) | null;
+    on_edit?: ((this: zlUIWin, obj: zlUIEdit) => any); 
+	on_before_edit?: ((this: zlUIWin, txt: string) => string);
+    on_file?: (file:File)=>void;
+    on_value?: ((this:zlUIWin, value:number)=>any);
 
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -3404,11 +3473,11 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     }
 
     Refresh(ti: number, parent?: zlUIWin): boolean {
-        if(this._owner.notify===this && this.type=='range') {
+        if(this._owner.notify===this && this.type=='range' && this.range) {
             if(this._owner.any_pointer_down) {
                 let mw=this._screenRect.Width();
                 let mx=this._owner.mouse_pos.x-this._screenRect.x;
-                let per=Math.max(0,Math.min(1,mx/mw));   //0.0~1.0
+                let per=Math.max(0,Math.min(1,mx/mw));   //0.0~1.0                
                 let range=(this.range.max_value-this.range.min_value);
                 let step=Math.floor((range/this.range.step)*per)*this.range.step;
                 let value=FixedFloat(this.range.min_value+step, 6);
@@ -3463,13 +3532,13 @@ export class zlUIEdit extends zlUIPanel implements IEditable
     }
 
     isPassword:boolean=false;
-    passwordText:string;
-    password_char:string;
-    max_text_length:number;
+    passwordText?:string;
+    password_char?:string;
+    max_text_length?:number;
     type:string="text";
     accept:string=".*";
-    range:IRange;
-    value:number;
+    range?:IRange;
+    value?:number;
 }
 
 export {zlUIButton as UIButton}
@@ -3641,33 +3710,34 @@ export class zlUIButton extends zlUIPanel
         this.UpdateTextColor();
         super.Paint();
     }
-    GetNotify(pos:Vec2):zlUIWin
+    GetNotify(pos:Vec2):zlUIWin|undefined
     {
         if(!this.isEnable)
-            return null;
+            return undefined;
         return super.GetNotify(pos);
     }
     CalRect(parent:zlUIWin):void 
     {
         super.CalRect(parent);
         if(this.boardDown)  {
-            this.boardDown.vert=null;
+            this.boardDown.vert=undefined;
             this.boardDown.color=this.colorDown;
         }
         if(this.boardUp)  {
-            this.boardUp.vert=null;
+            this.boardUp.vert=undefined;
             this.boardUp.color=this.colorUp;
         }
     }
     SetUrl(url:string, callback:(obj:zlUIWin)=>void):void {
-        this._owner.backend.CreateTexture(url, null).then((tex)=>{
+        this._owner.backend.CreateTexture(url, []).then((tex)=>{
             this.imageUp={
                 name:url,
                 x1:0,
                 y1:0,
                 x2:tex._width,
                 y2:tex._height,
-                texture:tex
+                texture:tex,
+                scale:1,
             }
             this.imageHover=this.imageUp;
             this.imageDown=this.imageUp;
@@ -3679,28 +3749,28 @@ export class zlUIButton extends zlUIPanel
 
     isPaintButton:boolean=true;
 
-    boardDown:Board;
-    boardUp:Board;
-    boardHover:Board;
+    boardDown?:Board;
+    boardUp?:Board;
+    boardHover?:Board;
     colorDown:number=COL_COLORDOWN;
     colorUp:number=COL_COLOR;
     colorDisable:number=COL_COLORDISABLE;
     textColorDown:number=COL_TEXTCOLORHOVER;
     textColorUp:number=COL_TEXTCOLOR;
     textColorDisable:number=COL_TEXTCOLORDISABLE;
-    imageDown:TexturePack;
-    imageUp:TexturePack;
-    imageHover:TexturePack;
+    imageDown?:TexturePack;
+    imageUp?:TexturePack;
+    imageHover?:TexturePack;
 
-    colorDown4:number[];
-    colorUp4:number[];
+    colorDown4?:number[];
+    colorUp4?:number[];
 }
 
 export {zlUICheck as UICheck}
 
 export class zlUICheck extends zlUIButton
 {
-    on_check: ((this: zlUIWin, check: boolean) => any) | null; 
+    on_check?: ((this: zlUIWin, check: boolean) => any); 
 
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -3814,14 +3884,14 @@ export class zlUICheck extends zlUIButton
     isDrawCheck:boolean=true;
     checkmark_xy:Vec2=new Vec2;
     checkmark_max:Vec2=new Vec2;
-    check_text:string[];
+    check_text?:string[];
 }
 
 export {zlUICombo as UICombo}
 
 export class zlUICombo extends zlUIButton
 {
-    on_combo:(this:zlUIWin, obj:zlUICombo)=>any|null;
+    on_combo?:(this:zlUIWin, obj:zlUICombo)=>any;
 
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -3842,7 +3912,7 @@ export class zlUICombo extends zlUIButton
     {
         switch(name) {
         case "comboitems":
-            this.combo_items=toks.pop().split(/\s/g).filter(e=>e);
+            this.combo_items=toks.pop()?.split(/\s/g).filter(e=>e);
             break;
         case "combovalue":
             this.combo_value=Number.parseInt(toks[1]);
@@ -3900,8 +3970,12 @@ export class zlUICombo extends zlUIButton
 
     OnNotify():void {
         super.OnNotify();
+        if(!this.combo_items)
+            return;
         this._owner.PopupCombo(this, this.combo_items, this.max_popup_items, 
             this._screenRect.xy.x, this._screenRect.max.y, this.popup_w?this.popup_w:this.w, (inx)=>{
+                if(!this.combo_items)
+                    return;
                 if(this.combo_value==inx) {
                     this.SetText(this.combo_items[this.combo_value]);
                     return;
@@ -3919,7 +3993,7 @@ export class zlUICombo extends zlUIButton
         if(items) {
             this.combo_items=items;
         }
-        this.SetText((value>=0 && value <this.combo_items.length) ? this.combo_items[value]:"");
+        this.SetText((this.combo_items && value>=0 && value <this.combo_items.length) ? this.combo_items[value]:"");
         this.combo_value=value;
         if(on_combo) {
             this.on_combo=(obj)=>{on_combo(this.combo_value);};
@@ -3936,9 +4010,9 @@ export class zlUICombo extends zlUIButton
     }
 
     isDrawCombo:boolean=true;
-    combo_items:string[];
-    combo_value:number;
-    popup_w:number;
+    combo_items?:string[];
+    combo_value:number=-1;
+    popup_w:number=100;
     max_popup_items=12;
 
     arrow_xy:Vec2=new Vec2;
@@ -3961,7 +4035,7 @@ export {zlUISlider as UISlider}
 
 export class zlUISlider extends zlUIPanel
 {
-    on_scroll:((this:zlUIWin, value:number)=>any)|null
+    on_scroll?:((this:zlUIWin, value:number)=>any);
 
     ClearCallback(child:boolean):void {
         super.ClearCallback(child);
@@ -4095,12 +4169,12 @@ export class zlUISlider extends zlUIPanel
         
         if(this._owner.dom_input && this.HasChild(this._owner.notify) && old_value!=val)   {
             this._owner.dom_input.setVisible(false);
-            this._owner.dom_input=null;
+            this._owner.dom_input=undefined;
         }
         
     }
 
-    Refresh(ti:number, parent:zlUIWin=null):boolean 
+    Refresh(ti:number, parent?:zlUIWin):boolean 
     {
         if(this.IsChildSizeChange(true)) {
             this._is_scrollvalue_change=true;
@@ -4173,15 +4247,15 @@ export class zlUISlider extends zlUIPanel
             this.OnScrollValueChange(this.scroll_value);
         }
         if(!own.any_pointer_down)   {
-            own.slider=null;
+            own.slider=undefined;
         }
         return super.Refresh(ti, parent);
     }
 
     GetScrollType():ScrollType
     {
-        let isScrollH;
-        let isScrollW;
+        let isScrollH=false;
+        let isScrollW=false;
         switch(this.scrollType) {
         case ESliderType.eVertical:
             isScrollH=true;
@@ -4235,9 +4309,9 @@ export class zlUISlider extends zlUIPanel
 
     scrollType:ESliderType=ESliderType.eVertical;
     scrollbarColor:number=0x40c0c0c0;
-    scrollbarColor4:number[];
+    scrollbarColor4?:number[];
     scrollbarColorHover:number=0x80c0c0c0;
-    scrollbarColorHover4:number[];
+    scrollbarColorHover4?:number[];
     scroll_value:number=0;
     scroll_max:number=0;
     is_item_mode:boolean=false;
@@ -4248,9 +4322,9 @@ export class zlUISlider extends zlUIPanel
     _scrollWxy:Vec2=new Vec2;
     _scrollWxy2:Vec2=new Vec2;
 
-    _first_pos:Vec2;
-    _first_value:number;
-    _first_scrollbar:boolean;
+    _first_pos!:Vec2;
+    _first_value!:number;
+    _first_scrollbar!:boolean;
     _is_scrollvalue_change:boolean=false;
     _is_scrollbar_hover:boolean=false;
 }
@@ -4266,11 +4340,11 @@ export interface ImageFont
     uv2?:Vec2;
 }
 
-export function ParseImageFont(toks:string[], mgr:zlUIMgr):ImageFont
+export function ParseImageFont(toks:string[], mgr:zlUIMgr):ImageFont|undefined
 {
     let tex=mgr.GetTexture(toks[1]);
     if(!tex) {
-        return null;
+        return undefined;
     }
     if(!tex.uv1) {
         UpdateTexturePack(tex);
@@ -4313,7 +4387,9 @@ export class zlUIImageText extends zlUIWin
     {
         switch(name) {
         case "imagelist":
-            this.image_font.push(ParseImageFont(toks, this._owner));
+            let imfont=ParseImageFont(toks, this._owner)
+            if(imfont)
+                this.image_font.push(imfont);
             break;
         case "imagew": {
             let tex=this._owner.GetTexture(toks[1]);
@@ -4323,7 +4399,11 @@ export class zlUIImageText extends zlUIWin
             if(!tex.uv1) {
                 UpdateTexturePack(tex);
             }
-            let u=(tex.uv2.x-tex.uv1.x)/n;
+            let ux1=tex.uv1?tex.uv1.x:0;
+            let ux2=tex.uv2?tex.uv2.x:1;
+            let uy1=tex.uv1?tex.uv1.y:0;
+            let uy2=tex.uv2?tex.uv2.y:1;
+            let u=(ux2-ux1)/n;
             for(let i=0;i<n;i++) {
                 this.image_font.push({
                     width:w,
@@ -4331,8 +4411,8 @@ export class zlUIImageText extends zlUIWin
                     offset_x:0,
                     offset_y:0,
                     texture:tex,
-                    uv1:new Vec2(tex.uv1.x+u*i, tex.uv1.y),
-                    uv2:new Vec2(tex.uv1.x+u*(i+1), tex.uv2.y)
+                    uv1:new Vec2(ux1+u*i, uy1),
+                    uv2:new Vec2(ux1+u*(i+1), uy2)
                 })
             }
             break; }
@@ -4344,7 +4424,11 @@ export class zlUIImageText extends zlUIWin
             if(!tex.uv1) {
                 UpdateTexturePack(tex);
             }
-            let v=(tex.uv2.y-tex.uv1.y)/n;
+            let ux1=tex.uv1?tex.uv1.x:0;
+            let ux2=tex.uv2?tex.uv2.x:1;
+            let uy1=tex.uv1?tex.uv1.y:0;
+            let uy2=tex.uv2?tex.uv2.y:1;
+            let v=(uy2-uy1)/n;
             for(let i=0;i<n;i++) {
                 this.image_font.push({
                     width:w,
@@ -4352,8 +4436,8 @@ export class zlUIImageText extends zlUIWin
                     offset_x:0,
                     offset_y:0,
                     texture:tex,
-                    uv1:new Vec2(tex.uv1.x, tex.uv1.y+v*i),
-                    uv2:new Vec2(tex.uv2.x, tex.uv1.y+v*(i+1))
+                    uv1:new Vec2(ux1, uy1+v*i),
+                    uv2:new Vec2(ux2, uy1+v*(i+1))
                 })
             }
             break; }
@@ -4429,23 +4513,25 @@ export class zlUIImageText extends zlUIWin
         this.imageText=[];
         let tw=0;
         let th=0;
-        for(let c of this.text) {
-            let ascii=this.ascii[c];
-            if(ascii===undefined)
-                continue;
-            let imageFont=this.image_font[ascii];
-            if(!imageFont)
-                continue;
-            tw+=imageFont.width+this.font_space;
-            th=Math.max(th, imageFont.height);
+        if(this.text!==undefined) {
+            for(let c of this.text) {
+                let ascii=this.ascii[c];
+                if(ascii===undefined)
+                    continue;
+                let imageFont=this.image_font[ascii];
+                if(!imageFont)
+                    continue;
+                tw+=imageFont.width+this.font_space;
+                th=Math.max(th, imageFont.height);
 
-            this.imageText.push({
-                x:0,
-                y:0,
-                screenXY:new Vec2,
-                screenMax:new Vec2,
-                imageFont:imageFont,
-            })
+                this.imageText.push({
+                    x:0,
+                    y:0,
+                    screenXY:new Vec2,
+                    screenMax:new Vec2,
+                    imageFont:imageFont,
+                })
+            }
         }
         this.text_width=tw;
         this.text_height=th;
@@ -4474,15 +4560,125 @@ export class zlUIImageText extends zlUIWin
 
     set Text(text:string) { this.SetText(text);}
 
-    text:string;
+    text:string="";
     image_font:ImageFont[]=[];
     ascii:{[key:string]:number}={};
     font_space:number=0;
     textAnchor:Vec2=new Vec2(0.5, 0.5);
-    text_width:number;
-    text_height:number;
+    text_width:number=0;
+    text_height:number=0;
     color:number=0xffffffff;
-    imageText:ImageText[];
+    imageText?:ImageText[];
+}
+
+interface AniImage
+{
+    anchor:Vec2
+    offset:Vec2
+    size:Vec2
+    image:TexturePack
+}
+
+export {zlUIAni as UIAni}
+
+export class zlUIAni extends zlUIImage
+{
+    constructor(own:zlUIMgr)
+    {
+        super(own);
+        this._csid=zlUIAni.CSID;
+    }
+    static CSID="Ani";
+    static Create(own:zlUIMgr):zlUIWin {
+        return new zlUIAni(own);
+    }
+    static FRAME_RATE=30;
+    async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
+    {
+        switch(name) {
+        case "imagelist":
+            let img:AniImage={
+                image:this._owner.GetTexture(toks[1]),
+                size:new Vec2(Number.parseFloat(toks[2]), Number.parseFloat(toks[3])),
+                anchor:new Vec2(Number.parseFloat(toks[4]), Number.parseFloat(toks[5])),
+                offset:new Vec2
+            };
+            img.offset.Set(img.size.x*img.anchor.x, img.size.y*img.anchor.y);
+            this.imagelist.push(img);
+            this.image_end=this.imagelist.length-1;
+            break;
+        case "speed":
+            this.speed=Number.parseFloat(toks[1]);
+            break;
+        case "pos":
+            this.pos.Set(Number.parseFloat(toks[1]), Number.parseFloat(toks[2]));
+            break;
+        case "loop":
+            this.loop=Number.parseInt(toks[1]);
+            break;
+        default:
+            return await super.ParseCmd(name,toks,parser);
+        }
+        return true;
+    }
+
+    Copy(obj:zlUIWin):void
+    {
+        super.Copy(obj);
+        let o=obj as zlUIAni;
+        this.imagelist=Clone(o.imagelist);
+        this.speed=o.speed;
+        this.time=o.time;
+        this.loop=o.loop;
+        this.image_current=o.image_current;
+        this.image_start=o.image_start;
+        this.image_end=o.image_end;        
+    }
+
+    Refresh(ti:number, parent?:zlUIWin):boolean 
+    {
+        if(this.imagelist && this.speed !=0) {
+            this.time+=this.speed*ti;
+            let next=Math.floor(this.time);
+            if(next!=this.image_current) {
+                this.image_current=next;
+                if(this.image_current>this.image_end) {
+                    this.image_current=this.image_end;
+                    if(this.loop>0) {
+                        this.loop--;
+                        this.Rewind();
+                    }else if(this.loop<0) {
+                        this.Rewind();
+                    }
+                }
+                let image=this.imagelist[this.image_current];
+                if(!image) {
+                    console.error(this.image_current);
+                }
+                if(!image.image.uv1) {
+                    UpdateTexturePack(image.image);
+                }
+                // this.image=image.image;
+            }
+        }
+     
+        return super.Refresh(ti, parent);
+    }
+
+    Rewind()
+    {
+        this.time=this.image_start;
+        this.image_current=this.image_start;
+    }
+
+    pos:Vec2=new Vec2(0,0);
+    imagelist:AniImage[]=[];
+    speed:number=30;
+    time:number=0;
+    loop:number=-1;
+    image_current=0;
+    image_start=0;
+    image_end=0;
 }
 
 export {zlUITreeNode as UITreeNode}
@@ -4616,18 +4812,18 @@ export class zlUITreeNode extends zlUICheck
         this.tree.OnSelected(this);
         this.tree.CalTreeNode();
     }
-    GetTreeNode(name:string) :zlUITreeNode {
+    GetTreeNode(name:string) :zlUITreeNode|undefined {
         for(let tn of this.treenode) {
             if(tn.Name==name)
                 return tn;
             let ctn=tn.GetTreeNode(name);
             if(ctn) return ctn;
         }
-        return null;
+        return undefined;
     }
 
 
-    tree:zlUITree;
+    tree!:zlUITree;
     treenode:zlUITreeNode[]=[];
     treenodeOpen:zlUITreeNodeOpen;
     open:boolean=true;
@@ -4689,18 +4885,21 @@ export class zlUITree extends zlUISlider
          }
     }
 
-    GetTreeNode(name:string):zlUITreeNode {
+    GetTreeNode(name:string):zlUITreeNode|undefined {
         for(let tn of this.treenode){
             if(tn.Name==name)
                 return tn;
             let ctn=tn.GetTreeNode(name);
             if(ctn) return ctn;
         }
-        return null;
+        return undefined;
     }
 
     CalTreeNode():void
     {
+        if(!this.font) {
+            this.font=this._owner.GetFont(0);
+        }
         this.pChild=this.pChild.filter(e=>e._csid!="TreeNode");
 
         this.expandTreeNode=[];
@@ -4716,8 +4915,11 @@ export class zlUITree extends zlUISlider
                 tn.treenodeOpen.x+tn.treenodeOpen.w,
                 0
             );
-            if(!tn.h){
-                let font=this._owner.GetFont(tn.fontIndex);
+            if(!tn.font) {
+                tn.font=this.font;
+            }
+            if(!tn.h && tn.font){
+                let font=tn.font;
                 let text_height=font.size;
                 let text=tn.text?tn.text:"A";
                 let isReady = [false];
@@ -4744,7 +4946,7 @@ export class zlUITree extends zlUISlider
         let tn:zlUITreeNode=this.defaultTreeNode?
             this.defaultTreeNode.Clone() as zlUITreeNode:
             new zlUITreeNode(this._owner);
-        tn.fontIndex=this.fontIndex;
+        tn.font=this.font;
         tn.Name=text;
         tn.SetText(text);
         tn.tree=this;
@@ -4760,7 +4962,7 @@ export class zlUITree extends zlUISlider
 
     ExpandNodeList(tn:zlUITreeNode):void
     {
-        this.expandTreeNode.push(tn);
+        this.expandTreeNode?.push(tn);
         if(tn.open){
             for(let ch of tn.treenode) {
                 ch.depth=tn.depth+1;
@@ -4771,8 +4973,10 @@ export class zlUITree extends zlUISlider
     OnSelected(tn:zlUITreeNode):void
     {
         if(this.singleSelect && tn.isChecked) {
-            for(let nd of this.expandTreeNode){
-                nd.isChecked=false;
+            if(this.expandTreeNode) {
+                for(let nd of this.expandTreeNode){
+                    nd.isChecked=false;
+                }
             }
             tn.isChecked=true;
         }
@@ -4782,15 +4986,15 @@ export class zlUITree extends zlUISlider
     singleSelect:boolean=true;
     treenode:zlUITreeNode[]=[];
     treenodeChange:boolean=false;
-    expandTreeNode:zlUITreeNode[];
-    defaultTreeNode:zlUITreeNode=null;
+    expandTreeNode?:zlUITreeNode[];
+    defaultTreeNode?:zlUITreeNode;
 }
 
 export {zlUILabelEdit as UILabelEdit}
 
 export class zlUILabelEdit extends zlUIPanel
 {
-    on_edit:(value:any[])=>void;
+    on_edit?:(value:any[])=>void;
 
     constructor(own:zlUIMgr) {
         super(own);
@@ -4932,7 +5136,7 @@ export class zlUILabelEdit extends zlUIPanel
     }
 
     CalRect(parent: zlUIWin): void {
-        let label:zlUIPanel=this.ui_label;
+        let label:zlUIPanel|undefined=this.ui_label;
         if(label === undefined) {
             label=this.CreateUILabel();
             this.ui_label=label;
@@ -5070,7 +5274,7 @@ export class zlUILabelEdit extends zlUIPanel
     }
 
     SetValue(value:any, index:number) {
-        if(this.value[index] !== value) {
+        if(this.value && this.value[index] !== value && this.ui_value) {
             switch(this.type) {
             case 'check':
                 let chk=this.ui_value[index] as zlUICheck;
@@ -5081,8 +5285,10 @@ export class zlUILabelEdit extends zlUIPanel
                 combo.SetComboValue(value);
                 break;
             case 'range':
-                value=Math.min(value, this.range.max_value);
-                value=Math.max(value, this.range.min_value);
+                if(this.range) {
+                    value=Math.min(value, this.range.max_value);
+                    value=Math.max(value, this.range.min_value);
+                }
                 let range_edit=this.ui_value[index].pChild[0] as zlUIEdit;
                 range_edit.SetText(`${value}`);
                 let range_value=this.ui_value[index].pChild[1] as zlUIEdit;
@@ -5153,26 +5359,26 @@ export class zlUILabelEdit extends zlUIPanel
         this.Input(value, 'range', callback, label);
     }
 
-    ui_label:zlUIPanel;
-    ui_value:zlUIWin[];
+    ui_label?:zlUIPanel;
+    ui_value?:zlUIWin[];
 
-    default_label:zlUIPanel;    
-    default_edit:zlUIEdit;
-    default_check:zlUICheck;
-    default_combo:zlUICombo;
-    default_range:zlUIEdit;
+    default_label?:zlUIPanel;    
+    default_edit?:zlUIEdit;
+    default_check?:zlUICheck;
+    default_combo?:zlUICombo;
+    default_range?:zlUIEdit;
 
     label:string="";
     label_width:number=80;
     label_padding:number=5;
-    value:any[];
+    value?:any[];
     value_width:number=0;
     type:string="text";
 
     password:string="*";
     accept:string="*/*";
-    range:IRange;
-    items:string[];
+    range?:IRange;
+    items?:string[];
 }
 
 enum EEmitter
@@ -5272,16 +5478,18 @@ interface IForce
 
 interface IParticle
 {
-    pos?:Vec2
-    vec?:Vec2
-    color?:Vec4
-    life?:number
-    lifeEnd?:number
-    size?:number
-    rotate?:number
-    rotating?:number
-    mass?:number
+    loop:number
+    pos:Vec2
+    vec:Vec2
+    color:Vec4
+    life:number
+    lifeEnd:number
+    size:number
+    rotate:number
+    rotating:number
+    mass:number
     object?:zlUIWin
+    image?:TexturePack
 }
 
 export enum EParticleShape
@@ -5311,6 +5519,8 @@ interface IController
     speedVar:number
     life:number
     lifeVar:number
+    lifeStart:number
+    lifeStartVar:number
     dir:number
     dirVar:number
     size:number
@@ -5324,6 +5534,8 @@ interface IController
     color:Vec4[]
     shape:number
 }
+
+export {zlUIParticle as UIParticle}
 
 export class zlUIParticle extends zlUIWin
 {
@@ -5339,6 +5551,8 @@ export class zlUIParticle extends zlUIWin
             speedVar:100,
             life:1,
             lifeVar:1,
+            lifeStart:0,
+            lifeStartVar:1,
             dir:0,
             dirVar:6,
             size:10,
@@ -5362,7 +5576,11 @@ export class zlUIParticle extends zlUIWin
     {
         switch(name) {
         case "image":
-            this.image=this._owner.GetTexture(toks[1]);
+            let img=this._owner.GetTexture(toks[1]);
+            if(toks.length==4) {
+                img.scale=Number.parseFloat(toks[2]);
+            }
+            this.image.push(img);
             break;
         case "particlecount":
             this.controller.particleCount=Number.parseInt(toks[1]);
@@ -5384,6 +5602,12 @@ export class zlUIParticle extends zlUIWin
             break;
         case "lifevar":
             this.controller.lifeVar=Number.parseFloat(toks[1]);
+            break;
+        case "lifestart":
+            this.controller.lifeStart=Number.parseFloat(toks[1]);
+            break;
+        case "lifestartvar":
+            this.controller.lifeStartVar=Number.parseFloat(toks[1]);
             break;
         case "dir":
             this.controller.dir=Number.parseFloat(toks[1])*DEGTORAD;
@@ -5442,6 +5666,9 @@ export class zlUIParticle extends zlUIWin
         case "shape":
             this.controller.shape=ParseShape(toks[1]);
             break;
+        case "play":
+            this.Play(Number.parseInt(toks[1]));
+            break;
         default:
             return await super.ParseCmd(name, toks, parser);
         }
@@ -5469,19 +5696,26 @@ export class zlUIParticle extends zlUIWin
 
     InitParticle(pt:IParticle) {
         let ctl=this.controller;
-        pt.pos=new Vec2(this.w * Math.random(), this.h * Math.random());
+        pt.loop++;
+        pt.pos.Set(this.w * Math.random(), this.h * Math.random());
         pt.size=ctl.size+ctl.sizeVar*Math.random();
         pt.rotate=ctl.rotate+ctl.rotateVar*Math.random();
         pt.rotating=ctl.rotating+ctl.rotatingVar*Math.random();
         pt.mass=ctl.mass+ctl.massVar*Math.random();
         let rot=ctl.dir+ctl.dirVar*(Math.random()-0.5);
-        pt.vec=new Vec2(Math.cos(rot), Math.sin(rot));
+        pt.vec.Set(Math.cos(rot), Math.sin(rot));
         let speed=ctl.speed+ctl.speedVar*Math.random();
         pt.vec.x*=speed;
         pt.vec.y*=speed;
-        pt.life=this.loop<0? -ctl.lifeVar*Math.random():0;
+        pt.life=ctl.lifeStart+ctl.lifeStartVar*Math.random();
         pt.lifeEnd=ctl.life+ctl.lifeVar*Math.random();
-        pt.color=new Vec4(1,1,1,1);
+        pt.color.Set(1,1,1,1);
+        if(ctl.color.length>0) {
+            let c=ctl.color[0];
+            pt.color.Set(c.x,c.y,c.z,c.w);
+        }
+        let imageinx=Math.floor(Math.random()*this.image.length)
+        pt.image=this.image[imageinx%this.image.length];
         if(ctl.timeStart<0) {
             pt.pos.x+=pt.vec.x*ctl.timeStart;
             pt.pos.y+=pt.vec.y*ctl.timeStart;
@@ -5493,15 +5727,38 @@ export class zlUIParticle extends zlUIWin
         }
     }
 
+    Play(loop:number) {
+        this.loop=loop;
+        while(this.particle.length<this.controller.particleCount) {
+            this.particle.push({
+                loop:0,
+                pos:new Vec2,
+                vec:new Vec2,
+                size:0,
+                rotate:0,
+                rotating:0,
+                mass:0,
+                life:0,
+                lifeEnd:0,
+                color:new Vec4,
+            });
+        }
+        for(let pt of this.particle) {
+            pt.loop=0;
+            this.InitParticle(pt);
+        }
+    }
+
     Refresh(ti:number, parent?:zlUIWin):boolean 
     {        
         this.time+=ti;
+    
         if(this.time>=this.controller.timeStart) {
-            while(this.particle.length<this.controller.particleCount) {
-                let pt:IParticle={};
-                this.InitParticle(pt);
-                this.particle.push(pt);
-            }
+            // while(this.particle.length<this.controller.particleCount) {
+            //     let pt:IParticle={loop:0};
+            //     this.InitParticle(pt);
+            //     this.particle.push(pt);
+            // }
             for(let pt of this.particle) {
                 pt.life+=ti;
                 if(pt.object) {
@@ -5607,8 +5864,13 @@ export class zlUIParticle extends zlUIWin
                     if(this.controller.color.length>0) {
                         let fr=pt.life*(this.controller.color.length-1)/pt.lifeEnd;
                         let inx=Math.floor(fr);
-                        if(inx>=this.controller.color.length-1) {
-                            pt.color=this.controller.color[this.controller.color.length-1];
+                        if(inx<0) {
+                            let c=this.controller.color[0];
+                            pt.color.Set(c.x,c.y,c.z,c.w);
+                        }
+                        else if(inx>=this.controller.color.length-1) {
+                            let c=this.controller.color[this.controller.color.length-1];
+                            pt.color.Set(c.x,c.y,c.z,c.w);
                         }else {
                             fr=fr-inx;
                             pt.color.Lerp(this.controller.color[inx],this.controller.color[inx+1], fr);
@@ -5618,32 +5880,22 @@ export class zlUIParticle extends zlUIWin
                         }
                     }
 
-                }else if(this.loop!=0) {
+                }else if(this.loop<0 || (this.loop>0 && pt.loop<this.loop)) {
                     this.InitParticle(pt);
                 }
             }
-
-            if(this.time>=this.controller.timeEnd) {
-                if(this.loop>0) {
-                    this.time=this.controller.timeStart;
-                    this.loop--;
-                }else {
-                    this.time=this.controller.timeStart;
-                }
-            }
         }
-
         return super.Refresh(ti, parent);
     }
 
-    emitter:Emitter;
+    emitter?:Emitter;
     controller:IController;
     force:IForce[]=[];
     particle:IParticle[]=[];
     blend:IBlend=Clone(BLEND_ADD);
 
-    image:TexturePack;
-    source:zlUIWin;
+    image:TexturePack[]=[];
+    source?:zlUIWin;
     time:number = 0;
     loop:number = -1;
 }
@@ -5658,15 +5910,26 @@ function GetFirstDayOfMonth(year:number, month:number):number
     let d=new Date(year, month, 1);
     return d.getDay();    
 }
+
+function PadStart(s:string, n:number, char:string):string
+{
+    while(s.length<n) {
+        s=char+s;
+    }
+    return s;
+}
+
 function DateFormat(date:string):string
 {
     let d=new Date(date);
-    return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    let month_str=PadStart(`${d.getMonth()+1}`,2, "0");
+    let date_str=PadStart(`${d.getDate()}`, 2, "0");
+    return `${d.getFullYear()}-${month_str}-${date_str}`;
 }
 
 export class zlUIDatePicker extends zlUIPanel
 {
-    on_date:(date:string)=>void;
+    on_date?:(date:string)=>void;
 
     constructor(own:zlUIMgr) {
         super(own);
@@ -5840,7 +6103,9 @@ export class zlUIDatePicker extends zlUIPanel
         if(this.date.getFullYear()==year && this.date.getMonth()==month) {
             day=this.date.getDate();
         }
-        this.ed_year_month.SetText(`${year}-${(month+1).toString().padStart(2, '0')}`);
+        let month_str=`${month+1}`;
+        if(month_str.length==1) month_str="0"+month_str;
+        this.ed_year_month.SetText(`${year}-${month_str}`);
         let first_day=GetFirstDayOfMonth(year, month);
         let days=DayOfMonth[month];
         if(month==1 && IsLeapYear(year)) {
@@ -5875,7 +6140,7 @@ export class zlUIDatePicker extends zlUIPanel
     btn_month_right:zlUIButton;
     btn_day:zlUIButton[];
 
-    date:Date;
+    date!:Date;
 }
 
 export {zlUIDatePicker as UIDatePicker}
@@ -5910,7 +6175,9 @@ export class zlTexturePack
         switch(name) {
         case 'image':
             this.current=await this.owner.backend.CreateTexture(
-                this.owner.path + toks[1], toks).then(r=>{return r;})
+                this.owner.path + toks[1], toks).then(r=>{
+                    return r;
+                })
             this.textures.push(this.current);
             break;
         case 'subimage':
@@ -5921,7 +6188,8 @@ export class zlTexturePack
                 y1:Number.parseInt(toks[3]),
                 x2:Number.parseInt(toks[4]),
                 y2:Number.parseInt(toks[5]),
-                texture:this.current
+                texture:this.current,
+                scale:1,
             }
             break;
         }
@@ -5941,14 +6209,15 @@ export class zlTexturePack
             y2:current._height,
             uv1:Vec2.ZERO,
             uv2:Vec2.ONE,
-            texture:current
+            texture:current,
+            scale:1,
         };
         this.current=current;
         return current;
     }
 
     owner:zlUIMgr;
-    current:ITexture;
+    current!:ITexture;
     cache:{[key:string]:TexturePack}={}
     textures:ITexture[]=[];
 }
@@ -6095,7 +6364,7 @@ export class zlTrack
                 pos:new Vec2(
                     Number.parseFloat(toks[2]),
                     Number.parseFloat(toks[3]),
-                )
+                ),
             });
             break;
         case "setrect":
@@ -6108,7 +6377,7 @@ export class zlTrack
                     Number.parseFloat(toks[3]),
                     Number.parseFloat(toks[4]),
                     Number.parseFloat(toks[5]),
-                )
+                ),
             })
             break;
         case "setwidth":
@@ -6514,33 +6783,43 @@ export class zlTrack
 
     Refresh(ti:number):boolean
     {
-        let toDelete:number[];
+        let toDelete:number[]=[];
         let i;
         for(i=0;i<this.wait_cmd.length;i++) {
             let cmd=this.wait_cmd[i];
             if(this.time<cmd.time_from)
                 continue;
+            if(!this.object) {
+                toDelete.push(i);
+                continue;
+            }
             let obj=this.object;
-            let t=cmd.period>0?(this.time-cmd.time_from)/cmd.period:0;
+            let t=(cmd.period && cmd.period>0)?(this.time-cmd.time_from)/cmd.period:0;
             switch(cmd.cmd) {
             case ETrackCmd.SetPos:
-                obj.x=cmd.pos.x;
-                obj.y=cmd.pos.y;
+                if(cmd.pos) {
+                    obj.x=cmd.pos.x;
+                    obj.y=cmd.pos.y;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.SetRect:
-                obj.x=cmd.rect.x;
-                obj.y=cmd.rect.y;
-                obj.w=cmd.rect.z-cmd.rect.x;
-                obj.h=cmd.rect.w-cmd.rect.y;
+                if(cmd.rect) {
+                    obj.x=cmd.rect.x;
+                    obj.y=cmd.rect.y;
+                    obj.w=cmd.rect.z-cmd.rect.x;
+                    obj.h=cmd.rect.w-cmd.rect.y;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.SetWidth:
-                obj.w=cmd.wh.x;
+                if(cmd.wh)
+                    obj.w=cmd.wh.x;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.SetHeight:
-                obj.h=cmd.wh.y;
+                if(cmd.wh)
+                    obj.h=cmd.wh.y;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.Move:
@@ -6548,23 +6827,32 @@ export class zlTrack
                     cmd.isInit=true;
                     cmd.initData={pos:new Vec2(obj.x,obj.y)}
                 }
-                obj.x=cmd.initData.pos.x+(cmd.pos.x-cmd.initData.pos.x)*t;
-                obj.y=cmd.initData.pos.y+(cmd.pos.y-cmd.initData.pos.y)*t;
+                if(cmd.initData && cmd.initData.pos && cmd.pos) {
+                    obj.x=cmd.initData.pos.x+(cmd.pos.x-cmd.initData.pos.x)*t;
+                    obj.y=cmd.initData.pos.y+(cmd.pos.y-cmd.initData.pos.y)*t;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.MoveLerp:
-                obj.x+=(cmd.pos.x-obj.x)*cmd.speed*ti;
-                obj.y+=(cmd.pos.y-obj.y)*cmd.speed*ti;
+                if(cmd.pos && cmd.speed) {
+                    obj.x+=(cmd.pos.x-obj.x)*cmd.speed*ti;
+                    obj.y+=(cmd.pos.y-obj.y)*cmd.speed*ti;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.MoveBezier: {
-                let p=cmd.bezier.GetPoint(t);
-                obj.x=p.x;
-                obj.y=p.y;
+                if(cmd.bezier) {
+                    let p=cmd.bezier.GetPoint(t);
+                    if(p) {
+                        obj.x=p.x;
+                        obj.y=p.y;
+                    }
+                }
                 obj.SetCalRect();
                 break; }
             case ETrackCmd.SetX:
-                obj.x=cmd.pos.x;
+                if(cmd.pos)
+                    obj.x=cmd.pos.x;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.MoveX:
@@ -6572,15 +6860,18 @@ export class zlTrack
                     cmd.isInit=true;
                     cmd.initData={pos:new Vec2(obj.x,obj.y)}
                 }
-                obj.x=cmd.initData.pos.x+(cmd.pos.x-cmd.initData.pos.x)*t;
+                if(cmd.initData?.pos && cmd.pos)
+                    obj.x=cmd.initData.pos.x+(cmd.pos.x-cmd.initData.pos.x)*t;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.MoveXLerp:
-                obj.x+=(cmd.pos.x-obj.x)*cmd.speed*ti;
+                if(cmd.pos && cmd.speed)
+                    obj.x+=(cmd.pos.x-obj.x)*cmd.speed*ti;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.SetY:
-                obj.y=cmd.pos.y;
+                if(cmd.pos)
+                    obj.y=cmd.pos.y;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.MoveY:
@@ -6588,15 +6879,19 @@ export class zlTrack
                     cmd.isInit=true;
                     cmd.initData={pos:new Vec2(obj.x,obj.y)}
                 }
-                obj.y=cmd.initData.pos.y+(cmd.pos.y-cmd.initData.pos.y)*t;
+                if(cmd.initData?.pos && cmd.pos) {
+                    obj.y=cmd.initData.pos.y+(cmd.pos.y-cmd.initData.pos.y)*t;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.MoveYLerp:
-                obj.y+=(cmd.pos.y-obj.y)*cmd.speed*ti;
+                if(cmd.pos && cmd.speed)
+                    obj.y+=(cmd.pos.y-obj.y)*cmd.speed*ti;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.SetScale:
-                obj.scale=cmd.scale;
+                if(cmd.scale)
+                    obj.scale=cmd.scale;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.Scale:
@@ -6604,28 +6899,38 @@ export class zlTrack
                     cmd.isInit=true;
                     cmd.initData={scale:obj.scale}
                 }
-                obj.scale=cmd.initData.scale+(cmd.scale-cmd.initData.scale)*t;
+                if(cmd.initData?.scale && cmd.scale) {
+                    obj.scale=cmd.initData.scale+(cmd.scale-cmd.initData.scale)*t;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.ScaleLerp:
-                obj.scale+=(cmd.scale-obj.scale)*cmd.speed*ti;
+                if(cmd.scale && cmd.speed) {
+                    obj.scale+=(cmd.scale-obj.scale)*cmd.speed*ti;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.Image:
-                obj.SetImage(cmd.image);
+                if(cmd.image)
+                    obj.SetImage(cmd.image);
                 break;
             case ETrackCmd.SetAlpha:
-                obj.SetLocalAlpha(cmd.alpha);
+                if(cmd.alpha)
+                    obj.SetLocalAlpha(cmd.alpha);
                 break;
             case ETrackCmd.Alpha:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
                     cmd.initData={alpha:obj.alpha_local}
                 }
-                obj.SetLocalAlpha(cmd.initData.alpha+(cmd.alpha-cmd.initData.alpha)*t);
+                if(cmd.initData?.alpha && cmd.alpha) {
+                    obj.SetLocalAlpha(cmd.initData.alpha+(cmd.alpha-cmd.initData.alpha)*t);
+                }
                 break;
             case ETrackCmd.AlphaLerp:
-                obj.SetLocalAlpha(obj.alpha_local+(cmd.alpha-obj.alpha_local)*cmd.speed*ti);
+                if(cmd.alpha && cmd.speed) {
+                    obj.SetLocalAlpha(obj.alpha_local+(cmd.alpha-obj.alpha_local)*cmd.speed*ti);
+                }
                 break;
             case ETrackCmd.Hide:
                 obj.isVisible=false;
@@ -6640,7 +6945,8 @@ export class zlTrack
                 obj.FlipH();
                 break;
             case ETrackCmd.SetRotate:
-                obj.rotate=cmd.rotate;
+                if(cmd.rotate)
+                    obj.rotate=cmd.rotate;
                 obj.SetCalRect();
                 break;
             case ETrackCmd.Rotate:
@@ -6648,15 +6954,20 @@ export class zlTrack
                     cmd.isInit=true;
                     cmd.initData={rotate:obj.rotate}
                 }
-                obj.rotate=cmd.initData.rotate+(cmd.rotate-cmd.initData.rotate)*t;
+                if(cmd.initData?.rotate && cmd.rotate) {
+                    obj.rotate=cmd.initData.rotate+(cmd.rotate-cmd.initData.rotate)*t;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.RotateLerp:
-                obj.rotate+=(cmd.rotate-obj.rotate)*cmd.speed*ti;
+                if(cmd.rotate && cmd.speed) {
+                    obj.rotate+=(cmd.rotate-obj.rotate)*cmd.speed*ti;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.SetColor:
-                obj.Color=cmd.color;
+                if(cmd.color)
+                    obj.Color=cmd.color;
                 break;
             case ETrackCmd.Color: {
                 let c=obj.Color;
@@ -6664,55 +6975,68 @@ export class zlTrack
                     cmd.isInit=true;
                     cmd.initData={color:c}
                 }
-                c.x=cmd.initData.color.x+(cmd.color.x-cmd.initData.color.x)*t;
-                c.y=cmd.initData.color.y+(cmd.color.y-cmd.initData.color.y)*t;
-                c.z=cmd.initData.color.z+(cmd.color.z-cmd.initData.color.z)*t;
-                c.w=cmd.initData.color.w+(cmd.color.w-cmd.initData.color.w)*t;
-                obj.Color=c;
+                if(cmd.initData?.color && cmd.color) {
+                    c.x=cmd.initData.color.x+(cmd.color.x-cmd.initData.color.x)*t;
+                    c.y=cmd.initData.color.y+(cmd.color.y-cmd.initData.color.y)*t;
+                    c.z=cmd.initData.color.z+(cmd.color.z-cmd.initData.color.z)*t;
+                    c.w=cmd.initData.color.w+(cmd.color.w-cmd.initData.color.w)*t;
+                    obj.Color=c;
+                }
                 break; }
             case ETrackCmd.ColorLerp: {
-                let sp=cmd.speed*ti;
-                let c=obj.Color;
-                c.x+=(cmd.color.x-c.x)*sp;
-                c.y+=(cmd.color.y-c.y)*sp;
-                c.z+=(cmd.color.z-c.z)*sp;
-                c.w+=(cmd.color.w-c.w)*sp;
-                obj.Color=c;
+                if(cmd.speed && cmd.color) {
+                    let sp=cmd.speed*ti;
+                    let c=obj.Color;
+                    c.x+=(cmd.color.x-c.x)*sp;
+                    c.y+=(cmd.color.y-c.y)*sp;
+                    c.z+=(cmd.color.z-c.z)*sp;
+                    c.w+=(cmd.color.w-c.w)*sp;
+                    obj.Color=c;
+                }
                 break; }
             case ETrackCmd.SetTextColor:
-                obj.TextColor=cmd.color;
+                if(cmd.color)
+                    obj.TextColor=cmd.color;
                 break;
             case ETrackCmd.TextColor: {
-                let c=obj.Color;
+                let c=obj.TextColor;
                 if(!cmd.isInit) {
                     cmd.isInit=true;
                     cmd.initData={color:c}
                 }
-                c.x=cmd.initData.color.x+(cmd.color.x-cmd.initData.color.x)*t;
-                c.y=cmd.initData.color.y+(cmd.color.y-cmd.initData.color.y)*t;
-                c.z=cmd.initData.color.z+(cmd.color.z-cmd.initData.color.z)*t;
-                c.w=cmd.initData.color.w+(cmd.color.w-cmd.initData.color.w)*t;
-                obj.TextColor=c;
+                if(cmd.initData?.color && cmd.color) {
+                    c.x=cmd.initData.color.x+(cmd.color.x-cmd.initData.color.x)*t;
+                    c.y=cmd.initData.color.y+(cmd.color.y-cmd.initData.color.y)*t;
+                    c.z=cmd.initData.color.z+(cmd.color.z-cmd.initData.color.z)*t;
+                    c.w=cmd.initData.color.w+(cmd.color.w-cmd.initData.color.w)*t;
+                    obj.TextColor=c;
+                }
                 break; }
             case ETrackCmd.TextColorLerp: {
-                let sp=cmd.speed*ti;
-                let c=obj.Color;
-                c.x+=(cmd.color.x-c.x)*sp;
-                c.y+=(cmd.color.y-c.y)*sp;
-                c.z+=(cmd.color.z-c.z)*sp;
-                c.w+=(cmd.color.w-c.w)*sp;
-                obj.TextColor=c;
+                if(cmd.speed && cmd.color) {
+                    let sp=cmd.speed*ti;
+                    let c=obj.TextColor;
+                    c.x+=(cmd.color.x-c.x)*sp;
+                    c.y+=(cmd.color.y-c.y)*sp;
+                    c.z+=(cmd.color.z-c.z)*sp;
+                    c.w+=(cmd.color.w-c.w)*sp;
+                    obj.TextColor=c;
+                }
                 break; }
             case ETrackCmd.Width:
                 if(!cmd.isInit) {
                     cmd.isInit=true;
                     cmd.initData={wh:new Vec2(obj.w,obj.h)}
                 }
-                obj.w=cmd.initData.wh.x+(cmd.wh.x-cmd.initData.wh.x)*t;
+                if(cmd.initData?.wh && cmd.wh) {
+                    obj.w=cmd.initData.wh.x+(cmd.wh.x-cmd.initData.wh.x)*t;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.WidthLerp:
-                obj.w+=(cmd.wh.x-obj.w)*cmd.speed*ti;
+                if(cmd.wh && cmd.speed) {
+                    obj.w+=(cmd.wh.x-obj.w)*cmd.speed*ti;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.Height:
@@ -6720,18 +7044,24 @@ export class zlTrack
                     cmd.isInit=true;
                     cmd.initData={wh:new Vec2(obj.w,obj.h)}
                 }
-                obj.h=cmd.initData.wh.y+(cmd.wh.y-cmd.initData.wh.y)*t;
+                if(cmd.initData?.wh && cmd.wh) {
+                    obj.h=cmd.initData.wh.y+(cmd.wh.y-cmd.initData.wh.y)*t;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.HeightLerp:
-                obj.h+=(cmd.wh.y-obj.h)*cmd.speed*ti;
+                if(cmd.wh && cmd.speed) {
+                    obj.h+=(cmd.wh.y-obj.h)*cmd.speed*ti;
+                }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.PlayTrack:
-                obj._owner.PlayTrack(cmd.name, cmd.count, undefined);
+                if(cmd.name && cmd.count)
+                    obj._owner.PlayTrack(cmd.name, cmd.count, undefined);
                 break;
             case ETrackCmd.StopTrack:
-                obj._owner.StopTrack(cmd.name);
+                if(cmd.name)
+                    obj._owner.StopTrack(cmd.name);
                 break;
             case ETrackCmd.Enable:
                 obj.isDisable=false;
@@ -6740,7 +7070,8 @@ export class zlTrack
                 obj.isDisable=true;
                 break;
             case ETrackCmd.Text:
-                obj.SetText(cmd.text);
+                if(cmd.text)
+                    obj.SetText(cmd.text);
                 break;
             default:
                 console.log("TODO zlTrack", cmd);
@@ -6748,17 +7079,12 @@ export class zlTrack
             }
 
             if(this.time>cmd.time_to) {
-                if(!toDelete)   {
-                    toDelete=[];
-                }
                 toDelete.push(i);
             }
         }
-        if(toDelete) {
-            while(toDelete.length>0) {
-                i=toDelete.pop();
-                this.wait_cmd.splice(i,1);
-            }
+        while(toDelete.length>0) {
+            i=toDelete.pop() as number;
+            this.wait_cmd.splice(i,1);
         }
         this.time+=ti;
         if(this.time>this.period && this.wait_cmd.length==0) {
@@ -6773,20 +7099,20 @@ export class zlTrack
         return true;
     }
 
-    name:string;
+    name!:string;
     cmd:ITrackCmd[]=[];
     wait_cmd:ITrackCmd[]=[];
-    loop:number;
-    time:number;
-    period:number;
-    object:zlUIWin;
+    loop!:number;
+    time!:number;
+    period!:number;
+    object?:zlUIWin;
 }
 
 export {zlTrackGroup as TrackGroup}
 
 export class zlTrackGroup
 {
-    on_end:()=>void;
+    on_end?:()=>void;
 
     constructor(own:zlUIMgr)
     {
@@ -6863,7 +7189,7 @@ export class zlTrackGroup
     }
 
     _owner:zlUIMgr;
-    name:string;
+    name!:string;
     weight:number=1;
     is_play:boolean=false;
     track:zlTrack[]=[];
@@ -6896,7 +7222,7 @@ export class zlTrackMgr
         return parser.current;
     }
 
-    Play(name:string, loop:number, end:()=>void)
+    Play(name:string, loop:number, end?:()=>void)
     {
         let trk=this.track[name];
         trk.on_end=end;
@@ -6962,6 +7288,7 @@ export class zlUIMgr extends zlUIWin
         this.create_func['combo']=zlUICombo.Create;
         this.create_func['slider']=zlUISlider.Create;
         this.create_func['imagetext']=zlUIImageText.Create;
+        this.create_func['ani']=zlUIAni.Create;
         this.create_func['tree']=zlUITree.Create;
         this.create_func['labeledit']=zlUILabelEdit.Create;
         this.create_func['particle']=zlUIParticle.Create;
@@ -6975,12 +7302,12 @@ export class zlUIMgr extends zlUIWin
 
     static CSID="Mgr";
 
-    on_load: (file:string)=>any;
-    on_createui: ((this: zlUIWin, name: string) => any) | null; 
-    on_edit: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
-    on_popup_closed: ((this: zlUIWin, obj: zlUIWin) => any) | null; 
-    on_loadimage: (file:string)=>string;
-    on_track_end: (track:zlTrackGroup)=>void;
+    on_load?: (file:string)=>any;
+    on_createui?: ((this: zlUIWin, name: string) => any); 
+    on_edit?: ((this: zlUIWin, obj: zlUIWin) => any); 
+    on_popup_closed?: ((this: zlUIWin, obj: zlUIWin) => any); 
+    on_loadimage?: (file:string)=>string;
+    on_track_end?: (track:zlTrackGroup)=>void;
 
     async ParseCmd(name:string, toks:string[],parser:Parser):Promise<boolean>
     {
@@ -7007,23 +7334,25 @@ export class zlUIMgr extends zlUIWin
             await this.Load(toks[1], this.path);
             break;
         case "defaultcombomenu":
-            this.default_combo_menu=this.GetUI(toks[1]).Clone() as zlUISlider;
+            this.default_combo_menu=this.GetUI(toks[1])?.Clone() as zlUISlider;
             break;
         case "defaultcomboitem":
             this.default_combo_item=this.GetUI(toks[1]) as zlUIButton;
             break;
         case "defaulthintpanel":
-            this.default_hint_panel=this.GetUI(toks[1]).Clone() as zlUIPanel;
+            this.default_hint_panel=this.GetUI(toks[1])?.Clone() as zlUIPanel;
             this.default_hint_panel.isVisible=false;
             break;
         case "font":
             let id=Number.parseInt(toks[1]);
-            let font=this._owner.backend.CreateFont(toks[2].replace(/\\s/g," "), Number.parseInt(toks[3]), toks[4]);
+            let fontname=this.ReplaceFontName(toks[2].replace(/\\s/g," "));
+            let font=this._owner.backend.CreateFont(fontname, Number.parseInt(toks[3]), toks[4]);
             this.SetFont(id, font);
             break;
         case "mergefont": {
             let id=Number.parseInt(toks[1]);            
-            let font=this._owner.backend.CreateFont(toks[4].replace(/\\s/g," "), Number.parseInt(toks[5]), toks[6]);
+            let fontname=this.ReplaceFontName(toks[4].replace(/\\s/g," "));
+            let font=this._owner.backend.CreateFont(fontname, Number.parseInt(toks[5]), toks[6]);
             font.AddFontRange(ParseText(toks[2]).charCodeAt(0), ParseText(toks[3]).charCodeAt(0));
             this.fonts[id].MergeFont(font);
             break; }
@@ -7033,6 +7362,10 @@ export class zlUIMgr extends zlUIWin
             await fontface.load().then(r=>{console.log("FontFace load",r)})
             document.fonts.add(fontface);
             break; }
+        case "fontnamemap":
+            let param=toks[toks.length-1].split(":");
+            this.fontname_map[param[0]]=param[1];
+            break;
         case "playtrack":
             this.track.Play(toks[1], Number.parseInt(toks[2]), undefined);
             break;
@@ -7096,7 +7429,7 @@ export class zlUIMgr extends zlUIWin
         return tex;
     }
 
-    Create(name:string):zlUIWin
+    Create(name:string):zlUIWin|undefined
     {
         if(this.on_createui) {
             let obj=this.on_createui(name);
@@ -7342,6 +7675,40 @@ export class zlUIMgr extends zlUIWin
         }
         return this.backend.DefaultFont();
     }
+
+    ReplaceFontName(name:string) {
+        let find=this.fontname_map[name];
+        if(find) {
+            console.log(`CreateFont ${name} -> ${find}`);
+            name=find;
+        }
+        return name;
+    }
+
+    CreateFont(name:string, size:number, style:string):IFont {
+        name=this.ReplaceFontName(name);
+        let font=this.fonts.find(v=>v.name==name && v.size==size && v.style==style);
+        if(font) 
+            return font;        
+        font=this.backend.CreateFont(name, size, style);
+        this.fonts.push(font);
+        return font;
+    }
+
+    GetUI(name:string):zlUIWin|undefined {
+        let namelist=name.split(".");
+        if(namelist.length==1) {
+            return super.GetUI(name);
+        }
+        let o=super.GetUI(namelist[0]);
+        for(let i=1;i<namelist.length;i++) {
+            o=o?.GetUI(namelist[i]);
+            if(!o)
+                break;
+        }
+        return o;
+    }
+
     SetFont(id:number, font:IFont) {
         this.fonts[id]=font;
     }
@@ -7517,7 +7884,7 @@ export class zlUIMgr extends zlUIWin
     {
         return this.track.track[name];
     }
-    PlayTrack(name:string, loop:number, end:()=>void)
+    PlayTrack(name:string, loop:number, end?:()=>void)
     {
         this.track.Play(name,loop,end);
     }
@@ -7556,7 +7923,7 @@ export class zlUIMgr extends zlUIWin
         return this.default_hint_panel;
     }
 
-    get LastClipRect():Vec4
+    get LastClipRect():Vec4|undefined
     {
         if(this.clip_stack.length>0) {
             return this.clip_stack[this.clip_stack.length-1];
@@ -7568,37 +7935,38 @@ export class zlUIMgr extends zlUIWin
         return ++this.uid;
     }
 
-    path:string;
-    texture:zlTexturePack;
+    path:string="";
+    texture?:zlTexturePack;
     fonts:IFont[]=[];
-    notify:zlUIWin;
-    hover:zlUIWin;
-    drag:zlUIWin;
-    drag_x:number;
-    drag_y:number;
-    first_pos_x:number;
-    first_pos_y:number;
-    resizer:zlUIWin;
+    fontname_map:{[key:string]:string}={}
+    notify?:zlUIWin;
+    hover?:zlUIWin;
+    drag?:zlUIWin;
+    drag_x!:number;
+    drag_y!:number;
+    first_pos_x!:number;
+    first_pos_y!:number;
+    resizer?:zlUIWin;
 
-    drag_source:zlUIWin;
-    drag_drop:zlUIWin;
-    drag_over:zlUIWin;
+    drag_source?:zlUIWin;
+    drag_drop?:zlUIWin;
+    drag_over?:zlUIWin;
 
-    popup:zlUIWin;
-    popup_down_index:number;
+    popup?:zlUIWin;
+    popup_down_index?:number;
 
-    hover_slider:zlUIWin;
-    slider:zlUIWin;
+    hover_slider?:zlUIWin;
+    slider?:zlUIWin;
 
-    default_w:number;
-    default_h:number;
-    scale_mode:ScaleMode;
+    default_w!:number;
+    default_h!:number;
+    scale_mode?:ScaleMode;
 
-    default_combo_menu:zlUISlider;
-    default_combo_item:zlUIButton;
+    default_combo_menu?:zlUISlider;
+    default_combo_item?:zlUIButton;
     default_hint_panel:zlUIPanel;
 
-    combo:zlUIWin;
+    combo?:zlUIWin;
 
     prevDown:boolean=false;
     any_pointer_down:boolean=false;
@@ -7610,8 +7978,8 @@ export class zlUIMgr extends zlUIWin
     hint_pos:Vec2=new Vec2();
 
     default_panel_color:number=0xffebebeb;
-    dom_input:Input;
-    nextEdit:IEditable;
+    dom_input?:Input;
+    nextEdit?:IEditable;
 
     track:zlTrackMgr;
 
@@ -7620,10 +7988,10 @@ export class zlUIMgr extends zlUIWin
     refresh_count:number=0;
     calrect_count:number=0;
     paint_count:number=0;
-    calrect_object:string[];
+    calrect_object?:string[];
     isDirty:boolean=false;
 
-    backend:IBackend;
+    backend!:IBackend;
 
     create_func:{[key:string]:(own:zlUIMgr)=>zlUIWin};
     uid:number=0;
@@ -7677,7 +8045,7 @@ export class zlUIInspector
         this.tree=tree;
     }
 
-    InspectWin(ui:zlUIWin, parent:zlUITreeNode):void
+    InspectWin(ui:zlUIWin, parent?:zlUITreeNode):void
     {
         let obj=this.obj[ui._uid];
         if(obj === undefined) {

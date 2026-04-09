@@ -6,8 +6,9 @@
     "target": "es6",
     "allowJs": true,
     "sourceMap": true,
-    "moduleResolution": "Node",
-    "outDir": "./out"
+    "moduleResolution": "bundler",
+    "outDir": "./out",
+    "rootDir": "./"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules/**", "dist/**", "www/**"],

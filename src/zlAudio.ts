@@ -10,7 +10,9 @@ class zlAudioSource
         return (this.is_music?gAudio.volumnMusic:gAudio.volumnSound)*this.volumn;
     }
     updateGain() {
-        this.gain.gain.value=this.gainValue();
+        if(this.gain) {
+            this.gain.gain.value=this.gainValue();
+        }
     }
 
     async load(url:string):Promise<boolean> {
@@ -27,14 +29,14 @@ class zlAudioSource
     }
 
     play():boolean {
-        if(!this.source) {
+        if(!this.source && this.audio_ctx && this.gain) {
             let source=this.audio_ctx.createBufferSource();
             source.buffer=this.audio_buffer;
             source.connect(this.gain);
             this.gain.connect(this.audio_ctx.destination);
             this.source=source;
             this.gain.gain.value=this.gainValue();
-            this.source.onended=()=>{this.source=null;}
+            this.source.onended=()=>{this.source=undefined;}
             this.source.loop=this.is_music;
             this.source.start(0);
         }        
@@ -43,22 +45,22 @@ class zlAudioSource
     stop() {
         if(this.source) {
             this.source.stop();
-            this.source=null;
+            this.source=undefined;
         }
     }
 
     audio_ctx:AudioContext;
-    audio_buffer:AudioBuffer;
-    source:AudioBufferSourceNode;
-    gain:GainNode;
-    is_music:boolean;
+    audio_buffer:AudioBuffer|null=null;
+    source?:AudioBufferSourceNode;
+    gain?:GainNode;
+    is_music:boolean=false;
     volumn:number=1.0;
 }
 
 interface IFading
 {
     name:string
-    curtime?:number
+    curtime:number
     duration:number
     volumn_start:number
     volumn_end:number
@@ -80,13 +82,15 @@ class zlAudio
     destroy() {
         this.stopAll();
         this.sources={};
-        if(typeof this.audio_ctx.close !== 'undefined') {
+        if(typeof this.audio_ctx?.close !== 'undefined') {
             this.audio_ctx.close();
         }
-        this.audio_ctx=null;
+        this.audio_ctx=undefined;
     }
 
-    async load(name:string, url:string, is_music:boolean):Promise<zlAudioSource> {
+    async load(name:string, url:string, is_music:boolean):Promise<zlAudioSource|null> {
+        if(!this.audio_ctx)
+            return null;
         let source=new zlAudioSource(this.audio_ctx);
         let ret=await source.load(url);
         if(ret) {
@@ -97,10 +101,10 @@ class zlAudio
         return null;
     }
 
-    async loadMusic(name:string, url:string):Promise<zlAudioSource> {
+    async loadMusic(name:string, url:string):Promise<zlAudioSource|null> {
         return await this.load(name, url, true);
     }
-    async loadSound(name:string, url:string):Promise<zlAudioSource> {
+    async loadSound(name:string, url:string):Promise<zlAudioSource|null> {
         return await this.load(name, url, false);
     }
 
@@ -190,7 +194,7 @@ class zlAudio
     }
     
 
-    audio_ctx:AudioContext
+    audio_ctx?:AudioContext
     volumnMusic:number = 1.0;  //volumn range: 0 ~ 1.0
     volumnSound:number = 1.0;
     mute:boolean = false;

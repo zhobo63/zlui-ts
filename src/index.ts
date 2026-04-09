@@ -28,13 +28,17 @@ class App
 
     async initialize()
     {
-        this.inspector=new zlUIInspector(new zlUIMgr);
-        // this.inspector.mgr.w=400;
-        // this.inspector.mgr.h=600;
-        this.inspector.mgr.backend=new BackendDOM(document.getElementById("inspector"));
-        await this.inspector.mgr.Load("dark.ui", "res/");
-        await this.inspector.mgr.Load("button.ui", "res/");
-
+        let inspector=document.getElementById("inspector");
+        if(inspector) {
+            this.inspector=new zlUIInspector(new zlUIMgr);
+            // this.inspector.mgr.w=400;
+            // this.inspector.mgr.h=600;
+            this.inspector.mgr.backend=new BackendDOM(inspector);
+            await this.inspector.mgr.Load("dark.ui", "res/");
+            await this.inspector.mgr.Load("button.ui", "res/");
+            this.inspector.mgr.SetCalRect();
+            this.inspector.mgr.isDirty=true;
+        }
         this.ui=new zlUIMgr;
         this.ui.backend=new BackendImGui(ImGui.GetBackgroundDrawList());
         await this.ui.Load("main.ui", "res/");
@@ -56,14 +60,19 @@ class App
             return true;
         };
         let ed444=this.ui.GetUI("ed_treenode444");
-        ed444.on_drop=(obj:zlUIWin, drop:zlUIWin)=>{
-            obj.SetText(drop.Name);
-            return true;
-        };
+        if(ed444) {
+            ed444.on_drop=(obj:zlUIWin, drop:zlUIWin)=>{
+                if(drop.Name)
+                    obj.SetText(drop.Name);
+                return true;
+            };
+        }
     }
 
     mainLoop(time:number, drawlist:ImGui.DrawList)
     {
+        if(!this.ui)
+            return;
         let io=ImGui.GetIO();
         let ui=this.ui;
         ui.any_pointer_down=(!ImGui.GetHoveredWindow())?ImGui_Impl.any_pointerdown():false;
@@ -71,8 +80,8 @@ class App
         ui.mouse_wheel=io.MouseWheel;
         ui.Refresh(io.DeltaTime);
         ui.Paint();        
-        if(ui.track.is_play || ui.calrect_count>0) {
-            this.isDirty=true;
+        if(ui.calrect_count>0) {
+            ui.isDirty=true;
         }
         //this.isDirty=true;
         ImGui.Begin("Inspector");
@@ -93,31 +102,32 @@ class App
 
         ImGui.End();
 
-        this.inspector.mgr.any_pointer_down=ui.any_pointer_down;
-        this.inspector.Inspect(ui);
-        let r=this.inspector.mgr.Refresh(io.DeltaTime);
-        if(!r && this.inspector.mgr.isDirty) {
-            this.inspector.mgr.Paint();
+        if(this.inspector) {
+            this.inspector.mgr.any_pointer_down=ui.any_pointer_down;
+            this.inspector.Inspect(ui);
+            let r=this.inspector.mgr.Refresh(io.DeltaTime);
+            if(!r && this.inspector.mgr.isDirty) {
+                this.inspector.mgr.Paint();
+            }
         }
     }
 
     onResize(width:number, height:number)
     {
-        this.ui.w=width;
-        this.ui.h=height;
-        this.ui.SetCalRect();
+        if(this.ui) {
+            this.ui.w=width;
+            this.ui.h=height;
+            this.ui.SetCalRect();
+        }
     }
     onMessage(msg:any)
     {
         console.log(msg);
     }
 
-    isDirty: boolean = false;
-    ui:zlUIMgr;
-
-    default_font:ImGui.Font;
-
-    inspector:zlUIInspector;
+    ui?:zlUIMgr;
+    default_font?:ImGui.Font;
+    inspector?:zlUIInspector;
 }
     
 let app:App;
@@ -127,11 +137,10 @@ function _loop(time:number):void {
     let ti=(time-prevTime)*0.001;
     prevTime=time;
     lockTime+=ti;
-    if(lockTime<lockFps && !app.isDirty)  {
+    if(lockTime<lockFps && !app.ui?.isDirty)  {
         window.requestAnimationFrame(_loop);
         return;
     }
-    app.isDirty=false;
     lockTime=0;
 
     ImGui_Impl.NewFrame(time);
@@ -152,7 +161,8 @@ function _loop(time:number):void {
 
 function anyPointer(e:Event)
 {
-    app.isDirty=true;
+    if(app.ui)
+        app.ui.isDirty=true;
 }
 
 window.addEventListener('DOMContentLoaded', async () =>{
