@@ -1,4 +1,4 @@
-export const Version="0.1.66";
+export const Version="0.1.68";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -781,6 +781,15 @@ export class Mat2
         const m22 = this.m21 * m.m12 + this.m22 * m.m22;
         return new Mat2(m11, m12, m21, m22);
     }
+    Scale(s:IVec2): Mat2
+    {
+        const m11=this.m11*s.x;
+	    const m12=this.m21*s.y;
+	    const m21=this.m12*s.x;
+	    const m22=this.m22*s.y;
+        return new Mat2(m11, m12, m21, m22);
+    }
+    
     Transform(p: IVec2): Vec2
     {
         return new Vec2(
@@ -825,62 +834,103 @@ export class Transform
     Identity(): void {
         this.rotate.Identity();
         this.translate.Set(0, 0);
-        this.scale=1;
+        this.scale.Set(1,1);
     }
 
     Multiply(m: Transform): Transform {
         let tm=new Transform;
-        tm.scale = this.scale * m.scale;
-        tm.rotate = this.rotate.Multiply(m.rotate);
-        let t=this.rotate.Transform(m.translate);
-        tm.translate.x = this.translate.x + t.x * this.scale;
-        tm.translate.y = this.translate.y + t.y * this.scale;
+        this.MultiplyTo(m, tm);
         return tm;
     }
     Transform(point: Vec2): Vec2 {
-        let p=this.rotate.Transform(point);
-        p.x=p.x*this.scale+this.translate.x;
-        p.y=p.y*this.scale+this.translate.y;
-        return p;
+        let v=new Vec2;
+        this.TransformTo(point, v);
+        return v
     }
     Invert():Transform
     {
         let tm:Transform=new Transform;
-        tm.rotate=this.rotate.Transpose();
-        tm.scale = 1.0 / this.scale;
-        let t={x:-this.translate.x, y:-this.translate.y};
-        t=tm.rotate.Transform(t);
-        tm.translate.x = t.x*tm.scale;
-        tm.translate.y = t.y*tm.scale;
+        const a11 = this.rotate.m11 * this.scale.x;
+        const a12 = this.rotate.m21 * this.scale.y;
+        const a21 = this.rotate.m12 * this.scale.x;
+        const a22 = this.rotate.m22 * this.scale.y;
+        const det = a11 * a22 - a12 * a21;
+        if (det === 0) {
+            tm.Identity();
+            return tm;
+        }
+        const invDet = 1.0 / det;
+        const b11 = a22 * invDet;
+        const b12 = -a12 * invDet;
+        const b21 = -a21 * invDet;
+        const b22 = a11 * invDet;
+        tm.rotate.m11 = b11;
+        tm.rotate.m21 = b12;
+        tm.rotate.m12 = b21;
+        tm.rotate.m22 = b22;
+        tm.scale.Set(1, 1);
+        tm.translate.Set(-(b11 * this.translate.x + b12 * this.translate.y),
+                         -(b21 * this.translate.x + b22 * this.translate.y));
         return tm;
     }
 
-    MultiplyTo(other: Transform, target:Transform): void
+    MultiplyTo(m: Transform, target:Transform): void
     {
-        target.scale = this.scale * other.scale;
-        this.rotate.MultiplyTo(other.rotate, target.rotate);
-        this.rotate.TransformTo(other.translate, target.translate);
-        target.translate.x = this.translate.x + target.translate.x * this.scale;
-        target.translate.y = this.translate.y + target.translate.y * this.scale;
+        target.scale.x = this.scale.x * m.scale.x;
+        target.scale.y = this.scale.y * m.scale.y;
+        this.rotate.MultiplyTo(m.rotate, target.rotate);
+        const tx = m.translate.x * this.scale.x;
+        const ty = m.translate.y * this.scale.y;
+        target.translate.x = this.rotate.m11 * tx + this.rotate.m21 * ty + this.translate.x;
+        target.translate.y = this.rotate.m12 * tx + this.rotate.m22 * ty + this.translate.y;
     }
     TransformTo(point: Vec2, target: Vec2): void
     {
-        this.rotate.TransformTo(point, target);
-        target.x=target.x*this.scale+this.translate.x;
-        target.y=target.y*this.scale+this.translate.y;
+        const m11=this.rotate.m11*this.scale.x;
+	    const m12=this.rotate.m21*this.scale.y;
+	    const m21=this.rotate.m12*this.scale.x;
+	    const m22=this.rotate.m22*this.scale.y;
+        target.x=m11 * point.x + m12 * point.y+this.translate.x;
+        target.y=m21 * point.x + m22 * point.y+this.translate.y;
     }
-    InvertTo(target: Transform): void {
-        this.rotate.TransposeTo(target.rotate);
-        target.scale = 1.0 / this.scale;
-        target.translate.Set(-this.translate.x, -this.translate.y);
-        this.rotate.TransformTo(target.translate, target.translate);
-        target.translate.x = target.translate.x * this.scale;
-        target.translate.y = target.translate.y * this.scale;
+    InvertTo(tm: Transform): void {
+        const a11 = this.rotate.m11 * this.scale.x;
+        const a12 = this.rotate.m21 * this.scale.y;
+        const a21 = this.rotate.m12 * this.scale.x;
+        const a22 = this.rotate.m22 * this.scale.y;
+        const det = a11 * a22 - a12 * a21;
+        if (det === 0) {
+            tm.Identity();
+            return;
+        }
+        // Compute inverse matrix: L^{-1}
+        const invDet = 1.0 / det;
+        const inv_a11 = a22 * invDet;
+        const inv_a12 = -a12 * invDet;
+        const inv_a21 = -a21 * invDet;
+        const inv_a22 = a11 * invDet;
+
+        // Factor L^{-1} back into rotate * scale by extracting scale magnitudes
+        // inv_a_ij = rotate_inv.m_ij * scale_inv.x or scale_inv.y
+        const sx_inv = Math.sqrt(inv_a11 * inv_a11 + inv_a21 * inv_a21);
+        const sy_inv = Math.sqrt(inv_a12 * inv_a12 + inv_a22 * inv_a22);
+        
+        tm.scale.Set(sx_inv, sy_inv);
+        tm.rotate.m11 = inv_a11 / sx_inv;
+        tm.rotate.m21 = inv_a12 / sy_inv;
+        tm.rotate.m12 = inv_a21 / sx_inv;
+        tm.rotate.m22 = inv_a22 / sy_inv;
+        
+        // Compute inverse translation: -L^{-1} * translate
+        tm.translate.Set(
+            -(inv_a11 * this.translate.x + inv_a12 * this.translate.y),
+            -(inv_a21 * this.translate.x + inv_a22 * this.translate.y)
+        );
     }
 
     rotate:Mat2=new Mat2;
-    translate:Vec2=new Vec2;
-    scale:number=1;
+    translate:Vec2=new Vec2(0,0);
+    scale:Vec2=new Vec2(1,1);
 }
 
 export enum BoardType
@@ -1732,7 +1782,8 @@ export class zlUIWin
             this.origin.y=Number.parseFloat(toks[2]);
             break;
         case "scale":
-            this.scale=Number.parseFloat(toks[1]);
+            this.scale.x=Number.parseFloat(toks[1]);
+            this.scale.y=Number.parseFloat(toks[2]);
             break;
         case "rotate":
             this.rotate=Number.parseFloat(toks[1])*Math.PI/180.0;
@@ -1835,7 +1886,7 @@ export class zlUIWin
         this.alpha_local=obj.alpha_local;
         this.alpha_set=obj.alpha_set;
         this.rotate=obj.rotate;
-        this.scale=obj.scale;
+        this.scale=Clone(obj.scale);
         this.origin=Clone(obj.origin);
         this.dragType=obj.dragType;
         this.dropType=obj.dropType;
@@ -2649,7 +2700,7 @@ export class zlUIWin
     alpha:number=1;
 
     rotate:number=0;
-    scale:number=1;
+    scale:Vec2=new Vec2(1,1);
     origin:Vec2=new Vec2(0.5, 0.5);
 
     dragType?:number;
@@ -5757,7 +5808,7 @@ export class zlUIParticle extends zlUIWin
                     obj.x=pt.pos.x-hsize;
                     obj.y=pt.pos.y-hsize;
                     obj.rotate=pt.rotate;
-                    obj.scale=pt.size;
+                    obj.scale.Set(pt.size, pt.size);
                     obj.SetCalRect();
                     obj.Color=pt.color;
                 }
@@ -6230,6 +6281,12 @@ enum ETrackCmd
     SetScale,
     Scale,
     ScaleLerp,
+    SetScaleX,
+    ScaleX,
+    ScaleXLerp,
+    SetScaleY,
+    ScaleY,
+    ScaleYLerp,
     Image,
     SetAlpha,
     Alpha,
@@ -6274,7 +6331,7 @@ interface InitData
     wh?:Vec2;
     color?:Vec4;
     alpha?:number;
-    scale?:number;
+    scale?:Vec2;
     rotate?:number;
 }
 
@@ -6287,7 +6344,7 @@ interface ITrackCmd
     period?:number;
     pos?:Vec2;
     rotate?:number;
-    scale?:number;
+    scale?:Vec2;
     wh?:Vec2;
     rect?:Vec4;
     color?:Vec4;
@@ -6480,7 +6537,10 @@ export class zlTrack
                 cmd:ETrackCmd.SetScale,
                 time_from:time1,
                 time_to:time1,
-                scale:Number.parseFloat(toks[2])
+                scale:new Vec2(
+                    Number.parseFloat(toks[2]),
+                    Number.parseFloat(toks[3]),
+                )
             })
             break;
         case "scale":
@@ -6489,7 +6549,10 @@ export class zlTrack
                 cmd:ETrackCmd.Scale,
                 time_from:time1,
                 time_to:time2,
-                scale:Number.parseFloat(toks[3]),
+                scale:new Vec2(
+                    Number.parseFloat(toks[3]),
+                    Number.parseFloat(toks[4])
+                )
             })
             break;
         case "scalelerp":
@@ -6498,8 +6561,8 @@ export class zlTrack
                 cmd:ETrackCmd.ScaleLerp,
                 time_from:time1,
                 time_to:time2,
-                scale:Number.parseFloat(toks[3]),
-                speed:Number.parseFloat(toks[4])
+                scale:new Vec2(Number.parseFloat(toks[3]),Number.parseFloat(toks[4])),
+                speed:Number.parseFloat(toks[5])
             })
             break;
         case "image":
@@ -6880,7 +6943,7 @@ export class zlTrack
                 break;
             case ETrackCmd.SetScale:
                 if(cmd.scale)
-                    obj.scale=cmd.scale;
+                    obj.scale.Set(cmd.scale.x, cmd.scale.y);
                 obj.SetCalRect();
                 break;
             case ETrackCmd.Scale:
@@ -6889,13 +6952,15 @@ export class zlTrack
                     cmd.initData={scale:obj.scale}
                 }
                 if(cmd.initData?.scale && cmd.scale) {
-                    obj.scale=cmd.initData.scale+(cmd.scale-cmd.initData.scale)*t;
+                    obj.scale.x=cmd.initData.scale.x+(cmd.scale.x-cmd.initData.scale.x)*t;
+                    obj.scale.y=cmd.initData.scale.y+(cmd.scale.y-cmd.initData.scale.y)*t;
                 }
                 obj.SetCalRect();
                 break;
             case ETrackCmd.ScaleLerp:
                 if(cmd.scale && cmd.speed) {
-                    obj.scale+=(cmd.scale-obj.scale)*cmd.speed*ti;
+                    obj.scale.x+=(cmd.scale.x-obj.scale.x)*cmd.speed*ti;
+                    obj.scale.y+=(cmd.scale.y-obj.scale.y)*cmd.speed*ti;
                 }
                 obj.SetCalRect();
                 break;
@@ -7646,7 +7711,7 @@ export class zlUIMgr extends zlUIWin
                 this.x=0;
                 this.y=(h-this.h*scale)*0.5;
             }
-            this.scale=scale;
+            this.scale.Set(scale, scale);
             //super.Scale(scale);
             break;
         case ScaleMode.Stretch:

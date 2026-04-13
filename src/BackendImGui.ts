@@ -42,7 +42,7 @@ export function toImTransform(to:ImGui.Transform, m:Transform):ImGui.Transform
         m.rotate.m22
     )
     to.translate.Set(m.translate.x, m.translate.y);
-    to.scale=m.scale;
+    to.scale.Set(m.scale.x, m.scale.y);
     return to;
 }
 
@@ -1047,7 +1047,7 @@ export class BackendImGui implements IBackend
             break;
         }
         //console.log("LoadImage", url, tex);
-        return tex;
+        return tex as ITexture;
     }
 
     GetTexture(name: string): TexturePack {

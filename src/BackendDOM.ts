@@ -228,8 +228,8 @@ class PaintWin implements IPaint
 
     OnMouseMove(e:HTMLElement|null, obj:zlUIWin, _e:MouseEvent) {
         if(obj.isCanDrag && this.isDragging == obj._uid) {
-            obj.x=this.ox+(_e.x-this.ex)/obj._world.scale;
-            obj.y=this.oy+(_e.y-this.ey)/obj._world.scale;
+            obj.x=this.ox+(_e.x-this.ex)/obj._world.scale.x;
+            obj.y=this.oy+(_e.y-this.ey)/obj._world.scale.y;
             if(obj.draglimit) {
                 if((obj.draglimit.mode & EDragLimit.Left) && obj.x<obj.draglimit.x) {
                     obj.x=obj.draglimit.x;
@@ -259,8 +259,8 @@ class PaintWin implements IPaint
             ox=obj._owner.x;
             oy=obj._owner.y;
         }
-        let left=`${Math.floor(x*scale+ox)}px`;
-        let top=`${Math.floor(y*scale+oy)}px`;
+        let left=`${Math.floor(x*scale.x+ox)}px`;
+        let top=`${Math.floor(y*scale.y+oy)}px`;
         if(e) {
             e.style.left=left;
             e.style.top=top;
@@ -280,10 +280,10 @@ class PaintWin implements IPaint
         if(e.style.display != 'inline-block') {
             e.style.display='inline-block';
         }
-        let left=`${Math.floor(r.x*scale+ox)}px`;
-        let top=`${Math.floor(r.y*scale+oy)}px`;
-        let width=`${Math.floor(r.w*scale)}px`
-        let height=`${Math.floor(r.h*scale)}px`
+        let left=`${Math.floor(r.x*scale.x+ox)}px`;
+        let top=`${Math.floor(r.y*scale.y+oy)}px`;
+        let width=`${Math.floor(r.w*scale.x)}px`
+        let height=`${Math.floor(r.h*scale.y)}px`
         if(e.style.left != left) {
             e.style.left=left;
         }
@@ -318,8 +318,8 @@ class PaintWin implements IPaint
         }
         let scale=this.obj._world.scale;
         img.id=`img_${obj._uid}`;
-        img.width=obj.w*scale;
-        img.height=obj.h*scale;
+        img.width=obj.w*scale.x;
+        img.height=obj.h*scale.y;
         img.src=`${obj._owner.path}${image.name}`;
         return img;
     }
@@ -431,7 +431,7 @@ class PaintPanel extends PaintWin
         let label=document.getElementById(label_id) as HTMLLabelElement;
         if(this.has_label && obj.text && obj.text.length>0 && obj.font) {
             let font=obj.font;
-            let fontSize=Math.floor(font.size*obj._world.scale);
+            let fontSize=Math.floor(font.size*obj._world.scale.x);
             //let fontstyle=`${font.style} ${fontSize}px ${font.name}`;
             //e.style.font=fontstyle;
             e.style.fontSize=`${fontSize}px`;
@@ -511,7 +511,7 @@ class PaintPanel extends PaintWin
                     e.style.lineHeight='1.5';
                     break;
                 case 0.5:
-                    e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale)}px`;
+                    e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale.y)}px`;
                     break
                 case 1:
                     break;
@@ -536,7 +536,7 @@ class PaintPanel extends PaintWin
                 e.style.lineHeight='1.5';
                 break;
             case Align.Center:
-                e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale)}px`;
+                e.style.lineHeight=`${Math.floor(obj.h*obj._world.scale.y)}px`;
                 break;
             case Align.Down:
                 break;
@@ -656,7 +656,7 @@ class PaintCheck extends PaintButton
         let span=document.getElementById(this.SpanID()) as HTMLSpanElement;
         if(obj.text && obj.text.length>0 && obj.font) {
             let font=obj.font;
-            let fontSize=Math.floor(font.size*obj._world.scale);
+            let fontSize=Math.floor(font.size*obj._world.scale.x);
             //let fontstyle=`${font.style} ${fontSize}px ${font.name}`;
 
             if(!span) {
@@ -974,7 +974,7 @@ class PaintTree extends PaintSlider
         li.setAttribute('data-color', CSSrgba(tn.color, tn.alpha))
         let summary:HTMLElement;
         let details:HTMLDetailsElement;
-        li.style.lineHeight=`${Math.floor(tn.h*tn._world.scale)}px`;
+        li.style.lineHeight=`${Math.floor(tn.h*tn._world.scale.x)}px`;
         if(tn.treenode?.length>0) {
             details=document.createElement('details');
             details.open=tn.open;
@@ -1042,8 +1042,8 @@ class PaintImageText extends PaintWin
                 img.classList.add('Image');
                 img.style.position='absolute';
                 this.SetPosition(img, obj, im.x, im.y);
-                img.width=im.imageFont.width*scale;
-                img.height=im.imageFont.height*scale;
+                img.width=im.imageFont.width*scale.x;
+                img.height=im.imageFont.height*scale.y;
                 e.appendChild(img);
                 id++;
             }
@@ -1056,8 +1056,8 @@ class PaintImageText extends PaintWin
         for(let im of obj.imageText) {
             let img=document.getElementById(`img_${obj._uid}_${id}`) as HTMLImageElement;
             this.SetPosition(img, obj, im.x, im.y);
-            img.width=im.imageFont.width*scale;
-            img.height=im.imageFont.height*scale;
+            img.width=im.imageFont.width*scale.x;
+            img.height=im.imageFont.height*scale.y;
             id++;
         }
     }
