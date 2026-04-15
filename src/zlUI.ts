@@ -765,37 +765,30 @@ export class Mat2
     {
         return new Mat2(this.m11, this.m21, this.m12, this.m22);
     }
-    SetRotate(radius: number): Mat2 {
+    SetRotate(radius: number): void {
         const c=Math.cos(radius), s=Math.sin(radius);
         this.m11 = c;
-        this.m12 = -s;
-        this.m21 = s;
+        this.m12 = s;
+        this.m21 = -s;
         this.m22 = c;
-        return this;
     }
     Multiply(m: Mat2): Mat2
     {
-        const m11 = this.m11 * m.m11 + this.m12 * m.m21;
-        const m12 = this.m11 * m.m12 + this.m12 * m.m22;
-        const m21 = this.m21 * m.m11 + this.m22 * m.m21;
-        const m22 = this.m21 * m.m12 + this.m22 * m.m22;
-        return new Mat2(m11, m12, m21, m22);
+        let o=new Mat2;
+        this.MultiplyTo(m, o)
+        return o;
     }
     Scale(s:IVec2): Mat2
     {
-        const m11=this.m11*s.x;
-	    const m12=this.m21*s.y;
-	    const m21=this.m12*s.x;
-	    const m22=this.m22*s.y;
-        return new Mat2(m11, m12, m21, m22);
-    }
-    
+        let o=new Mat2;
+        this.ScaleTo(s, o);
+        return o;
+    }    
     Transform(p: IVec2): Vec2
     {
-        return new Vec2(
-            this.m11 * p.x + this.m12 * p.y,
-            this.m21 * p.x + this.m22 * p.y
-        );
+        let v=new Vec2;
+        this.TransformTo(p, v);
+        return v;
     }    
     TransposeTo(target:Mat2):void
     {
@@ -813,10 +806,15 @@ export class Mat2
     }
     TransformTo(p: IVec2, target: IVec2): void
     {
-        let px=p.x;
-        let py=p.y;
-        target.x=this.m11 * px + this.m12 * py;
-        target.y=this.m21 * px + this.m22 * py;
+        target.x=this.m11 * p.x + this.m12 * p.y;
+        target.y=this.m21 * p.x + this.m22 * p.y;
+    }
+    ScaleTo(s:IVec2, target:Mat2):void 
+    {
+        target.m11=this.m11*s.x;
+	    target.m12=this.m21*s.y;
+	    target.m21=this.m12*s.x;
+	    target.m22=this.m22*s.y;
     }
 
     m11:number=1.0;
@@ -850,27 +848,7 @@ export class Transform
     Invert():Transform
     {
         let tm:Transform=new Transform;
-        const a11 = this.rotate.m11 * this.scale.x;
-        const a12 = this.rotate.m21 * this.scale.y;
-        const a21 = this.rotate.m12 * this.scale.x;
-        const a22 = this.rotate.m22 * this.scale.y;
-        const det = a11 * a22 - a12 * a21;
-        if (det === 0) {
-            tm.Identity();
-            return tm;
-        }
-        const invDet = 1.0 / det;
-        const b11 = a22 * invDet;
-        const b12 = -a12 * invDet;
-        const b21 = -a21 * invDet;
-        const b22 = a11 * invDet;
-        tm.rotate.m11 = b11;
-        tm.rotate.m21 = b12;
-        tm.rotate.m12 = b21;
-        tm.rotate.m22 = b22;
-        tm.scale.Set(1, 1);
-        tm.translate.Set(-(b11 * this.translate.x + b12 * this.translate.y),
-                         -(b21 * this.translate.x + b22 * this.translate.y));
+        this.InvertTo(tm);
         return tm;
     }
 
@@ -6565,6 +6543,72 @@ export class zlTrack
                 speed:Number.parseFloat(toks[5])
             })
             break;
+        case "setscalex":
+            this.cmd.push({
+                cmd:ETrackCmd.SetScaleX,
+                time_from:time1,
+                time_to:time1,
+                scale:new Vec2(
+                    Number.parseFloat(toks[2]),
+                    1,
+                )
+            })
+            break;
+        case "scalex":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.ScaleX,
+                time_from:time1,
+                time_to:time2,
+                scale:new Vec2(
+                    Number.parseFloat(toks[3]),
+                    1
+                )
+            })
+            break;
+        case "scalexlerp":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.ScaleXLerp,
+                time_from:time1,
+                time_to:time2,
+                scale:new Vec2(Number.parseFloat(toks[3]),1),
+                speed:Number.parseFloat(toks[4])
+            })
+            break;
+        case "setscaley":
+            this.cmd.push({
+                cmd:ETrackCmd.SetScaleY,
+                time_from:time1,
+                time_to:time1,
+                scale:new Vec2(
+                    1,
+                    Number.parseFloat(toks[2]),
+                )
+            })
+            break;
+        case "scaley":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.ScaleY,
+                time_from:time1,
+                time_to:time2,
+                scale:new Vec2(
+                    1,
+                    Number.parseFloat(toks[3])
+                )
+            })
+            break;
+        case "scaleylerp":
+            time2=Number.parseFloat(toks[2])*TimeUint;
+            this.cmd.push({
+                cmd:ETrackCmd.ScaleYLerp,
+                time_from:time1,
+                time_to:time2,
+                scale:new Vec2(1,Number.parseFloat(toks[3])),
+                speed:Number.parseFloat(toks[4])
+            })
+            break;
         case "image":
             this.cmd.push({
                 cmd:ETrackCmd.Image,
@@ -6960,6 +7004,48 @@ export class zlTrack
             case ETrackCmd.ScaleLerp:
                 if(cmd.scale && cmd.speed) {
                     obj.scale.x+=(cmd.scale.x-obj.scale.x)*cmd.speed*ti;
+                    obj.scale.y+=(cmd.scale.y-obj.scale.y)*cmd.speed*ti;
+                }
+                obj.SetCalRect();
+                break;
+            case ETrackCmd.SetScaleX:
+                if(cmd.scale)
+                    obj.scale.x=cmd.scale.x;
+                obj.SetCalRect();
+                break;
+            case ETrackCmd.ScaleX:
+                if(!cmd.isInit) {
+                    cmd.isInit=true;
+                    cmd.initData={scale:obj.scale}
+                }
+                if(cmd.initData?.scale && cmd.scale) {
+                    obj.scale.x=cmd.initData.scale.x+(cmd.scale.x-cmd.initData.scale.x)*t;
+                }
+                obj.SetCalRect();
+                break;
+            case ETrackCmd.ScaleXLerp:
+                if(cmd.scale && cmd.speed) {
+                    obj.scale.x+=(cmd.scale.x-obj.scale.x)*cmd.speed*ti;
+                }
+                obj.SetCalRect();
+                break;
+            case ETrackCmd.SetScaleY:
+                if(cmd.scale)
+                    obj.scale.y=cmd.scale.y;
+                obj.SetCalRect();
+                break;
+            case ETrackCmd.ScaleY:
+                if(!cmd.isInit) {
+                    cmd.isInit=true;
+                    cmd.initData={scale:obj.scale}
+                }
+                if(cmd.initData?.scale && cmd.scale) {
+                    obj.scale.y=cmd.initData.scale.y+(cmd.scale.y-cmd.initData.scale.y)*t;
+                }
+                obj.SetCalRect();
+                break;
+            case ETrackCmd.ScaleYLerp:
+                if(cmd.scale && cmd.speed) {
                     obj.scale.y+=(cmd.scale.y-obj.scale.y)*cmd.speed*ti;
                 }
                 obj.SetCalRect();

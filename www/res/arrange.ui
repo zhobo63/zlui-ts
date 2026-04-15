@@ -16,6 +16,7 @@ Clone Panel
     //Sizable true
     Resize true
     ContentMargin 10 10
+    //Scale 0.5 1 
 
     Clone Panel
     {
