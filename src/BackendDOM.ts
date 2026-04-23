@@ -1,4 +1,4 @@
-import { Align, BoardType, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, ITexture, IVec2, Rect, RESIZEBAR_SIZE, TexturePack, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUIImage, zlUIImageText, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUIWin } from "./zlUI";
+import { Align, BoardType, EAnchor, EDragLimit, ESliderType, IBackend, IFont, IPaint, IShadow, IStroke, ITexture, IVec2, ParseColor, Rect, RESIZEBAR_SIZE, TexturePack, zlUIButton, zlUICheck, zlUICombo, zlUIDatePicker, zlUIEdit, zlUIImage, zlUIImageText, zlUILabelEdit, zlUIMgr, zlUIPanel, zlUISlider, zlUITree, zlUITreeNode, zlUIWin } from "./zlUI";
 
 function CSSrgba(c:number, alpha:number):string
 {
@@ -72,6 +72,8 @@ class FontDOM implements IFont
     name!:string;
     style!:string;
     size!:number;
+    stroke?: IStroke;
+    shadow?: IShadow;
 }
 
 interface RectDOM
@@ -223,6 +225,10 @@ class PaintWin implements IPaint
         }
     }
     PaintEnd() {
+
+    }
+
+    Notify() {
 
     }
 
@@ -437,7 +443,19 @@ class PaintPanel extends PaintWin
             e.style.fontSize=`${fontSize}px`;
             e.style.fontFamily=font.name;
             e.style.fontStyle=font.style;
-            
+
+            if(font.stroke) {
+                let px=`${font.stroke.width}px`;
+                let color=CSSrgba(font.stroke.color,1);
+                //e.style.textShadow=`-${px} -${px} 0 ${color}, ${px} -${px} 0 ${color}, -${px} ${px} 0 ${color},${px} ${px} 0 ${color}`;
+                e.style.webkitTextStroke=`${px} ${color}`;
+                e.style.paintOrder=`stroke fill`;
+            }
+            if(font.shadow) {
+                let px=`${font.shadow.offset}px`;
+                let color=CSSrgba(font.shadow.color,1);
+                e.style.textShadow=`${px} ${px} 0 ${color}`;
+            }            
             this.textAlign(e);
             if(!label) {
                 label=document.createElement('label') as HTMLLabelElement;
@@ -1123,11 +1141,13 @@ export class BackendDOM implements IBackend
         }
     }
 
-    CreateFont(name:string, size:number, style:string):IFont {
+    CreateFont(name:string, size:number, style:string, stroke?:IStroke, shadow?:IShadow):IFont {
         let font=new FontDOM;
         font.name=name;
         font.style=style;
         font.size=size;
+        font.stroke=stroke;
+        font.shadow=shadow;
         return font;
     }
     DefaultFont():IFont
@@ -1161,7 +1181,8 @@ export class BackendDOM implements IBackend
         paint.PaintEnd();
         paint.obj=undefined;
     }
-
+    Notify(obj:zlUIWin) {
+    }
     SetParent(obj: zlUIWin) {
         this.parent = obj;
     }

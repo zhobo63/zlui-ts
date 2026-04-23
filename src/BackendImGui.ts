@@ -1,7 +1,6 @@
 import { FetchImage, ImGui, ImGui_Impl, LoadImage } from "@zhobo63/imgui-ts";
-import { Board, BoardType, RESIZEBAR_SIZE, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit, BLEND_ALPHA, zlUIAni } from "./zlUI";
+import { Board, BoardType, RESIZEBAR_SIZE, ECornerFlags, EParticleShape, IBackend, IFont, IPaint, ITexture, IVec2, MultiplyAlpha, Rect, SetFLT_MAX, TexturePack, Transform, UIImage, UIMgr, UIPanel, UIWin, UpdateTexturePack, Use_Transform, Vec2, Vec4, zlUIButton, zlUICheck, zlUICombo, zlUIEdit, zlUIImage, zlUIImageText, zlUIMgr, zlUIPanel, zlUIParticle, zlUISlider, zlUITree, zlUITreeNode, zlUITreeNodeOpen, zlUIWin, zlUILabelEdit, BLEND_ALPHA, zlUIAni, IStroke, IShadow, to_cssrgb, EAnchor, Align, IDOMInput } from "./zlUI";
 import { ImDrawList } from "@zhobo63/imgui-ts/src/imgui";
-import { gl } from "@zhobo63/imgui-ts/src/imgui_impl";
 
 export let vec_a=new ImGui.Vec2;
 export let vec_b=new ImGui.Vec2;
@@ -393,6 +392,11 @@ export class PaintWin implements IPaint
 
     }
 
+    Notify() 
+    {
+
+    }
+
     get drawlist() {
         return this.backend.drawlist;
     }
@@ -537,6 +541,143 @@ export class PaintPanel extends PaintImage
     }
 }
 
+export class Input implements IDOMInput
+{
+    constructor(type:string)
+    {
+        let input:HTMLInputElement|HTMLTextAreaElement;
+        if(type=='textarea') {
+            input=document.createElement('textarea');
+            input.style.resize='none';
+            input.id='ginput_textarea';
+        }else {
+            input=document.createElement('input');
+            input.type=type;
+            input.id='ginput_text';
+        }
+        input.style.position='fixed';
+        input.style.top=0 + 'px';
+        input.style.left=0 + 'px';
+        input.style.borderWidth='0';
+        input.style.borderStyle='none';
+        input.style.zIndex='999';
+        //input.classList.add("Panel");
+        //input.value="123";
+
+        input.addEventListener('blur', (e)=>{this.onLostFocus(e)})
+        input.addEventListener('keydown', (e)=>{this.onKeydown(e as KeyboardEvent)})
+        input.onchange=(e)=>{
+            if(type=='file' && this.on_file) {                
+                let inp=input as HTMLInputElement;
+                if(inp.files)
+                    this.on_file(inp.files[0]);
+            }
+        }
+        input.onmousemove=(e)=>{
+            if(type=='range' && this.on_input) {
+                this.on_input(this._dom_input.value);    
+            }
+        }
+
+        document.body.appendChild(input);
+        this._dom_input=input;
+        this.setVisible(false);
+    }
+
+    on_input?: ((this: Input, text: string) => any); 
+    on_visible?: ((this: Input, visible: boolean) => any); 
+    on_file?: (file:File)=>void;
+
+    onLostFocus(e:Event)
+    {
+        if(this.on_input)   {
+            this.on_input(this._dom_input.value);
+        }
+        this.setVisible(false);        
+    }
+    onKeydown(e:KeyboardEvent)
+    {
+        if(e.key=="Tab")    {
+            this.isTab=true;
+            e.preventDefault();
+            this.setVisible(false);
+        }
+    }
+
+    public isMe(id:number):boolean {
+        return this.isVisible && this._id==id;
+    }
+
+    public get Text():string {
+        return this._dom_input.value;
+    }
+    public setRect(x:number, y:number, w:number, h:number)
+    {
+        let input=this._dom_input;
+        input.style.left=x + 'px';
+        input.style.top=y + 'px';
+        input.style.width=Math.floor(w) -5 + 'px';
+        input.style.height=Math.floor(h) -5 + 'px';
+    }
+    public setText(text:string, id:number, font:IFont)
+    {
+        this._id=id;
+        let input=this._dom_input;
+        input.style.font=font.CSS();
+        if(input.type!='file') {
+            input.value=text;
+        }
+        this.setVisible(true);
+    }
+    public setVisible(b:boolean)
+    {
+        let input=this._dom_input;
+        if(b) {
+            this.isTab=false;
+            input.style.display='inline-block';
+            input.focus();
+        }else {
+            input.style.display='none';
+        }
+        this.isVisible=b;
+        if(this.on_visible) {
+            this.on_visible(b);
+        }
+    }
+
+    _dom_input:HTMLInputElement|HTMLTextAreaElement;
+    _id!:number;
+    isVisible:boolean=false;
+    isTab:boolean=false;
+}
+
+function CSSTextAlign(obj:zlUIPanel):string {
+    let textAlign="";
+    if(obj.textAnchor && (obj.textAnchor.mode & EAnchor.X)) {
+        if(obj.textAnchor.x<0.25) {
+            textAlign="left";
+        }else if(obj.textAnchor.x>0.75) {
+            textAlign="right";
+        }else {
+            textAlign="center";
+        }
+    }else {
+        switch(obj.textAlignW) {
+        case Align.None:
+        case Align.Left:
+            textAlign="left";
+            break;
+        case Align.Center:
+            textAlign="center";
+            break;
+        case Align.Right:
+            textAlign="right";
+            break;
+        }
+    }
+    return textAlign;
+}
+
 export class PaintEdit extends PaintPanel
 {
     constructor(backend:BackendImGui)
@@ -592,6 +733,67 @@ export class PaintEdit extends PaintPanel
         }
     }
 
+    GetInput(type:string):Input
+    {
+        let inp=this._input[type];
+        if(!inp) {
+            inp=new Input(type);
+            this._input[type]=inp;
+        }
+        return inp;
+    }
+
+    Notify() 
+    {
+        let obj=this.obj as zlUIEdit;
+        let inp:Input;
+        let e:HTMLInputElement|HTMLTextAreaElement;
+        if(obj.isMultiline) {
+            inp=this.GetInput('textarea');
+            e=inp._dom_input as HTMLTextAreaElement;
+        }else {
+            inp=this.GetInput(obj.type);
+            e=inp._dom_input as HTMLInputElement;
+            e.accept=obj.accept;
+        }
+        let scale=obj._world.scale;
+        let font=obj.font?obj.font:obj._owner.GetFont(0);
+        inp.setText(obj.text, obj._uid, font);
+        e.style.font=`${font.style} ${Math.floor(font.size*scale.x)}px ${font.name}`;
+        e.style.backgroundColor=to_cssrgb(obj.color);
+        e.style.color=to_cssrgb(obj.textColor);
+        e.style.textAlign=CSSTextAlign(obj);
+        let xy=obj._screenRect.xy;
+        inp.setRect(xy.x,xy.y,obj.w*scale.x,obj.h*scale.y);
+        
+        e.oninput=(e)=>{
+            let text=inp._dom_input.value;
+			if(obj.on_before_edit)	{
+				text=obj.on_before_edit(text);
+				inp._dom_input.value=text;
+			}
+            if(obj.max_text_length&&obj.max_text_length>0)    {
+                text=text.slice(0,obj.max_text_length);
+            }
+            obj.SetText(text);            
+        };
+        inp.on_input=(e)=>{
+            obj.SetText(e);
+            if(obj.on_edit) {
+                obj.on_edit(obj);
+            }
+            if(obj._owner.on_edit) {
+                obj._owner.on_edit(obj);
+            }
+            if(inp.isTab) {
+                obj._owner.nextEdit=obj;
+            }
+        }
+        inp.on_file=obj.on_file;
+        obj._owner.dom_input=inp;
+    }
+
+    _input:{[key:string]:Input}={}
 }
 export class PaintButton extends PaintPanel
 {
@@ -1057,7 +1259,7 @@ export class BackendImGui implements IBackend
         };
     }
 
-    CreateFont(name: string, size: number, style: string):IFont
+    CreateFont(name: string, size: number, style: string, stroke?:IStroke, shadow?:IShadow):IFont
     {
         let font:ImFont=new ImFont;
         font.name=name;
@@ -1109,6 +1311,17 @@ export class BackendImGui implements IBackend
     SetParent(obj: zlUIWin) 
     {
         this.parent=obj;
+    }
+    Notify(obj: zlUIWin)
+    {
+        let paint=this.paint[obj._csid];
+        if(!paint) {
+            console.error("BackendImGui::Notify", obj._csid);
+            return;
+        }
+        paint.obj=obj;
+        paint.Notify();
+        paint.obj=undefined;
     }
 
     prev_mouse_pos:Vec2=new Vec2;

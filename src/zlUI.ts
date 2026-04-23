@@ -1,4 +1,4 @@
-export const Version="0.1.68";
+export const Version="0.1.70";
 
 export var Use_Transform=true;
 var FLT_MAX:number=Number.MAX_VALUE;
@@ -74,6 +74,7 @@ export interface IPaint
 {
     Paint:()=>void;
     PaintEnd:()=>void;
+    Notify:()=>void;
 
     obj?:zlUIWin;
 }
@@ -81,12 +82,13 @@ export interface IPaint
 export interface IBackend
 {
     CreateTexture:(url:string, toks:string[])=>Promise<ITexture>;
-    CreateFont:(name:string, size:number, style:string)=>IFont;
+    CreateFont:(name:string, size:number, style:string, stroke?:IStroke, shadow?:IShadow)=>IFont;
     DefaultFont:()=>IFont;
     PushClipRect:(rect:Rect)=>void;
     PopClipRect:()=>void;
     Paint:(obj:zlUIWin)=>void;
     PaintEnd:(obj:zlUIWin)=>void;
+    Notify:(obj:zlUIWin)=>void;
     SetParent:(obj:zlUIWin)=>void;
     GetTexture:(name:string)=>TexturePack;
 
@@ -102,6 +104,24 @@ export interface IShadow
 {
     offset:number
     color:number
+}
+
+function StrokeEqual(a?:IStroke, b?:IStroke):boolean {
+    if(a && b) {
+        return a.width==b.width && a.color==b.color;
+    }else if(!a && !b) {
+        return true;
+    }
+    return false;
+}
+
+function ShadowEqual(a?:IShadow, b?:IShadow):boolean {
+    if(a && b) {
+        return a.offset==b.offset && a.color==b.color;
+    }else if(!a && !b) {
+        return true;
+    }
+    return false;
 }
 
 export interface IFont
@@ -613,6 +633,13 @@ export class Vec2 implements IVec2
         this.x=x;
         this.y=y;
     }
+    Copy(v:IVec2) {
+        this.x=v.x;
+        this.y=v.y;
+    }
+    Clone(): Vec2 {
+        return new Vec2(this.x, this.y);
+    }
     Add(v:IVec2):IVec2
     {
         return {
@@ -692,6 +719,12 @@ export class Vec4 implements IVec4
         this.y=y;
         this.z=z;
         this.w=w;
+    }
+    Copy(v:IVec4) {
+        this.x=v.x;
+        this.y=v.y;
+        this.z=v.z;
+        this.w=v.w;
     }
 
     Lerp(v1:Vec4, v2:Vec4, f:number) {
@@ -833,6 +866,16 @@ export class Transform
         this.rotate.Identity();
         this.translate.Set(0, 0);
         this.scale.Set(1,1);
+    }
+    Copy(m:Transform) {
+        this.rotate.Copy(m.rotate);
+        this.translate.Copy(m.translate);
+        this.scale.Copy(m.scale);
+    }
+    Clone():Transform {
+        let m=new Transform;
+        m.Copy(this);
+        return m;
     }
 
     Multiply(m: Transform): Transform {
@@ -1259,7 +1302,13 @@ export function ParseBlend(name:string):number
 export function Clone(o:any):any
 {
     if(o) {
-        return JSON.parse(JSON.stringify(o));
+        if(typeof o === 'object') {
+            let c=Object.create(Object.getPrototypeOf(o));
+            Object.assign(c, o);
+            return c;
+        }
+        return structuredClone(o);
+        //return JSON.parse(JSON.stringify(o));
     }
     return undefined;
 }
@@ -1759,6 +1808,9 @@ export class zlUIWin
             this.origin.x=Number.parseFloat(toks[1]);
             this.origin.y=Number.parseFloat(toks[2]);
             break;
+        case "originoffset":
+            this.originOffset=new Vec2(Number.parseFloat(toks[1]),Number.parseFloat(toks[2]));
+            break;
         case "scale":
             this.scale.x=Number.parseFloat(toks[1]);
             this.scale.y=Number.parseFloat(toks[2]);
@@ -1853,19 +1905,20 @@ export class zlUIWin
         this.anchor=Clone(obj.anchor);
         this.dock=Clone(obj.dock);
         this.dockOffset=Clone(obj.dockOffset);
-        this.offset=Clone(obj.offset);
+        this.offset.Copy(obj.offset);
         this.arrange=Clone(obj.arrange);
         this.autosize=obj.autosize;
         this.hint=obj.hint;
         this.draglimit=Clone(obj.draglimit);
-        this.margin=Clone(obj.margin);
-        this.content_margin=Clone(obj.content_margin);
+        this.margin.Copy(obj.margin);
+        this.content_margin.Copy(obj.content_margin);
         this.alpha=obj.alpha;
         this.alpha_local=obj.alpha_local;
         this.alpha_set=obj.alpha_set;
         this.rotate=obj.rotate;
-        this.scale=Clone(obj.scale);
-        this.origin=Clone(obj.origin);
+        this.scale.Copy(obj.scale);
+        this.origin.Copy(obj.origin);
+        this.originOffset=obj.originOffset?.Clone();
         this.dragType=obj.dragType;
         this.dropType=obj.dropType;
         this.css_style=Clone(obj.css_style);
@@ -2062,6 +2115,8 @@ export class zlUIWin
             if(parent.isCalRect)
                 return;
             let padding=parent.padding;
+            let pw=parent.w-padding-padding;
+            let ph=parent.h-padding-padding;
             let alignw=Align.None;
             let alignh=Align.None;
 
@@ -2131,7 +2186,6 @@ export class zlUIWin
             case Align.ParentWidth:
                 x1=padding;
                 x2=parent.w-padding;
-                this.w=x2-x1;
                 break;
             }
             switch(alignh) {
@@ -2150,26 +2204,23 @@ export class zlUIWin
             case Align.ParentHeight:
                 y1=padding;
                 y2=parent.h-padding;
-                this.h=y2-y1;
                 break;
             }
 
             if(this.anchor) {
                 let anchor=this.anchor;
                 if(anchor.mode&EAnchor.X) {
-                    x1=padding+(parent.w-padding-padding-this.w)*anchor.x;
+                    x1=padding+(pw-this.w)*anchor.x;
                     x2=x1+this.w;
                 }
                 if(anchor.mode&EAnchor.Y) {
-                    y1=padding+(parent.h-padding-padding-this.h)*anchor.y;
+                    y1=padding+(ph-this.h)*anchor.y;
                     y2=y1+this.h;
                 }
             }
             if(this.dock) {
                 let dock=this.dock;
                 let dockOffset=this.dockOffset?this.dockOffset:{x:0,y:0,z:0,w:0};
-                let pw=parent.w-padding-padding;
-                let ph=parent.h-padding-padding;
                 if(dock.mode&EDock.Left) {
                     x1=padding+pw*dock.x+dockOffset.x;
                 }
@@ -2210,8 +2261,8 @@ export class zlUIWin
             }    
         }
         if(Use_Transform) {
-            let ox=this.w*this.origin.x;
-            let oy=this.h*this.origin.y;
+            let ox=this.w*this.origin.x+((this.originOffset)?this.originOffset.x:0);
+            let oy=this.h*this.origin.y+((this.originOffset)?this.originOffset.y:0);
             let x=Math.round(-px+ox+x1+this.offset.x);
             let y=Math.round(-py+oy+y1+this.offset.y);
             this._local.translate.Set(x,y);
@@ -2680,6 +2731,7 @@ export class zlUIWin
     rotate:number=0;
     scale:Vec2=new Vec2(1,1);
     origin:Vec2=new Vec2(0.5, 0.5);
+    originOffset?:Vec2;
 
     dragType?:number;
     dropType?:number;
@@ -2821,6 +2873,8 @@ export function ParseFont(toks:string[], mgr:zlUIMgr):IFont
     let fontName=toks[1];
     let fontSize=0;
     let fontStyle="";
+    let stroke:IStroke|undefined=undefined;
+    let shadow:IShadow|undefined=undefined;
     for(let i=2;i<toks.length-1;i++) {
         let tok=toks[i];
         switch(tok) {
@@ -2831,6 +2885,20 @@ export function ParseFont(toks:string[], mgr:zlUIMgr):IFont
         case "style":
             fontStyle=toks[i+1];
             i++;
+            break;
+        case "stroke":
+            stroke={
+                width: Number.parseInt(toks[i+1]),
+                color: ParseColor(toks[i+2])
+            };
+            i+=2;
+            break;
+        case "shadow":
+            shadow={
+                offset: Number.parseInt(toks[i+1]),
+                color: ParseColor(toks[i+2])
+            };
+            i+=2;
             break;
         }
     }
@@ -2969,7 +3037,7 @@ export class zlUIPanel extends zlUIImage
         this.board=this.CloneBoard(o.board);
         this.drawBoard=o.drawBoard;
         this.textAnchor=Clone(o.textAnchor);
-        this.textoffset=Clone(o.textoffset);
+        this.textoffset=o.textoffset?.Clone();
         this.color4=Clone(o.color4);
         this.colorHover4=Clone(o.colorHover4);
     }
@@ -3214,179 +3282,9 @@ export class zlUIPanel extends zlUIImage
 
 export {zlUIEdit as UIEdit}
 
-export class Input
+export interface IDOMInput
 {
-    constructor(type:string)
-    {
-        let input:HTMLInputElement|HTMLTextAreaElement;
-        if(type=='textarea') {
-            input=document.createElement('textarea');
-            input.style.resize='none';
-            input.id='ginput_textarea';
-        }else {
-            input=document.createElement('input');
-            input.type=type;
-            input.id='ginput_text';
-        }
-        input.style.position='fixed';
-        input.style.top=0 + 'px';
-        input.style.left=0 + 'px';
-        input.style.borderWidth='0';
-        input.style.borderStyle='none';
-        input.style.zIndex='999';
-        //input.classList.add("Panel");
-        //input.value="123";
-
-        input.addEventListener('blur', (e)=>{this.onLostFocus(e)})
-        input.addEventListener('keydown', (e)=>{this.onKeydown(e as KeyboardEvent)})
-        input.onchange=(e)=>{
-            if(type=='file' && this.on_file) {                
-                let inp=input as HTMLInputElement;
-                if(inp.files)
-                    this.on_file(inp.files[0]);
-            }
-        }
-        input.onmousemove=(e)=>{
-            if(type=='range' && this.on_input) {
-                this.on_input(this._dom_input.value);    
-            }
-        }
-
-        document.body.appendChild(input);
-        this._dom_input=input;
-        this.setVisible(false);
-    }
-
-    on_input?: ((this: Input, text: string) => any); 
-    on_visible?: ((this: Input, visible: boolean) => any); 
-    on_file?: (file:File)=>void;
-
-    onLostFocus(e:Event)
-    {
-        if(this.on_input)   {
-            this.on_input(this._dom_input.value);
-        }
-        this.setVisible(false);        
-    }
-    onKeydown(e:KeyboardEvent)
-    {
-        if(e.key=="Tab")    {
-            this.isTab=true;
-            e.preventDefault();
-            this.setVisible(false);
-        }
-    }
-
-    public isMe(id:number):boolean {
-        return this.isVisible && this._id==id;
-    }
-
-    public get Text():string {
-        return this._dom_input.value;
-    }
-    public setRect(x:number, y:number, w:number, h:number)
-    {
-        let input=this._dom_input;
-        input.style.left=x + 'px';
-        input.style.top=y + 'px';
-        input.style.width=w -5 + 'px';
-        input.style.height=h -5 + 'px';
-    }
-    public setText(text:string, id:number, font:IFont)
-    {
-        this._id=id;
-        let input=this._dom_input;
-        input.style.font=font.CSS();
-        if(input.type!='file') {
-            input.value=text;
-        }
-        this.setVisible(true);
-    }
-    public setVisible(b:boolean)
-    {
-        let input=this._dom_input;
-        if(b) {
-            this.isTab=false;
-            input.style.display='inline-block';
-            input.focus();
-        }else {
-            input.style.display='none';
-        }
-        this.isVisible=b;
-        if(this.on_visible) {
-            this.on_visible(b);
-        }
-    }
-
-    _dom_input:HTMLInputElement|HTMLTextAreaElement;
-    _id!:number;
-    isVisible:boolean=false;
-    isTab:boolean=false;
-}
-
-let dom_input:{[key:string]:Input}={}
-
-function GetInput(type:string):Input
-{
-    let inp=dom_input[type];
-    if(!inp)    {
-        inp=new Input(type);
-        dom_input[type]=inp;
-    }
-    return inp;
-}
-
-function CSSTextAlign(obj:zlUIPanel):string {
-    let textAlign="";
-    if(obj.textAnchor && (obj.textAnchor.mode & EAnchor.X)) {
-        if(obj.textAnchor.x<0.25) {
-            textAlign="left";
-        }else if(obj.textAnchor.x>0.75) {
-            textAlign="right";
-        }else {
-            textAlign="center";
-        }
-    }else {
-        switch(obj.textAlignW) {
-        case Align.None:
-        case Align.Left:
-            textAlign="left";
-            break;
-        case Align.Center:
-            textAlign="center";
-            break;
-        case Align.Right:
-            textAlign="right";
-            break;
-        }
-    }
-    return textAlign;
-}
-
-
-function NotifyEdit(obj:zlUIPanel, text:string, type:string, accept:string,
-    x:number, y:number, w:number, h:number, textAlign:string="left"):Input {
-    let inp:Input;
-    let e:HTMLInputElement|HTMLTextAreaElement;
-    if(obj.isMultiline) {
-        inp=GetInput('textarea');
-        e=inp._dom_input as HTMLTextAreaElement;
-    }else {
-        inp=GetInput(type);
-        e=inp._dom_input as HTMLInputElement;
-        e.accept=accept;
-    }
-    e.style.textAlign=textAlign;
-    inp.setRect(x,y,w,h);
-    if(obj.font) {
-        let font=obj.font;
-        inp.setText(text, obj._uid, font);
-        e.style.font=font.CSS();
-    }
-    e.style.backgroundColor=to_cssrgb(obj.color);
-    e.style.color=to_cssrgb(obj.textColor);
-    e.oninput=null;
-    return inp;
+    setVisible:(b:boolean)=>void
 }
 
 interface IRange
@@ -3394,7 +3292,6 @@ interface IRange
     min_value:number
     max_value:number
     step:number
-
     rect:Rect
 }
 
@@ -3519,34 +3416,7 @@ export class zlUIEdit extends zlUIPanel implements IEditable
         super.OnNotify();
         if(this.type=='range')
             return;
-        let xy=this._screenRect.xy;
-        let inp:Input=NotifyEdit(this,this.text,this.type,this.accept, xy.x, xy.y, this.w, this.h, CSSTextAlign(this));
-        inp._dom_input.oninput=(e)=>{
-            let text=inp._dom_input.value;
-			if(this.on_before_edit)	{
-				text=this.on_before_edit(text);
-				inp._dom_input.value=text;
-			}
-            if(this.max_text_length&&this.max_text_length>0)    {
-                text=text.slice(0,this.max_text_length);
-            }
-            this.SetText(text);
-        }
-        inp.on_input=(e)=>{
-            this.SetText(e);
-            if(this.on_edit) {
-                this.on_edit(this);
-            }
-            if(this._owner.on_edit) {
-                this._owner.on_edit(this);
-            }
-            if(inp.isTab) {
-                this._owner.nextEdit=this;
-            }
-        }
-        inp.on_file=this.on_file;
-        this._owner.dom_input=inp;
-        console.log("OnNotify", this);
+        this._owner.backend.Notify(this);
     }
 
     isPassword:boolean=false;
@@ -3960,7 +3830,7 @@ export class zlUICombo extends zlUIButton
         this.combo_value=o.combo_value;
         this.popup_w=o.popup_w;
         this.max_popup_items=o.max_popup_items;
-        this.arrow_xy=Clone(o.arrow_xy);
+        this.arrow_xy.Copy(o.arrow_xy);
     }
     Clone(): zlUIWin {
         let obj=new zlUICombo(this._owner);
@@ -4514,7 +4384,7 @@ export class zlUIImageText extends zlUIWin
         this.image_font=o.image_font;
         this.ascii=Clone(o.ascii);
         this.font_space=o.font_space;
-        this.textAnchor=Clone(o.textAnchor);
+        this.textAnchor.Copy(o.textAnchor);
         this.text_width=o.text_width;
         this.text_height=o.text_height;
         this.color=o.color;
@@ -5919,17 +5789,17 @@ export class zlUIParticle extends zlUIWin
 }
 
 const DayOfMonth=[31,28,31,30,31,30,31,31,30,31,30,31];
-function IsLeapYear(year:number):boolean
+export function IsLeapYear(year:number):boolean
 {
     return (year%4==0 && year%100!=0) || (year%400==0);
 }
-function GetFirstDayOfMonth(year:number, month:number):number
+export function GetFirstDayOfMonth(year:number, month:number):number
 {
     let d=new Date(year, month, 1);
     return d.getDay();    
 }
 
-function PadStart(s:string, n:number, char:string):string
+export function PadStart(s:string, n:number, char:string):string
 {
     while(s.length<n) {
         s=char+s;
@@ -5937,7 +5807,7 @@ function PadStart(s:string, n:number, char:string):string
     return s;
 }
 
-function DateFormat(date:string):string
+export function DateFormat(date:string):string
 {
     let d=new Date(date);
     let month_str=PadStart(`${d.getMonth()+1}`,2, "0");
@@ -7711,8 +7581,8 @@ export class zlUIMgr extends zlUIWin
             }
         }
         else if(this.drag)   {
-            this.drag.x=this.drag_x+this.mouse_pos.x-this.first_pos_x;
-            this.drag.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
+            this.drag.x=this.drag_x+(this.mouse_pos.x-this.first_pos_x)/this.scale.x;
+            this.drag.y=this.drag_y+(this.mouse_pos.y-this.first_pos_y)/this.scale.y;
             this.LimitRect(this.drag);
             this.drag.SetCalRect();
             if(!isDown) {
@@ -7720,8 +7590,8 @@ export class zlUIMgr extends zlUIWin
             }
         }
         if(this.drag_drop) {
-            this.drag_drop.x=this.drag_x+this.mouse_pos.x-this.first_pos_x;
-            this.drag_drop.y=this.drag_y+this.mouse_pos.y-this.first_pos_y;
+            this.drag_drop.x=this.drag_x+(this.mouse_pos.x-this.first_pos_x)/this.scale.x;
+            this.drag_drop.y=this.drag_y+(this.mouse_pos.y-this.first_pos_y)/this.scale.y;
             this.drag_drop.SetCalRect();
             this.drag_drop.Refresh(ti, this);
 
@@ -7825,12 +7695,17 @@ export class zlUIMgr extends zlUIWin
         return name;
     }
 
-    CreateFont(name:string, size:number, style:string):IFont {
+    CreateFont(name:string, size:number, style:string, stroke?:IStroke, shadow?:IShadow):IFont {
         name=this.ReplaceFontName(name);
-        let font=this.fonts.find(v=>v.name==name && v.size==size && v.style==style);
+        let font=this.fonts.find(
+            v=>v.name==name &&
+            v.size==size && 
+            v.style==style && 
+            StrokeEqual(stroke, v.stroke) &&
+            ShadowEqual(shadow, v.shadow));
         if(font) 
             return font;        
-        font=this.backend.CreateFont(name, size, style);
+        font=this.backend.CreateFont(name, size, style, stroke, shadow);
         this.fonts.push(font);
         return font;
     }
@@ -8118,7 +7993,7 @@ export class zlUIMgr extends zlUIWin
     hint_pos:Vec2=new Vec2();
 
     default_panel_color:number=0xffebebeb;
-    dom_input?:Input;
+    dom_input?:IDOMInput;
     nextEdit?:IEditable;
 
     track:zlTrackMgr;
