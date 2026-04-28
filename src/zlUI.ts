@@ -1302,7 +1302,9 @@ export function ParseBlend(name:string):number
 export function Clone(o:any):any
 {
     if(o) {
-        if(typeof o === 'object') {
+        if(Array.isArray(o)) {
+        }
+        else if(typeof o === 'object') {
             let c=Object.create(Object.getPrototypeOf(o));
             Object.assign(c, o);
             return c;
@@ -5024,6 +5026,7 @@ export class zlUILabelEdit extends zlUIPanel
     }
 
     CalRect(parent: zlUIWin): void {
+        super.CalRect(parent);
         let label:zlUIPanel|undefined=this.ui_label;
         if(label === undefined) {
             label=this.CreateUILabel();
@@ -5033,6 +5036,7 @@ export class zlUILabelEdit extends zlUIPanel
         if(label.text!=this.label) {
             label.SetText(this.label);
         }
+
         let labelpadding2=this.label_padding+this.label_padding;
         let padding2=this.padding+this.padding;
         label.x=this.padding+this.label_padding;
@@ -5158,7 +5162,6 @@ export class zlUILabelEdit extends zlUIPanel
                 x+=item_width;
             }
         }
-        super.CalRect(parent);
     }
 
     SetValue(value:any, index:number) {
@@ -5232,7 +5235,7 @@ export class zlUILabelEdit extends zlUIPanel
         this.items=items;
         this.Input(value, "combo", callback, label);
     }
-    Check(value:boolean[], items:string[], callback:(data:any)=>void, label?:string) {
+    Check(value:boolean[], items:string[]|undefined, callback:(data:any)=>void, label?:string) {
         this.items=items;
         this.Input(value, "check", callback, label);
     }

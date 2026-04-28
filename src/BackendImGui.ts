@@ -564,8 +564,19 @@ export class Input implements IDOMInput
         //input.classList.add("Panel");
         //input.value="123";
 
-        input.addEventListener('blur', (e)=>{this.onLostFocus(e)})
-        input.addEventListener('keydown', (e)=>{this.onKeydown(e as KeyboardEvent)})
+        input.onblur=(e)=>{
+            if(this.on_input)   {
+                this.on_input(this._dom_input.value);
+            }
+            this.setVisible(false);        
+        }
+        input.onkeydown=(e)=>{
+            if(e.key=="Tab")    {
+                this.isTab=true;
+                e.preventDefault();
+                this.setVisible(false);
+            }
+        }
         input.onchange=(e)=>{
             if(type=='file' && this.on_file) {                
                 let inp=input as HTMLInputElement;
@@ -588,38 +599,21 @@ export class Input implements IDOMInput
     on_visible?: ((this: Input, visible: boolean) => any); 
     on_file?: (file:File)=>void;
 
-    onLostFocus(e:Event)
-    {
-        if(this.on_input)   {
-            this.on_input(this._dom_input.value);
-        }
-        this.setVisible(false);        
-    }
-    onKeydown(e:KeyboardEvent)
-    {
-        if(e.key=="Tab")    {
-            this.isTab=true;
-            e.preventDefault();
-            this.setVisible(false);
-        }
-    }
-
-    public isMe(id:number):boolean {
+    isMe(id:number):boolean {
         return this.isVisible && this._id==id;
     }
-
-    public get Text():string {
+    get Text():string {
         return this._dom_input.value;
     }
-    public setRect(x:number, y:number, w:number, h:number)
+    setRect(x:number, y:number, w:number, h:number)
     {
         let input=this._dom_input;
-        input.style.left=x + 'px';
-        input.style.top=y + 'px';
-        input.style.width=Math.floor(w) -5 + 'px';
-        input.style.height=Math.floor(h) -5 + 'px';
+        input.style.left=`${x}px`;
+        input.style.top=`${y}px`;
+        input.style.width=`${Math.floor(w)-5}px`;
+        input.style.height=`${Math.floor(h)-5}px`;
     }
-    public setText(text:string, id:number, font:IFont)
+    setText(text:string, id:number, font:IFont)
     {
         this._id=id;
         let input=this._dom_input;
@@ -629,7 +623,7 @@ export class Input implements IDOMInput
         }
         this.setVisible(true);
     }
-    public setVisible(b:boolean)
+    setVisible(b:boolean)
     {
         let input=this._dom_input;
         if(b) {
